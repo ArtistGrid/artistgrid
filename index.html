@@ -14,33 +14,39 @@
     <meta property="og:image" content="assets/website/trackerhub.png" />
     <meta property="og:url" content="https://artistgrid.cx/" />
 </head>
+<body>  <button id="toggle-disclaimer" onclick="toggleDisclaimer()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="28" viewBox="0 0 30 30">
+      <g fill="#ffffff">
+        <rect width="30" height="4" rx="2"></rect>
+        <rect y="12" width="30" height="4" rx="2"></rect>
+        <rect y="24" width="30" height="4" rx="2"></rect>
+      </g>
+    </svg>
+  </button>
 
-<body>
-    <div style="padding:10px;text-align:center;font-size: 0.875em;">
+    <div id="disclaimer-container" class="disclaimer">
         This website is owned & maintained by <a href="https://discord.com/users/454283756258197544"
-            target="_blank">justAMZ</a>.
+            target="_blank">justAMZ</a> and <a href="https://prigoana.com"
+            target="_blank">eduardprigoana</a>.
         All original trackers referenced on this site can be found in this <a
             href="https://trackerhub.cx/sh/1zoOIaNbBvfuL3sS3824acpqGxOdSZSIHM8-nI9C-Vfc"
             target="_blank">Google Sheet</a>.
         No content is owned, managed, or hosted by the Artist Grid or TrackerHub.
         Credits to <a href="https://github.com/gridguy101/gridthing" target="_blank">GridGuy101</a>
-        for making the original website template.
-        note: If a tracker somehow is blank/has very little content, try clicking the "this google sheet" link at the top of the page.
-     </div>
-    <div style="text-align: center; margin-top: 25px;">
-        <h1 style="color: #dfdfdf; margin-top: 50px; font-family: 'Segoe UI', sans-serif; font-size: 2.5em;">
-            TrackerHub Artist Grid
-        </h1>
+        for making the original website template.<br>
+        Note: If a tracker somehow is blank/has very little content, try clicking the "this google sheet" link at the top of the page.
     </div>
-    <div style="width: 100%;display: flex;justify-content: center;">
-        <div
-            style="display: flex;justify-content: center;margin-top: 20px;height: 40px;width: 90%;max-width: 1168px;border-radius: 20px;border: solid 2px #404040;background-color: #101010;">
-            <input placeholder="Search for trackers" oninput="search(this.value);"
-                style="width: 97.5%;border: none;background: none;outline: none;color: #bfbfbf;">
+
+    <div class="header-container">
+        <h1 class="header-title">TrackerHub Artist Grid</h1>
+    </div>
+
+    <div class="search-bar-wrapper">
+        <div class="search-bar">
+            <input placeholder="Search for trackers" oninput="search(this.value);">
         </div>
     </div>
-    <div>
-    </div>
+
     <div id="button-grid">
         
         <button class="button" onclick="window.open('https://trackerhub.cx/sh/1RhaRte-A_4LFzB6JnKJHzdTbDEq0MmGRMp1sj7sFRgg')">
@@ -55,7 +61,6 @@
             <img src="assets/images/suicideboys.png">
             <div class="button-text">
                 <h2>$uicideboy$</h2>
-                <p></p>
             </div>
         </button>
 
@@ -64,7 +69,6 @@
             <img src="assets/images/1oneam.png">
             <div class="button-text">
                 <h2>1oneam</h2>
-                <p></p>
             </div>
         </button>
 
@@ -73,7 +77,6 @@
             <img src="assets/images/21savage.png">
             <div class="button-text">
                 <h2>21 Savage</h2>
-                <p></p>
             </div>
         </button>
 
@@ -82,7 +85,6 @@
             <img src="assets/images/24kgoldn.png">
             <div class="button-text">
                 <h2>24kGoldn</h2>
-                <p></p>
             </div>
         </button>
 
@@ -90,7 +92,6 @@
             <img src="assets/images/2pac.png">
             <div class="button-text">
                 <h2>2Pac</h2>
-                <p></p>
             </div>
         </button>
 
@@ -99,7 +100,6 @@
             <img src="assets/images/6lack.png">
             <div class="button-text">
                 <h2>6LACK</h2>
-                <p></p>
             </div>
         </button>
 
@@ -107,7 +107,6 @@
             <img src="assets/images/6vib3z.png">
             <div class="button-text">
                 <h2>6Vib3z</h2>
-                <p></p>
             </div>
         </button>
 
@@ -116,7 +115,6 @@
             <img src="assets/images/asapferg.png">
             <div class="button-text">
                 <h2>A$AP Ferg</h2>
-                <p></p>
             </div>
         </button>
 
@@ -124,7 +122,6 @@
             <img src="assets/images/asaprocky.png">
             <div class="button-text">
                 <h2>A$AP Rocky</h2>
-                <p></p>
             </div>
         </button>
 
@@ -139,7 +136,6 @@
             <img src="assets/images/addisonrae.png">
             <div class="button-text">
                 <h2>Addison Rae</h2>
-                <p></p>
             </div>
         </button>
 
@@ -148,7 +144,6 @@
             <img src="assets/images/ameervann.png">
             <div class="button-text">
                 <h2>Ameer Vann</h2>
-                <p></p>
             </div>
         </button>
 
@@ -157,7 +152,6 @@
             <img src="assets/images/andre3000.png">
             <div class="button-text">
                 <h2>Andre 3000/Outkast</h2>
-                <p></p>
             </div>
         </button>
 
@@ -166,7 +160,6 @@
             <img src="assets/images/antclemons.png">
             <div class="button-text">
                 <h2>Ant Clemons</h2>
-                <p></p>
             </div>
         </button>
 
@@ -175,7 +168,6 @@
             <img src="assets/images/arca.png">
             <div class="button-text">
                 <h2>Arca</h2>
-                <p></p>
             </div>
         </button>
 
@@ -183,7 +175,6 @@
             <img src="assets/images/arianagrande.png">
             <div class="button-text">
                 <h2>Ariana Grande</h2>
-                <p></p>
             </div>
         </button>
 
@@ -191,7 +182,6 @@
             <img src="assets/images/aries.png">
             <div class="button-text">
                 <h2>Aries</h2>
-                <p></p>
             </div>
         </button>
 
@@ -199,7 +189,6 @@
             <img src="assets/images/ashnikko.png">
             <div class="button-text">
                 <h2>Ashnikko</h2>
-                <p></p>
             </div>
         </button>
 
@@ -208,7 +197,6 @@
             <img src="assets/images/ateyaba.png">
             <div class="button-text">
                 <h2>ATEYABA</h2>
-                <p></p>
             </div>
         </button>
 
@@ -216,7 +204,6 @@
             <img src="assets/images/aurora.png">
             <div class="button-text">
                 <h2>Aurora</h2>
-                <p></p>
             </div>
         </button>
 
@@ -224,7 +211,6 @@
             <img src="assets/images/autumn.png">
             <div class="button-text">
                 <h2>Autumn!</h2>
-                <p></p>
             </div>
         </button>
 
@@ -233,7 +219,6 @@
             <img src="assets/images/avicii.png">
             <div class="button-text">
                 <h2>Avicii</h2>
-                <p></p>
             </div>
         </button>
 
@@ -241,7 +226,6 @@
             <img src="assets/images/avrillavigne.png">
             <div class="button-text">
                 <h2>Avril Lavigne</h2>
-                <p></p>
             </div>
         </button>
 
@@ -250,7 +234,6 @@
             <img src="assets/images/ayeshaerotica.png">
             <div class="button-text">
                 <h2>Ayesha Erotica</h2>
-                <p></p>
             </div>
         </button>
 
@@ -258,7 +241,6 @@
             <img src="assets/images/babykeem.png">
             <div class="button-text">
                 <h2>Baby Keem</h2>
-                <p></p>
             </div>
         </button>
 
@@ -266,7 +248,6 @@
             <img src="assets/images/badbunny.png">
             <div class="button-text">
                 <h2>Bad Bunny</h2>
-                <p></p>
             </div>
         </button>
 
@@ -274,7 +255,6 @@
             <img src="assets/images/beberexha.png">
             <div class="button-text">
                 <h2>Bebe Rexha</h2>
-                <p></p>
             </div>
         </button>
 
@@ -282,7 +262,6 @@
             <img src="assets/images/beyonce.png">
             <div class="button-text">
                 <h2>Beyoncé &amp; Destiny's Child</h2>
-                <p></p>
             </div>
         </button>
 
@@ -290,7 +269,6 @@
             <img src="assets/images/bigl.png">
             <div class="button-text">
                 <h2>Big L</h2>
-                <p></p>
             </div>
         </button>
 
@@ -299,7 +277,6 @@
             <img src="assets/images/bigsean.png">
             <div class="button-text">
                 <h2>Big Sean</h2>
-                <p></p>
             </div>
         </button>
 
@@ -307,7 +284,6 @@
             <img src="assets/images/billieeilish.png">
             <div class="button-text">
                 <h2>Billie Eilish</h2>
-                <p></p>
             </div>
         </button>
 
@@ -316,7 +292,6 @@
             <img src="assets/images/blackkray.png">
             <div class="button-text">
                 <h2>Black Kray</h2>
-                <p></p>
             </div>
         </button>
 
@@ -324,7 +299,6 @@
             <img src="assets/images/bladee.png">
             <div class="button-text">
                 <h2>Bladee</h2>
-                <p></p>
             </div>
         </button>
 
@@ -333,7 +307,6 @@
             <img src="assets/images/bloodorange.png">
             <div class="button-text">
                 <h2>Blood Orange</h2>
-                <p></p>
             </div>
         </button>
 
@@ -341,7 +314,6 @@
             <img src="assets/images/boniver.png">
             <div class="button-text">
                 <h2>Bon Iver</h2>
-                <p></p>
             </div>
         </button>
 
@@ -349,7 +321,6 @@
             <img src="assets/images/bonniemckee.png">
             <div class="button-text">
                 <h2>Bonnie McKee</h2>
-                <p></p>
             </div>
         </button>
 
@@ -357,7 +328,6 @@
             <img src="assets/images/brentfaiyaz.png">
             <div class="button-text">
                 <h2>Brent Faiyaz</h2>
-                <p></p>
             </div>
         </button>
 
@@ -366,7 +336,6 @@
             <img src="assets/images/britneyspears.png">
             <div class="button-text">
                 <h2>Britney Spears</h2>
-                <p></p>
             </div>
         </button>
 
@@ -374,7 +343,6 @@
             <img src="assets/images/brockhampton.png">
             <div class="button-text">
                 <h2>BROCKHAMPTON</h2>
-                <p></p>
             </div>
         </button>
 
@@ -382,7 +350,6 @@
             <img src="assets/images/brysontiller.png">
             <div class="button-text">
                 <h2>Bryson Tiller</h2>
-                <p></p>
             </div>
         </button>
 
@@ -391,7 +358,6 @@
             <img src="assets/images/bigtimerush.png">
             <div class="button-text">
                 <h2>Big Time Rush</h2>
-                <p></p>
             </div>
         </button>
 
@@ -399,7 +365,6 @@
             <img src="assets/images/camillacabello.png">
             <div class="button-text">
                 <h2>Camilla Cabello</h2>
-                <p></p>
             </div>
         </button>
 
@@ -408,7 +373,6 @@
             <img src="assets/images/carseatheadrest.png">
             <div class="button-text">
                 <h2>Car Seat Headrest</h2>
-                <p></p>
             </div>
         </button>
 
@@ -417,7 +381,6 @@
             <img src="assets/images/cardib.png">
             <div class="button-text">
                 <h2>Cardi B</h2>
-                <p></p>
             </div>
         </button>
 
@@ -425,7 +388,6 @@
             <img src="assets/images/carlyraejepsen.png">
             <div class="button-text">
                 <h2>Carly Rae Jepsen</h2>
-                <p></p>
             </div>
         </button>
 
@@ -434,7 +396,6 @@
             <img src="assets/images/centralcee.png">
             <div class="button-text">
                 <h2>Central Cee</h2>
-                <p></p>
             </div>
         </button>
 
@@ -442,7 +403,6 @@
             <img src="assets/images/chancetherapper.png">
             <div class="button-text">
                 <h2>Chance The Rapper</h2>
-                <p></p>
             </div>
         </button>
 
@@ -450,7 +410,6 @@
             <img src="assets/images/chappellroan.png">
             <div class="button-text">
                 <h2>Chappell Roan</h2>
-                <p></p>
             </div>
         </button>
 
@@ -458,7 +417,6 @@
             <img src="assets/images/charlixcx.png">
             <div class="button-text">
                 <h2>Charli XCX</h2>
-                <p></p>
             </div>
         </button>
 
@@ -467,7 +425,6 @@
             <img src="assets/images/charlieputh.png">
             <div class="button-text">
                 <h2>Charlie Puth</h2>
-                <p></p>
             </div>
         </button>
 
@@ -476,7 +433,6 @@
             <img src="assets/images/chasesynx.png">
             <div class="button-text">
                 <h2>ChaseSYNX</h2>
-                <p></p>
             </div>
         </button>
 
@@ -484,7 +440,6 @@
             <img src="assets/images/che.png">
             <div class="button-text">
                 <h2>Che</h2>
-                <p></p>
             </div>
         </button>
 
@@ -492,7 +447,6 @@
             <img src="assets/images/chiefkeef.png">
             <div class="button-text">
                 <h2>Chief Keef</h2>
-                <p></p>
             </div>
         </button>
 
@@ -500,7 +454,6 @@
             <img src="assets/images/childishgambino.png">
             <div class="button-text">
                 <h2>Childish Gambino</h2>
-                <p></p>
             </div>
         </button>
 
@@ -509,7 +462,6 @@
             <img src="assets/images/chrisbrown.png">
             <div class="button-text">
                 <h2>Chris Brown</h2>
-                <p></p>
             </div>
         </button>
 
@@ -518,7 +470,6 @@
             <img src="assets/images/clairodjbabybenz.png">
             <div class="button-text">
                 <h2>Clairo/DJ Baby Benz</h2>
-                <p></p>
             </div>
         </button>
 
@@ -526,7 +477,6 @@
             <img src="assets/images/clamscasino.png">
             <div class="button-text">
                 <h2>Clams Casino</h2>
-                <p></p>
             </div>
         </button>
 
@@ -535,7 +485,6 @@
             <img src="assets/images/conangray.png">
             <div class="button-text">
                 <h2>Conan Gray</h2>
-                <p></p>
             </div>
         </button>
 
@@ -543,7 +492,6 @@
             <img src="assets/images/creamernation.png">
             <div class="button-text">
                 <h2>Creamer Nation</h2>
-                <p></p>
             </div>
         </button>
 
@@ -552,7 +500,6 @@
             <img src="assets/images/dsavage.png">
             <div class="button-text">
                 <h2>D Savage</h2>
-                <p></p>
             </div>
         </button>
 
@@ -561,7 +508,6 @@
             <img src="assets/images/daftpunk.png">
             <div class="button-text">
                 <h2>Daft Punk</h2>
-                <p></p>
             </div>
         </button>
 
@@ -569,7 +515,6 @@
             <img src="assets/images/danielcaesar.png">
             <div class="button-text">
                 <h2>Daniel Caesar</h2>
-                <p></p>
             </div>
         </button>
 
@@ -577,7 +522,6 @@
             <img src="assets/images/dannybrown.png">
             <div class="button-text">
                 <h2>Danny Brown</h2>
-                <p></p>
             </div>
         </button>
 
@@ -585,7 +529,6 @@
             <img src="assets/images/deathgrips.png">
             <div class="button-text">
                 <h2>Death Grips</h2>
-                <p></p>
             </div>
         </button>
 
@@ -593,7 +536,6 @@
             <img src="assets/images/deftones.png">
             <div class="button-text">
                 <h2>Deftones</h2>
-                <p></p>
             </div>
         </button>
 
@@ -601,7 +543,6 @@
             <img src="assets/images/demilovato.png">
             <div class="button-text">
                 <h2>Demi Lovato</h2>
-                <p></p>
             </div>
         </button>
 
@@ -609,7 +550,6 @@
             <img src="assets/images/destroylonely.png">
             <div class="button-text">
                 <h2>Destroy Lonely</h2>
-                <p></p>
             </div>
         </button>
 
@@ -617,7 +557,6 @@
             <img src="assets/images/dixiedamelio.png">
             <div class="button-text">
                 <h2>Dixie D'Amelio</h2>
-                <p></p>
             </div>
         </button>
 
@@ -625,7 +564,6 @@
             <img src="assets/images/doechii.png">
             <div class="button-text">
                 <h2>Doechii</h2>
-                <p></p>
             </div>
         </button>
 
@@ -633,7 +571,6 @@
             <img src="assets/images/dojacat.png">
             <div class="button-text">
                 <h2>Doja Cat</h2>
-                <p></p>
             </div>
         </button>
 
@@ -642,7 +579,6 @@
             <img src="assets/images/dominicfike.png">
             <div class="button-text">
                 <h2>Dominic Fike</h2>
-                <p></p>
             </div>
         </button>
 
@@ -650,7 +586,6 @@
             <img src="assets/images/dontoliver.png">
             <div class="button-text">
                 <h2>Don Toliver</h2>
-                <p></p>
             </div>
         </button>
 
@@ -659,7 +594,6 @@
             <img src="assets/images/drdreaftermath.png">
             <div class="button-text">
                 <h2>Dr. Dre & Aftermath</h2>
-                <p></p>
             </div>
         </button>
 
@@ -667,7 +601,6 @@
             <img src="assets/images/drake.png">
             <div class="button-text">
                 <h2>Drake</h2>
-                <p></p>
             </div>
         </button>
 
@@ -676,7 +609,6 @@
             <img src="assets/images/dream.png">
             <div class="button-text">
                 <h2>Dream</h2>
-                <p></p>
             </div>
         </button>
 
@@ -684,7 +616,6 @@
             <img src="assets/images/dualipa.png">
             <div class="button-text">
                 <h2>Dua Lipa</h2>
-                <p></p>
             </div>
         </button>
 
@@ -692,7 +623,6 @@
             <img src="assets/images/earlsweatshirt.png">
             <div class="button-text">
                 <h2>Earl Sweatshirt</h2>
-                <p></p>
             </div>
         </button>
 
@@ -701,7 +631,6 @@
             <img src="assets/images/ecco2k.png">
             <div class="button-text">
                 <h2>Ecco2k</h2>
-                <p></p>
             </div>
         </button>
 
@@ -710,7 +639,6 @@
             <img src="assets/images/edwardskeletrix.png">
             <div class="button-text">
                 <h2>Edward Skeletrix</h2>
-                <p></p>
             </div>
         </button>
 
@@ -718,7 +646,6 @@
             <img src="assets/images/elitaharkov.png">
             <div class="button-text">
                 <h2>Elita Harkov</h2>
-                <p></p>
             </div>
         </button>
 
@@ -726,7 +653,6 @@
             <img src="assets/images/eminem.png">
             <div class="button-text">
                 <h2>Eminem</h2>
-                <p></p>
             </div>
         </button>
 
@@ -734,7 +660,6 @@
             <img src="assets/images/ericdoa.png">
             <div class="button-text">
                 <h2>ericdoa</h2>
-                <p></p>
             </div>
         </button>
 
@@ -742,7 +667,6 @@
             <img src="assets/images/ethelcain.png">
             <div class="button-text">
                 <h2>Ethel Cain</h2>
-                <p></p>
             </div>
         </button>
 
@@ -751,7 +675,6 @@
             <img src="assets/images/fettywap.png">
             <div class="button-text">
                 <h2>Fetty Wap</h2>
-                <p></p>
             </div>
         </button>
 
@@ -760,7 +683,6 @@
             <img src="assets/images/fifthharmony.png">
             <div class="button-text">
                 <h2>Fifth Harmony</h2>
-                <p></p>
             </div>
         </button>
 
@@ -768,7 +690,6 @@
             <img src="assets/images/fivioforeign.png">
             <div class="button-text">
                 <h2>Fivio Foreign</h2>
-                <p></p>
             </div>
         </button>
 
@@ -776,7 +697,6 @@
             <img src="assets/images/flo.png">
             <div class="button-text">
                 <h2>FLO</h2>
-                <p></p>
             </div>
         </button>
 
@@ -784,7 +704,6 @@
             <img src="assets/images/frankocean.png">
             <div class="button-text">
                 <h2>Frank Ocean</h2>
-                <p></p>
             </div>
         </button>
 
@@ -793,7 +712,6 @@
             <img src="assets/images/fredagain.png">
             <div class="button-text">
                 <h2>Fred Again..</h2>
-                <p></p>
             </div>
         </button>
 
@@ -802,7 +720,6 @@
             <img src="assets/images/freddiedredd.png">
             <div class="button-text">
                 <h2>Freddie Dredd</h2>
-                <p></p>
             </div>
         </button>
 
@@ -810,7 +727,6 @@
             <img src="assets/images/freddiegibbs.png">
             <div class="button-text">
                 <h2>Freddie Gibbs</h2>
-                <p></p>
             </div>
         </button>
 
@@ -826,7 +742,6 @@
             <img src="assets/images/goatmusic.png">
             <div class="button-text">
                 <h2>G.O.A.T. Music</h2>
-                <p></p>
             </div>
         </button>
 
@@ -834,7 +749,6 @@
             <img src="assets/images/glaive.png">
             <div class="button-text">
                 <h2>Glaive</h2>
-                <p></p>
             </div>
         </button>
 
@@ -842,7 +756,6 @@
             <img src="assets/images/gracieabrams.png">
             <div class="button-text">
                 <h2>Gracie Abrams</h2>
-                <p></p>
             </div>
         </button>
 
@@ -864,7 +777,6 @@
             <img src="assets/images/her.png">
             <div class="button-text">
                 <h2>H.E.R.</h2>
-                <p></p>
             </div>
         </button>
 
@@ -873,7 +785,6 @@
             <img src="assets/images/halsey.png">
             <div class="button-text">
                 <h2>Halsey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -881,7 +792,6 @@
             <img src="assets/images/harrystyles.png">
             <div class="button-text">
                 <h2>Harry Styles</h2>
-                <p></p>
             </div>
         </button>
 
@@ -890,7 +800,6 @@
             <img src="assets/images/hauntedmound.png">
             <div class="button-text">
                 <h2>Haunted Mound</h2>
-                <p></p>
             </div>
         </button>
 
@@ -898,7 +807,6 @@
             <img src="assets/images/hxg.png">
             <div class="button-text">
                 <h2>Homoxide Gang (HXG)</h2>
-                <p></p>
             </div>
         </button>
 
@@ -906,7 +814,6 @@
             <img src="assets/images/ian.png">
             <div class="button-text">
                 <h2>ian</h2>
-                <p></p>
             </div>
         </button>
 
@@ -915,7 +822,6 @@
             <img src="assets/images/ianndior.png">
             <div class="button-text">
                 <h2>Iann Dior</h2>
-                <p></p>
             </div>
         </button>
 
@@ -924,7 +830,6 @@
             <img src="assets/images/icespice.png">
             <div class="button-text">
                 <h2>Ice Spice</h2>
-                <p></p>
             </div>
         </button>
 
@@ -933,7 +838,6 @@
             <img src="assets/images/iggyazalea.png">
             <div class="button-text">
                 <h2>Iggy Azalea</h2>
-                <p></p>
             </div>
         </button>
 
@@ -941,7 +845,6 @@
             <img src="assets/images/imaginedragons.png">
             <div class="button-text">
                 <h2>Imagine Dragons</h2>
-                <p></p>
             </div>
         </button>
 
@@ -949,7 +852,6 @@
             <img src="assets/images/internationaljefe.png">
             <div class="button-text">
                 <h2>International Jefe</h2>
-                <p></p>
             </div>
         </button>
 
@@ -957,7 +859,6 @@
             <img src="assets/images/isaiahrashad.png">
             <div class="button-text">
                 <h2>Isaiah Rashad</h2>
-                <p></p>
             </div>
         </button>
 
@@ -966,7 +867,6 @@
             <img src="assets/images/ishowspeed.png">
             <div class="button-text">
                 <h2>IShowSpeed</h2>
-                <p></p>
             </div>
         </button>
 
@@ -974,7 +874,6 @@
             <img src="assets/images/jcole.png">
             <div class="button-text">
                 <h2>J. Cole</h2>
-                <p></p>
             </div>
         </button>
 
@@ -983,7 +882,6 @@
             <img src="assets/images/jackstauber.png">
             <div class="button-text">
                 <h2>Jack Stauber</h2>
-                <p></p>
             </div>
         </button>
 
@@ -991,7 +889,6 @@
             <img src="assets/images/jaipaul.png">
             <div class="button-text">
                 <h2>Jai Paul</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1000,7 +897,6 @@
             <img src="assets/images/jakechudnow.png">
             <div class="button-text">
                 <h2>Jake Chudnow</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1008,7 +904,6 @@
             <img src="assets/images/jamesblake.png">
             <div class="button-text">
                 <h2>James Blake</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1017,7 +912,6 @@
             <img src="assets/images/jasonmalachi.png">
             <div class="button-text">
                 <h2>Jason Malachi</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1026,7 +920,6 @@
             <img src="assets/images/jaycritch.png">
             <div class="button-text">
                 <h2>Jay Critch</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1035,7 +928,6 @@
             <img src="assets/images/jayelectronica.png">
             <div class="button-text">
                 <h2>Jay Electronica</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1043,7 +935,6 @@
         <img src="assets/images/jayz.png">
         <div class="button-text">
             <h2>Jay-Z</h2>
-            <p></p>
         </div>
     </button>
 
@@ -1051,7 +942,6 @@
             <img src="assets/images/jaydes.png">
             <div class="button-text">
                 <h2>Jaydes</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1059,7 +949,6 @@
             <img src="assets/images/jazminbean.png">
             <div class="button-text">
                 <h2>Jazmin Bean</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1068,7 +957,6 @@
             <img src="assets/images/jeleel.png">
             <div class="button-text">
                 <h2>Jeleel</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1077,7 +965,6 @@
             <img src="assets/images/jenniferlopez.png">
             <div class="button-text">
                 <h2>Jennifer Lopez</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1086,7 +973,6 @@
             <img src="assets/images/jeremih.png">
             <div class="button-text">
                 <h2>Jeremih</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1094,7 +980,6 @@
             <img src="assets/images/jid.png">
             <div class="button-text">
                 <h2>JID</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1103,7 +988,6 @@
             <img src="assets/images/joeyvalencebrae.png">
             <div class="button-text">
                 <h2>Joey Valence & Brae</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1111,7 +995,6 @@
             <img src="assets/images/joji.png">
             <div class="button-text">
                 <h2>Joji</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1119,7 +1002,6 @@
             <img src="assets/images/jpegmafia.png">
             <div class="button-text">
                 <h2>JPEGMAFIA</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1127,7 +1009,6 @@
     <img src="assets/images/juicewrld.png">
     <div class="button-text">
         <h2>Juice WRLD</h2>
-        <p></p>
     </div>
 </button>
 
@@ -1136,7 +1017,6 @@
             <img src="assets/images/juliamichaels.png">
             <div class="button-text">
                 <h2>Julia Michaels</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1144,7 +1024,6 @@
             <img src="assets/images/justintimberlake.png">
             <div class="button-text">
                 <h2>Justin Timberlake</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1153,7 +1032,6 @@
             <img src="assets/images/justxnpaul.png">
             <div class="button-text">
                 <h2>Justxn Paul</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1161,7 +1039,6 @@
             <img src="assets/images/jvke.png">
             <div class="button-text">
                 <h2>JVKE</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1170,7 +1047,6 @@
             <img src="assets/images/kaceymusgraves.png">
             <div class="button-text">
                 <h2>Kacey Musgraves</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1185,7 +1061,6 @@
             <img src="assets/images/karrahbooo.png">
             <div class="button-text">
                 <h2>Karrahbooo</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1193,7 +1068,6 @@
             <img src="assets/images/katyperry.png">
             <div class="button-text">
                 <h2>Katy Perry</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1201,7 +1075,6 @@
             <img src="assets/images/kayflock.png">
             <div class="button-text">
                 <h2>Kay Flock</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1209,7 +1082,6 @@
             <img src="assets/images/kaycyy.png">
             <div class="button-text">
                 <h2>Kaycyy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1217,7 +1089,6 @@
             <img src="assets/images/kencarson.png">
             <div class="button-text">
                 <h2>Ken Carson</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1225,7 +1096,6 @@
             <img src="assets/images/kendricklamar.png">
             <div class="button-text">
                 <h2>Kendrick Lamar</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1233,7 +1103,6 @@
             <img src="assets/images/kidcudi.png">
             <div class="button-text">
                 <h2>Kid Cudi</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1242,7 +1111,6 @@
             <img src="assets/images/kiesza.png">
             <div class="button-text">
                 <h2>Kiesza</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1250,7 +1118,6 @@
             <img src="assets/images/kimpetras.png">
             <div class="button-text">
                 <h2>Kim Petras</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1259,7 +1126,6 @@
             <img src="assets/images/kingvon.png">
             <div class="button-text">
                 <h2>King Von</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1268,7 +1134,6 @@
             <img src="assets/images/kodakblack.png">
             <div class="button-text">
                 <h2>Kodak Black</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1277,7 +1142,6 @@
             <img src="assets/images/ksi.png">
             <div class="button-text">
                 <h2>KSI</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1285,7 +1149,6 @@
             <img src="assets/images/kygo.png">
             <div class="button-text">
                 <h2>Kygo</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1294,7 +1157,6 @@
             <img src="assets/images/labrinth.png">
             <div class="button-text">
                 <h2>Labrinth</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1302,7 +1164,6 @@
             <img src="assets/images/ladygaga.png">
             <div class="button-text">
                 <h2>Lady Gaga</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1310,7 +1171,6 @@
             <img src="assets/images/lanadelrey.png">
             <div class="button-text">
                 <h2>Lana Del Rey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1318,7 +1178,6 @@
             <img src="assets/images/lanceyfoux.png">
             <div class="button-text">
                 <h2>Lancey Foux</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1326,7 +1185,6 @@
             <img src="assets/images/laufey.png">
             <div class="button-text">
                 <h2>Laufey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1335,7 +1193,6 @@
             <img src="assets/images/laurenjauregui.png">
             <div class="button-text">
                 <h2>Lauren Jauregui</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1343,7 +1200,6 @@
             <img src="assets/images/lawson.png">
             <div class="button-text">
                 <h2>Lawson</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1352,7 +1208,6 @@
             <img src="assets/images/lazerdim700.png">
             <div class="button-text">
                 <h2>LAZER DIM 700</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1360,7 +1215,6 @@
             <img src="assets/images/leahkate.png">
             <div class="button-text">
                 <h2>Leah Kate</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1369,7 +1223,6 @@
             <img src="assets/images/lildicky.png">
             <div class="button-text">
                 <h2>Lil Dicky</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1378,7 +1231,6 @@
             <img src="assets/images/lildurk.png">
             <div class="button-text">
                 <h2>Lil Durk</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1387,7 +1239,6 @@
             <img src="assets/images/lilgotit.png">
             <div class="button-text">
                 <h2>Lil Gotit</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1396,7 +1247,6 @@
             <img src="assets/images/lilmabu.png">
             <div class="button-text">
                 <h2>Lil Mabu</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1405,7 +1255,6 @@
             <img src="assets/images/lilmosey.png">
             <div class="button-text">
                 <h2>Lil Mosey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1413,7 +1262,6 @@
             <img src="assets/images/lilnasx.png">
             <div class="button-text">
                 <h2>Lil Nas X</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1422,7 +1270,6 @@
             <img src="assets/images/lilpeep.png">
             <div class="button-text">
                 <h2>LiL PEEP</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1430,7 +1277,6 @@
             <img src="assets/images/lilpump.png">
             <div class="button-text">
                 <h2>Lil Pump</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1439,7 +1285,6 @@
             <img src="assets/images/lilshine.png">
             <div class="button-text">
                 <h2>Lil Shine</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1447,7 +1292,6 @@
             <img src="assets/images/lilskies.png">
             <div class="button-text">
                 <h2>Lil Skies</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1456,7 +1300,6 @@
             <img src="assets/images/liltecca.png">
             <div class="button-text">
                 <h2>Lil Tecca</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1465,7 +1308,6 @@
             <img src="assets/images/liltjay.png">
             <div class="button-text">
                 <h2>Lil Tjay</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1474,7 +1316,6 @@
             <img src="assets/images/liltracy.png">
             <div class="button-text">
                 <h2>Lil Tracy / Yung Bruh</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1482,7 +1323,6 @@
             <img src="assets/images/liluzivert.png">
             <div class="button-text">
                 <h2>Lil Uzi Vert</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1491,7 +1331,6 @@
             <img src="assets/images/lilwayne.png">
             <div class="button-text">
                 <h2>Lil Wayne</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1499,7 +1338,6 @@
             <img src="assets/images/lilyachty.png">
             <div class="button-text">
                 <h2>Lil Yachty</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1507,7 +1345,6 @@
             <img src="assets/images/linkinpark.png">
             <div class="button-text">
                 <h2>Linkin Park</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1516,7 +1353,6 @@
             <img src="assets/images/lionelscott.png">
             <div class="button-text">
                 <h2>Lionel Scott</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1525,7 +1361,6 @@
             <img src="assets/images/littlemix.png">
             <div class="button-text">
                 <h2>Little Mix</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1533,7 +1368,6 @@
             <img src="assets/images/logic.png">
             <div class="button-text">
                 <h2>Logic</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1542,7 +1376,6 @@
             <img src="assets/images/lorde.png">
             <div class="button-text">
                 <h2>Lorde</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1550,7 +1383,6 @@
             <img src="assets/images/lucki.png">
             <div class="button-text">
                 <h2>Lucki</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1558,7 +1390,6 @@
             <img src="assets/images/lucyloone.png">
             <div class="button-text">
                 <h2>Lucy Loone</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1567,7 +1398,6 @@
             <img src="assets/images/mia.png">
             <div class="button-text">
                 <h2>M.I.A.</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1576,7 +1406,6 @@
             <img src="assets/images/mabel.png">
             <div class="button-text">
                 <h2>Mabel</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1584,7 +1413,6 @@
             <img src="assets/images/macmiller.png">
             <div class="button-text">
                 <h2>Mac Miller</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1593,7 +1421,6 @@
             <img src="assets/images/machinegunkelly.png">
             <div class="button-text">
                 <h2>Machine Gun Kelly</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1601,7 +1428,6 @@
             <img src="assets/images/madisonbeer.png">
             <div class="button-text">
                 <h2>Madison Beer</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1610,7 +1436,6 @@
             <img src="assets/images/maglo.png">
             <div class="button-text">
                 <h2>Mag.Lo</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1618,7 +1443,6 @@
             <img src="assets/images/mariojudah.png">
             <div class="button-text">
                 <h2>Mario Judah</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1626,7 +1450,6 @@
             <img src="assets/images/maroon5.png">
             <div class="button-text">
                 <h2>Maroon 5</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1634,7 +1457,6 @@
             <img src="assets/images/melaniemartinez.png">
             <div class="button-text">
                 <h2>Melanie Martinez</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1642,7 +1464,6 @@
             <img src="assets/images/metroboomin.png">
             <div class="button-text">
                 <h2>Metro Boomin</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1650,7 +1471,6 @@
             <img src="assets/images/mfdoom.png">
             <div class="button-text">
                 <h2>MF DOOM</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1658,7 +1478,6 @@
             <img src="assets/images/michaeljackson.png">
             <div class="button-text">
                 <h2>Michael Jackson</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1667,7 +1486,6 @@
             <img src="assets/images/migos.png">
             <div class="button-text">
                 <h2>Migos (& Quavo, Offset, Takeoff)</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1676,7 +1494,6 @@
             <img src="assets/images/mike.png">
             <div class="button-text">
                 <h2>MIKE</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1684,7 +1501,6 @@
             <img src="assets/images/mileycyrus.png">
             <div class="button-text">
                 <h2>Miley Cyrus</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1693,7 +1509,6 @@
             <img src="assets/images/mkgee.png">
             <div class="button-text">
                 <h2>Mk.gee</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1702,7 +1517,6 @@
             <img src="assets/images/mollysantana.png">
             <div class="button-text">
                 <h2>Molly Santana</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1711,7 +1525,6 @@
             <img src="assets/images/mosdef.png">
             <div class="button-text">
                 <h2>Mos Def / Yasiin Bey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1719,7 +1532,6 @@
             <img src="assets/images/nas.png">
             <div class="button-text">
                 <h2>Nas</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1728,7 +1540,6 @@
             <img src="assets/images/nav.png">
             <div class="button-text">
                 <h2>NAV</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1736,7 +1547,6 @@
             <img src="assets/images/nbayoungboy.png">
             <div class="button-text">
                 <h2>NBA YoungBoy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1745,7 +1555,6 @@
             <img src="assets/images/nettspend.png">
             <div class="button-text">
                 <h2>Nettspend</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1754,7 +1563,6 @@
             <img src="assets/images/denzelcurry.png">
             <div class="button-text">
                 <h2>Denzel Curry</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1763,7 +1571,6 @@
             <img src="assets/images/nickyminaj.png">
             <div class="button-text">
                 <h2>Nicky Minaj</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1771,7 +1578,6 @@
             <img src="assets/images/niki.png">
             <div class="button-text">
                 <h2>NIKI</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1780,7 +1586,6 @@
             <img src="assets/images/nineinchnails.png">
             <div class="button-text">
                 <h2>Nine Inch Nails</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1788,7 +1593,6 @@
             <img src="assets/images/normani.png">
             <div class="button-text">
                 <h2>Normani</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1796,7 +1600,6 @@
             <img src="assets/images/northwest.png">
             <div class="button-text">
                 <h2>North West</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1804,7 +1607,6 @@
             <img src="assets/images/olivertree.png">
             <div class="button-text">
                 <h2>Oliver Tree</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1812,7 +1614,6 @@
             <img src="assets/images/oliviarodrigo.png">
             <div class="button-text">
                 <h2>Olivia Rodrigo</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1820,7 +1621,6 @@
             <img src="assets/images/onedirection.png">
             <div class="button-text">
                 <h2>One Direction</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1829,7 +1629,6 @@
             <img src="assets/images/osamason.png">
             <div class="button-text">
                 <h2>OsamaSon</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1838,7 +1637,6 @@
             <img src="assets/images/pnk.png">
             <div class="button-text">
                 <h2>P!nk</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1846,7 +1644,6 @@
             <img src="assets/images/panchiko.png">
             <div class="button-text">
                 <h2>Panchiko</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1855,7 +1652,6 @@
             <img src="assets/images/parisshadows.png">
             <div class="button-text">
                 <h2>Paris Shadows</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1864,7 +1660,6 @@
             <img src="assets/images/partynextdoor.png">
             <div class="button-text">
                 <h2>PARTYNEXTDOOR</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1872,7 +1667,6 @@
             <img src="assets/images/pharrellwilliams.png">
             <div class="button-text">
                 <h2>Pharrell Williams</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1881,7 +1675,6 @@
             <img src="assets/images/phlnoturnboy.png">
             <div class="button-text">
                 <h2>Phl Noturnboy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1889,7 +1682,6 @@
             <img src="assets/images/phoebebridgers.png">
             <div class="button-text">
                 <h2>Phoebe Bridgers</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1897,7 +1689,6 @@
             <img src="assets/images/pierrebourne.png">
             <div class="button-text">
                 <h2>Pi'erre Bourne</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1905,7 +1696,6 @@
             <img src="assets/images/pinkfloyd.png">
             <div class="button-text">
                 <h2>Pink Floyd</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1914,7 +1704,6 @@
             <img src="assets/images/pinkpantheress.png">
             <div class="button-text">
                 <h2>PinkPantheress</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1922,7 +1711,6 @@
             <img src="assets/images/playboicarti.png">
             <div class="button-text">
                 <h2>Playboi Carti</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1931,7 +1719,6 @@
             <img src="assets/images/poorstacy.png">
             <div class="button-text">
                 <h2>POORSTACY</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1939,7 +1726,6 @@
             <img src="assets/images/popsmoke.png">
             <div class="button-text">
                 <h2>Pop Smoke</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1947,7 +1733,6 @@
             <img src="assets/images/poppy.png">
             <div class="button-text">
                 <h2>Poppy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1956,7 +1741,6 @@
             <img src="assets/images/porterrobinson.png">
             <div class="button-text">
                 <h2>Porter Robinson</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1964,7 +1748,6 @@
             <img src="assets/images/postmalone.png">
             <div class="button-text">
                 <h2>Post Malone</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1973,7 +1756,6 @@
             <img src="assets/images/prettifun.png">
             <div class="button-text">
                 <h2>Prettifun</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1981,7 +1763,6 @@
             <img src="assets/images/primus.png">
             <div class="button-text">
                 <h2>Primus</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1989,7 +1770,6 @@
             <img src="assets/images/proof.png">
             <div class="button-text">
                 <h2>Proof</h2>
-                <p></p>
             </div>
         </button>
 
@@ -1997,7 +1777,6 @@
             <img src="assets/images/pushat.png">
             <div class="button-text">
                 <h2>Pusha T</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2005,7 +1784,6 @@
             <img src="assets/images/quadeca.png">
             <div class="button-text">
                 <h2>Quadeca</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2013,7 +1791,6 @@
             <img src="assets/images/quincy.png">
             <div class="button-text">
                 <h2>Quincy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2022,7 +1799,6 @@
             <img src="assets/images/quinn.png">
             <div class="button-text">
                 <h2>Quinn/Osquinn</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2030,7 +1806,6 @@
             <img src="assets/images/radiohead.png">
             <div class="button-text">
                 <h2>Radiohead</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2039,7 +1814,6 @@
             <img src="assets/images/raesremmurd.png">
             <div class="button-text">
                 <h2>Rae Sremmurd</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2047,7 +1821,6 @@
             <img src="assets/images/raye.png">
             <div class="button-text">
                 <h2>RAYE</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2055,7 +1828,6 @@
             <img src="assets/images/regurgitator.png">
             <div class="button-text">
                 <h2>Regurgitator</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2064,7 +1836,6 @@
             <img src="assets/images/rexorangecounty.png">
             <div class="button-text">
                 <h2>Rex Orange County</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2072,7 +1843,6 @@
             <img src="assets/images/richbrian.png">
             <div class="button-text">
                 <h2>Rich Brian</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2080,7 +1850,6 @@
             <img src="assets/images/rihanna.png">
             <div class="button-text">
                 <h2>Rihanna</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2088,7 +1857,6 @@
             <img src="assets/images/rosalia.png">
             <div class="button-text">
                 <h2>Rosalía</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2096,7 +1864,6 @@
             <img src="assets/images/royceda59.png">
             <div class="button-text">
                 <h2>Royce Da 5'9"</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2104,7 +1871,6 @@
             <img src="assets/images/sabrinacarpenter.png">
             <div class="button-text">
                 <h2>Sabrina Carpenter</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2112,7 +1878,6 @@
             <img src="assets/images/sahbabii.png">
             <div class="button-text">
                 <h2>Sahbabii</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2120,7 +1885,6 @@
             <img src="assets/images/saintjhn.png">
             <div class="button-text">
                 <h2>SAINt JHN</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2129,7 +1893,6 @@
             <img src="assets/images/salem.png">
             <div class="button-text">
                 <h2>SALEM</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2137,7 +1900,6 @@
             <img src="assets/images/sampha.png">
             <div class="button-text">
                 <h2>Sampha</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2145,7 +1907,6 @@
             <img src="assets/images/selenagomez.png">
             <div class="button-text">
                 <h2>Selena Gomez</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2153,7 +1914,6 @@
             <img src="assets/images/shadyrecords.png">
             <div class="button-text">
                 <h2>Shady Records</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2161,7 +1921,6 @@
             <img src="assets/images/shawnmendes.png">
             <div class="button-text">
                 <h2>Shawn Mendes</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2169,7 +1928,6 @@
             <img src="assets/images/shebeel661k.png">
             <div class="button-text">
                 <h2>shebeel661k</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2178,7 +1936,6 @@
             <img src="assets/images/sheckwes.png">
             <div class="button-text">
                 <h2>Sheck Wes</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2186,7 +1943,6 @@
             <img src="assets/images/shedtheory.png">
             <div class="button-text">
                 <h2>Shed Theory</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2194,7 +1950,6 @@
             <img src="assets/images/sheffg.png">
             <div class="button-text">
                 <h2>Sheff G</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2202,7 +1957,6 @@
             <img src="assets/images/shiey.png">
             <div class="button-text">
                 <h2>shiey</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2210,7 +1964,6 @@
             <img src="assets/images/shorelinemafia.png">
             <div class="button-text">
                 <h2>Shoreline Mafia</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2218,7 +1971,6 @@
             <img src="assets/images/shotgunwilly.png">
             <div class="button-text">
                 <h2>Shotgun Willy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2226,7 +1978,6 @@
             <img src="assets/images/silas.png">
             <div class="button-text">
                 <h2>Silas</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2234,7 +1985,6 @@
             <img src="assets/images/skaiwater.png">
             <div class="button-text">
                 <h2>Skaiwater</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2242,7 +1992,6 @@
             <img src="assets/images/skimasktheslumpgod.png">
             <div class="button-text">
                 <h2>Ski Mask the Slump God</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2250,7 +1999,6 @@
             <img src="assets/images/skrillex.png">
             <div class="button-text">
                 <h2>Skrillex</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2258,7 +2006,6 @@
             <img src="assets/images/slayyyter.png">
             <div class="button-text">
                 <h2>Slayyyter</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2266,7 +2013,6 @@
             <img src="assets/images/slowdive.png">
             <div class="button-text">
                 <h2>Slowdive</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2274,7 +2020,6 @@
             <img src="assets/images/smino.png">
             <div class="button-text">
                 <h2>Smino</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2283,7 +2028,6 @@
             <img src="assets/images/smokepurpp.png">
             <div class="button-text">
                 <h2>Smokepurpp</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2291,7 +2035,6 @@
             <img src="assets/images/snoopdogg.png">
             <div class="button-text">
                 <h2>Snoop Dogg</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2299,7 +2042,6 @@
             <img src="assets/images/sofaygo.png">
             <div class="button-text">
                 <h2>SoFaygo</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2307,7 +2049,6 @@
             <img src="assets/images/sogonesoflexy.png">
             <div class="button-text">
                 <h2>SoGone SoFlexy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2315,7 +2056,6 @@
             <img src="assets/images/sonder.png">
             <div class="button-text">
                 <h2>Sonder</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2323,7 +2063,6 @@
             <img src="assets/images/sophie.png">
             <div class="button-text">
                 <h2>SOPHIE</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2331,7 +2070,6 @@
             <img src="assets/images/sosmula.png">
             <div class="button-text">
                 <h2>SosMula</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2339,7 +2077,6 @@
             <img src="assets/images/summerwalker.png">
             <div class="button-text">
                 <h2>Summer Walker</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2347,7 +2084,6 @@
             <img src="assets/images/summrs.png">
             <div class="button-text">
                 <h2>Summrs</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2355,7 +2091,6 @@
             <img src="assets/images/sza.png">
             <div class="button-text">
                 <h2>SZA</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2363,7 +2098,6 @@
             <img src="assets/images/tatemcrae.png">
             <div class="button-text">
                 <h2>Tate McRae</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2372,7 +2106,6 @@
             <img src="assets/images/tayk.png">
             <div class="button-text">
                 <h2>Tay-K</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2380,7 +2113,6 @@
             <img src="assets/images/taylorswift.png">
             <div class="button-text">
                 <h2>Taylor Swift</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2388,7 +2120,6 @@
             <img src="assets/images/theavalanches.png">
             <div class="button-text">
                 <h2>The Avalanches</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2396,7 +2127,6 @@
             <img src="assets/images/thechainsmokers.png">
             <div class="button-text">
                 <h2>The Chainsmokers</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2404,7 +2134,6 @@
             <img src="assets/images/thekidlaroi.png">
             <div class="button-text">
                 <h2>The Kid LAROI</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2412,7 +2141,6 @@
             <img src="assets/images/thenotoriousbig.png">
             <div class="button-text">
                 <h2>The Notorious B.I.G</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2420,7 +2148,6 @@
             <img src="assets/images/theweeknd.png">
             <div class="button-text">
                 <h2>The Weeknd</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2428,7 +2155,6 @@
             <img src="assets/images/thexx.png">
             <div class="button-text">
                 <h2>The xx</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2436,7 +2162,6 @@
             <img src="assets/images/thundercat.png">
             <div class="button-text">
                 <h2>Thundercat</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2444,7 +2169,6 @@
             <img src="assets/images/topdawgentertainment.png">
             <div class="button-text">
                 <h2>Top Dawg Entertainment</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2452,7 +2176,6 @@
             <img src="assets/images/torylanez.png">
             <div class="button-text">
                 <h2>Tory Lanez</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2460,7 +2183,6 @@
             <img src="assets/images/travisscott.png">
             <div class="button-text">
                 <h2>Travis Scott</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2468,7 +2190,6 @@
             <img src="assets/images/trippieredd.png">
             <div class="button-text">
                 <h2>Trippie Redd</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2476,7 +2197,6 @@
             <img src="assets/images/troyesivan.png">
             <div class="button-text">
                 <h2>Troye Sivan</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2484,7 +2204,6 @@
             <img src="assets/images/twentyonepilots.png">
             <div class="button-text">
                 <h2>Twenty One Pilots</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2492,7 +2211,6 @@
             <img src="assets/images/twice.png">
             <div class="button-text">
                 <h2>TWICE</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2500,7 +2218,6 @@
             <img src="assets/images/tydollasign.png">
             <div class="button-text">
                 <h2>Ty Dolla $ign</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2508,7 +2225,6 @@
             <img src="assets/images/tyla.png">
             <div class="button-text">
                 <h2>TYLA</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2516,7 +2232,6 @@
             <img src="assets/images/tylerthecreator.png">
             <div class="button-text">
                 <h2>Tyler, the Creator</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2524,7 +2239,6 @@
             <img src="assets/images/underscores.png">
             <div class="button-text">
                 <h2>underscores</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2532,7 +2246,6 @@
             <img src="assets/images/untiljapan.png">
             <div class="button-text">
                 <h2>untiljapan</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2540,7 +2253,6 @@
             <img src="assets/images/untitled.png">
             <div class="button-text">
                 <h2>untitled</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2548,7 +2260,6 @@
             <img src="assets/images/upsahl.png">
             <div class="button-text">
                 <h2>UPSAHL</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2556,7 +2267,6 @@
             <img src="assets/images/veeze.png">
             <div class="button-text">
                 <h2>Veeze</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2564,7 +2274,6 @@
             <img src="assets/images/vincestaples.png">
             <div class="button-text">
                 <h2>Vince Staples</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2572,7 +2281,6 @@
             <img src="assets/images/vory.png">
             <div class="button-text">
                 <h2>Vory</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2580,7 +2288,6 @@
             <img src="assets/images/weiland.png">
             <div class="button-text">
                 <h2>Weiland</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2588,7 +2295,6 @@
             <img src="assets/images/westsidegunn.png">
             <div class="button-text">
                 <h2>Westside Gunn</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2596,7 +2302,6 @@
             <img src="assets/images/wutangclan.png">
             <div class="button-text">
                 <h2>Wu-Tang Clan</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2604,7 +2309,6 @@
             <img src="assets/images/xxxtentacion.png">
             <div class="button-text">
                 <h2>XXXTentacion</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2612,7 +2316,6 @@
             <img src="assets/images/yeat.png">
             <div class="button-text">
                 <h2>Yeat</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2620,7 +2323,6 @@
             <img src="assets/images/ynwmelly.png">
             <div class="button-text">
                 <h2>YNW Melly</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2628,7 +2330,6 @@
             <img src="assets/images/youngnudy.png">
             <div class="button-text">
                 <h2>Young Nudy</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2636,7 +2337,6 @@
             <img src="assets/images/youngthug.png">
             <div class="button-text">
                 <h2>Young Thug</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2644,7 +2344,6 @@
             <img src="assets/images/yunglean.png">
             <div class="button-text">
                 <h2>Yung Lean</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2653,7 +2352,6 @@
             <img src="assets/images/yunomiles.png">
             <div class="button-text">
                 <h2>Yuno Miles</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2661,7 +2359,6 @@
             <img src="assets/images/zaralarsson.png">
             <div class="button-text">
                 <h2>Zara Larsson</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2669,7 +2366,6 @@
             <img src="assets/images/zayn.png">
             <div class="button-text">
                 <h2>Zayn</h2>
-                <p></p>
             </div>
         </button>
 
@@ -2677,7 +2373,6 @@
             <img src="assets/images/zillakami.png">
             <div class="button-text">
                 <h2>ZillaKami</h2>
-                <p></p>
             </div>
         </button>
 

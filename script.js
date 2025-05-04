@@ -37,3 +37,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+function toggleDisclaimer() {
+  const disclaimer = document.getElementById("disclaimer-container");
+  disclaimer.classList.toggle("show");
+}

@@ -3,13 +3,14 @@
 }
 
 body {
-  background-color: #000000;
+  background-color: #000;
   color: #ffffff;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   margin: 0;
   padding: 0;
+  zoom: 110%;
 }
 
 h1 {
@@ -18,67 +19,200 @@ h1 {
   text-align: center;
 }
 
+.header-container {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.header-title {
+  font-size: 2.5em;
+  color: #ffffff;
+  font-weight: 600;
+  margin-top: 0px;
+}
+
+.title {
+  font-size: 2.5em;
+  text-align: center;
+  margin-top: 100px;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.disclaimer {
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #ffffff;
+}
+
 #button-grid {
   display: grid;
-  grid-gap: 1em;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  justify-items: center;
-  margin: 2em auto;
-  margin-top: 20px;
-  padding: 1em;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-auto-rows: auto;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem 0;
+  width: 90%;
+  max-width: 1168px;
+  margin: 0 auto;
 }
 
 .button {
-  background-color: #101010;
-  border: 1px solid #151515;
-  border-radius: 25px;
-  cursor: pointer;
+  background-color: #000000;
+  border: 1px solid #1b1b1b;
+  border-radius: 1.5rem;
+  padding: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  padding: 0.75em;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  width: 100%;
-  max-width: 250px;
+  cursor: pointer;
 }
 
 .button:hover {
-  transform: scale(1.05);
+  transform: scale(1.03);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .button img {
-  border-radius: 20px;
-  height: 200px;
-  object-fit: cover;
   width: 100%;
+  aspect-ratio: 1 / 1; /* Maintain 1:1 */
+  border-radius: 1rem;
+  object-fit: cover;
 }
 
 .button-text {
-  margin-top: 1em;
+  margin-top: 1rem;
   text-align: center;
-  color: #dfdfdf;
+  color: #d4d4d8;
 }
 
 .button-text h2 {
   font-size: 1.25em;
   margin: 0;
+  font-weight: 600;
 }
 
 .button-text p {
   font-size: 0.8125em;
-  margin: 0;
-}
-
-.title {
-  color: #bfbfbf;
-  margin-top: 100px;
-  font-family: 'Arial', sans-serif;
-  font-size: 2.5em;
-  text-align: center;
+  margin: 0.25rem 0 0;
+  color: #a1a1aa;
 }
 
 #sort {
-  height: 20px;
-  border-radius: 90px;
+  height: 36px;
+  padding: 0 1rem;
+  border-radius: 9999px;
+  border: 1px solid #3f3f46;
+  background-color: #1a1a1a;
+  color: #e4e4e7;
+  font-size: 0.875rem;
+}
+
+.search-bar-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  width: 90%;
+  max-width: 1168px;
+  height: 44px;
+  background-color: #080808;
+  border: 1px solid #1b1b1b;
+  border-radius: 9999px;
+  padding: 0 1rem;
+}
+
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e7;
+  font-size: 0.9375rem;
+  padding: 0 0.5rem;
+}
+
+.disclaimer {
+  width: 90%;
+  max-width: 1168px;
+  margin: 0 auto;
+  color: #fff;
+}
+
+a {
+  color: #ffffff;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #d4d4d8;
+}
+
+/* Force minimum 2 columns at all times */
+@media (max-width: 480px) {
+  #button-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .button-text h2 {
+    font-size: 1em;
+  }
+
+  .button-text p {
+    font-size: 0.75em;
+  }
+
+  .search-bar-wrapper {
+    padding: 0.5rem;
+  }
+
+  .search-bar {
+    height: 40px;
+    padding: 0 0.75rem;
+  }
+
+  #sort {
+    width: 100%;
+    max-width: 300px;
+    margin: 0.5rem auto;
+    display: block;
+  }
+}
+#toggle-disclaimer {
+  margin-top: 20px;
+  margin-left: 20px;
+  z-index: 1000;
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #111111;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#disclaimer-container {
+  display: none;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+#disclaimer-container.show {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
