@@ -5,7 +5,10 @@ function sanitizeFileName(name) {
 function createButton(name, trackerId) {
   const button = document.createElement('button');
   button.className = 'button';
-  button.onclick = () => window.open(`https://trackerhub.cx/sh/${trackerId}`);
+
+  // Use the trackerId as-is if it starts with https://
+  const url = trackerId.startsWith('https://') ? trackerId : `https://trackerhub.cx/sh/${trackerId}`;
+  button.onclick = () => window.open(url);
 
   const img = document.createElement('img');
   const sanitizedName = sanitizeFileName(name);
@@ -24,6 +27,7 @@ function createButton(name, trackerId) {
 
   document.getElementById('button-grid').appendChild(button);
 }
+
 
 
 function loadCSVAndGenerateButtons() {
