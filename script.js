@@ -1,3 +1,51 @@
+function sanitizeFileName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function createButton(name, trackerId) {
+  const button = document.createElement('button');
+  button.className = 'button';
+  button.onclick = () => window.open(`https://trackerhub.cx/sh/${trackerId}`);
+
+  const img = document.createElement('img');
+  const sanitizedName = sanitizeFileName(name);
+  img.src = `assets/images/${sanitizedName}.png`;
+  img.alt = name;
+
+  const textDiv = document.createElement('div');
+  textDiv.className = 'button-text';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = name;
+
+  textDiv.appendChild(h2);
+  button.appendChild(img);
+  button.appendChild(textDiv);
+
+  document.getElementById('button-grid').appendChild(button);
+}
+
+
+function loadCSVAndGenerateButtons() {
+  Papa.parse('trackers.csv', {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      results.data.forEach(row => {
+        createButton(row['Artist Name'], row['Tracker URL']);
+      });
+    },
+    error: function(err) {
+      console.error("Failed to load CSV", err);
+    }
+  });
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', () => {
+  loadCSVAndGenerateButtons();
+});
 const buttons = document.querySelectorAll('.button');
 
 buttons.forEach(button => {

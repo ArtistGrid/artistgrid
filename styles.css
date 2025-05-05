@@ -83,6 +83,7 @@ h1 {
   aspect-ratio: 1 / 1; /* Maintain 1:1 */
   border-radius: 1rem;
   object-fit: cover;
+  loading: lazy;
 }
 
 .button-text {
