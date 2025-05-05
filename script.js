@@ -7,24 +7,26 @@ buttons.forEach(button => {
 });
 
 function search(input) {
-  var names = document.getElementsByTagName("h2");
-  var bttns = document.getElementsByTagName("button");
-  var noresults = document.getElementById("noresults");
-  noresults.style.display = "none";
-  for (let i = 0; i < names.length; i++) {
-    bttns[i].style = "";
-    var name = names[i].innerText.toLowerCase()
-    if (name.search(input.toLowerCase()) == -1) {
-      bttns[i].style.display = "none";
+  const buttons = document.querySelectorAll('#button-grid .button');
+  let anyVisible = false;
+
+  buttons.forEach(button => {
+    const nameElement = button.querySelector('h2');
+    const name = nameElement.innerText.toLowerCase();
+    if (name.includes(input.toLowerCase())) {
+      button.style.display = '';
+      anyVisible = true;
+    } else {
+      button.style.display = 'none';
     }
+  });
+
+  const noresults = document.getElementById('noresults');
+  if (noresults) {
+    noresults.style.display = anyVisible ? 'none' : '';
   }
-  for (let i = 0; i < bttns.length; i++) {
-    if (!bttns[i].style.display) {
-      return;
-    }
-  }
-  noresults.style = "";
 }
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
