@@ -159,7 +159,16 @@ a {
 a:hover {
   color: #d4d4d8;
 }
-
+@media (max-width: 999999px) {
+  #button-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  #button-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 /* Force minimum 2 columns at all times */
 @media (max-width: 480px) {
   #button-grid {
