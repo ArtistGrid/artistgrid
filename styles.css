@@ -3,8 +3,8 @@
 }
 
 body {
-  background-color: #000;
-  color: #ffffff;
+  background-color: #000000;
+  color: #FFFFFF;
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -26,20 +26,16 @@ h1 {
 
 .header-title {
   font-size: 2.5em;
-  color: #ffffff;
+  color: #FFFFFF;
   font-weight: 600;
   margin-top: 0px;
-}
-.button img {
-  ...
-  loading: lazy;
 }
 
 .title {
   font-size: 2.5em;
   text-align: center;
   margin-top: 100px;
-  color: #ffffff;
+  color: #FFFFFF;
   font-weight: 500;
 }
 
@@ -47,7 +43,10 @@ h1 {
   padding: 0.75rem;
   text-align: center;
   font-size: 0.875rem;
-  color: #ffffff;
+  color: #FFFFFF;
+  width: 90%;
+  max-width: 1168px;
+  margin: 0 auto;
 }
 
 #button-grid {
@@ -69,8 +68,7 @@ h1 {
   padding: 1rem;
   width: 100%;
   max-width: 100%;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -79,12 +77,11 @@ h1 {
 
 .button:hover {
   transform: scale(1.03);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .button img {
   width: 100%;
-  aspect-ratio: 1 / 1; /* Maintain 1:1 */
+  aspect-ratio: 1 / 1;
   border-radius: 1rem;
   object-fit: cover;
   loading: lazy;
@@ -93,7 +90,7 @@ h1 {
 .button-text {
   margin-top: 1rem;
   text-align: center;
-  color: #d4d4d8;
+  color: #FFFFFF;
 }
 
 .button-text h2 {
@@ -105,16 +102,16 @@ h1 {
 .button-text p {
   font-size: 0.8125em;
   margin: 0.25rem 0 0;
-  color: #a1a1aa;
+  color: #FFFFFF;
 }
 
 #sort {
   height: 36px;
   padding: 0 1rem;
   border-radius: 9999px;
-  border: 1px solid #3f3f46;
-  background-color: #1a1a1a;
-  color: #e4e4e7;
+  border: 1px solid #1b1b1b;
+  background-color: #000000;
+  color: #FFFFFF;
   font-size: 0.875rem;
 }
 
@@ -131,7 +128,7 @@ h1 {
   width: 90%;
   max-width: 1168px;
   height: 44px;
-  background-color: #080808;
+  background-color: #000000;
   border: 1px solid #1b1b1b;
   border-radius: 9999px;
   padding: 0 1rem;
@@ -142,38 +139,33 @@ h1 {
   background: transparent;
   border: none;
   outline: none;
-  color: #e4e4e7;
+  color: #FFFFFF;
   font-size: 0.9375rem;
   padding: 0 0.5rem;
 }
 
-.disclaimer {
-  width: 90%;
-  max-width: 1168px;
-  margin: 0 auto;
-  color: #fff;
-}
-
 a {
-  color: #ffffff;
+  color: #FFFFFF;
   text-decoration: underline;
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: #d4d4d8;
+  color: #FFFFFF;
 }
+
 @media (max-width: 999999px) {
   #button-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
 @media (max-width: 600px) {
   #button-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
-/* Force minimum 2 columns at all times */
+
 @media (max-width: 480px) {
   #button-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -203,18 +195,18 @@ a:hover {
     display: block;
   }
 }
+
 #toggle-disclaimer {
   margin-top: 20px;
   margin-left: 20px;
   z-index: 1000;
   background-color: #000000;
-  color: #ffffff;
-  border: 1px solid #111111;
+  color: #FFFFFF;
+  border: 1px solid #1b1b1b;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
 #disclaimer-container {
