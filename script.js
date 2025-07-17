@@ -12,7 +12,7 @@ function createButton(name, trackerId) {
 
   const img = document.createElement('img');
   const sanitizedName = sanitizeFileName(name);
-  img.src = `assets/images/${sanitizedName}.png`;
+  img.src = `https://assets.artistgrid.cx/img/${sanitizedName}.png`;
   img.alt = name;
 
   const textDiv = document.createElement('div');
