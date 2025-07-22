@@ -26,7 +26,7 @@ export default function ArtistGallery() {
   const { toast } = useToast();
 
   const getImageFilename = (artistName: string): string => {
-    return artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".png";
+    return artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
   };
 
   const parseCSV = (csvText: string): Artist[] => {
@@ -256,7 +256,7 @@ export default function ArtistGallery() {
               <CardContent className="p-4">
                 <div className="aspect-square w-full mb-3 bg-white flex items-center justify-center overflow-hidden rounded-lg">
                   <img
-                    src={`https://assets.artistgrid.cx/img/${artist.imageFilename}`}
+                    src={`https://assets.artistgrid.cx/${artist.imageFilename}`}
                     alt={artist.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
