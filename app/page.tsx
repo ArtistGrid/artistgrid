@@ -29,30 +29,53 @@ export default function ArtistGallery() {
     return artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
   };
 
-  const parseCSV = (csvText: string): Artist[] => {
-    const lines = csvText.trim().split("\n");
-    const artists: Artist[] = [];
+const parseCSV = (csvText: string): Artist[] => {
+  const lines = csvText.trim().split("\n");
+  const artists: Artist[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line) {
-        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        if (matches && matches.length >= 2) {
-          const name = matches[0].replace(/^"|"$/g, "").trim();
-          const url = matches[1].replace(/^"|"$/g, "").trim();
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line) {
+      const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+      if (matches && matches.length >= 2) {
+        const name = matches[0].replace(/^"|"$/g, "").trim();
+        const url = matches[1].replace(/^"|"$/g, "").trim();
 
-          if (name && url) {
-            artists.push({
-              name,
-              url,
-              imageFilename: getImageFilename(name),
-            });
-          }
+        if (name && url) {
+          artists.push({
+            name,
+            url,
+            imageFilename: getImageFilename(name),
+          });
         }
       }
     }
-    return artists;
-  };
+  }
+
+  // Deduplicate names
+  const nameCountMap: Record<string, number> = {};
+
+  return artists.map((artist) => {
+    const baseName = artist.name;
+    const count = nameCountMap[baseName] || 0;
+    nameCountMap[baseName] = count + 1;
+
+    let newName = baseName;
+    if (count === 1) {
+      // Second occurrence, add [Alt]
+      newName = `${baseName} [Alt]`;
+    } else if (count > 1) {
+      // Third or more occurrence, add [Alt #x]
+      newName = `${baseName} [Alt #${count - 1}]`;
+    }
+    return {
+      ...artist,
+      name: newName,
+      imageFilename: getImageFilename(newName), // keep original filename based on baseName
+    };
+  });
+};
+
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -71,7 +94,7 @@ export default function ArtistGallery() {
   useEffect(() => {
     const fetchArtists = async () => {
       try {
-        const response = await fetch("./sheet.csv");
+        const response = await fetch("https://sheets.artistgrid.cx/artists.csv");
         if (!response.ok) throw new Error("Failed to fetch CSV data");
 
         const csvText = await response.text();
@@ -255,17 +278,12 @@ export default function ArtistGallery() {
             >
               <CardContent className="p-4">
                 <div className="aspect-square w-full mb-3 bg-white flex items-center justify-center overflow-hidden rounded-lg">
-                  <img
-                    src={`https://assets.artistgrid.cx/${artist.imageFilename}`}
-                    alt={artist.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = `/placeholder.svg?height=200&width=200&text=${encodeURIComponent(
-                        artist.name.charAt(0)
-                      )}&bg=000000&color=ffffff`;
-                    }}
-                  />
+<img
+  src={`https://assets.artistgrid.cx//${artist.imageFilename}`}
+  alt={artist.name}
+  className="w-full h-full object-cover"
+/>
+
                 </div>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-white group-hover:text-black text-sm leading-tight transition-colors">
