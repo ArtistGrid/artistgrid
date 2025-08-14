@@ -136,12 +136,17 @@ const parseCSV = (csvText: string): Artist[] => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showInfoModal]);
 
-  const normalizeUrl = (url: string) => {
-    if (!/^https?:\/\//i.test(url)) {
-      return `https://trackerhub.cx/sh/${url}`;
-    }
-    return url;
-  };
+const normalizeUrl = (url: string) => {
+
+  const sheetsMatch = url.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (sheetsMatch) {
+    const shortPath = sheetsMatch[1]; // extract the sheet ID
+    return `https://trackerhub.cx/sh/${shortPath}`;
+  }
+
+  // Fallback for anything else
+  return url;
+};
 
   const handleArtistClick = (url: string) => {
     const fullUrl = normalizeUrl(url);
