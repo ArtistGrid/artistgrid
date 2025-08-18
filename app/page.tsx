@@ -91,25 +91,44 @@ const parseCSV = (csvText: string): Artist[] => {
       .catch((err) => console.error("Error fetching visitor count:", err));
   }, []);
 
-  useEffect(() => {
-    const fetchArtists = async () => {
-      try {
-        const response = await fetch("https://sheets.artistgrid.cx/artists.csv");
-        if (!response.ok) throw new Error("Failed to fetch CSV data");
+useEffect(() => {
+  const fetchArtists = async () => {
+    try {
+      // Try remote CSV first
+      const response = await fetch("https://sheets.artistgrid.cx/artists.csv");
+      if (!response.ok) throw new Error("Failed to fetch remote CSV");
 
-        const csvText = await response.text();
-        const parsedArtists = parseCSV(csvText);
+      const csvText = await response.text();
+      const parsedArtists = parseCSV(csvText);
+      setArtists(parsedArtists);
+      setFilteredArtists(parsedArtists);
+    } catch (err) {
+      console.warn("Remote fetch failed, falling back to local backup.csv:", err);
+
+      try {
+        // Fallback to local backup.csv in public folder
+        const localResponse = await fetch("/backup.csv");
+        if (!localResponse.ok) throw new Error("Failed to fetch backup.csv");
+
+        const localCsvText = await localResponse.text();
+        const parsedArtists = parseCSV(localCsvText);
         setArtists(parsedArtists);
         setFilteredArtists(parsedArtists);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
+      } catch (backupErr) {
+        setError(
+          backupErr instanceof Error
+            ? backupErr.message
+            : "An error occurred loading artists"
+        );
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchArtists();
-  }, []);
+  fetchArtists();
+}, []);
+
 
   useEffect(() => {
     const debounceTimeout = 150;
