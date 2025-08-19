@@ -110,7 +110,7 @@ const InfoContent = ({
         </a>
         . All original trackers can be found in{" "}
         <a
-          href="https://docs.google.com/spreadsheets/d/1zoOIaNbBvfuL3sS3824acpqGxOdSZSIHM8-nI9C-Vfc/htmlview"
+          href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview"
           target="_blank"
           rel="noopener noreferrer"
           className="underline hover:text-white transition-colors"
