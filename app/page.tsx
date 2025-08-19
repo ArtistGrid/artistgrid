@@ -293,8 +293,42 @@ export default function ArtistGallery() {
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeModal, setActiveModal] = useState<null | "menu" | "donate">(null);
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ showWorking: true, showUpdated: true, showStarred: false, });
   const [windowWidth, setWindowWidth] = useState(0);
+
+  const defaultFilters: FilterOptions = { showWorking: true, showUpdated: true, showStarred: false };
+
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>(() => {
+    if (typeof window === 'undefined') {
+      return defaultFilters;
+    }
+    try {
+      const savedFilters = window.localStorage.getItem('artistGridFilterOptions');
+      if (savedFilters) {
+        const parsedFilters = JSON.parse(savedFilters);
+        if (
+          typeof parsedFilters.showWorking === 'boolean' &&
+          typeof parsedFilters.showUpdated === 'boolean' &&
+          typeof parsedFilters.showStarred === 'boolean'
+        ) {
+          return parsedFilters;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse filter options from localStorage", error);
+    }
+    return defaultFilters;
+  });
+  
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('artistGridFilterOptions', JSON.stringify(filterOptions));
+      }
+    } catch (error) {
+      console.error("Failed to save filter options to localStorage", error);
+    }
+  }, [filterOptions]);
+
 
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const isMobile = useIsMobile();
