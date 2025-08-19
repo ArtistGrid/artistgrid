@@ -187,7 +187,7 @@ export default function ArtistGallery() {
 
     const load = async () => {
       try {
-        const response = await fetch("https://sheets.artistgrid.cx/artists.csv", {
+        const response = await fetch("https://artistgrid.cx/backup.csv", {
           signal: ac.signal,
           cache: "no-store",
         });
