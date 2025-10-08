@@ -1,4 +1,3 @@
-// app/page.tsx 
 "use client";
 
 import { useToast } from "@/components/ui/use-toast";
@@ -29,10 +28,16 @@ const DATA_SOURCES = {
 };
 const DONATION_OPTIONS = {
   URL: [
-    { name: "PayPal", value: "https://paypal.me/eduardprigoana", isUrl: true }, { name: "Patreon", value: "https://www.patreon.com/c/ArtistGrid", isUrl: true }, { name: "Liberapay", value: "https://liberapay.com/ArtistGrid/", isUrl: true }, { name: "Ko-fi", value: "https://ko-fi.com/artistgrid", isUrl: true },
+    { name: "PayPal", value: "https://paypal.me/eduardprigoana" },
+    { name: "Patreon", value: "https://www.patreon.com/c/ArtistGrid" },
+    { name: "Liberapay", value: "https://liberapay.com/ArtistGrid/" },
+    { name: "Ko-fi", value: "https://ko-fi.com/artistgrid" },
   ],
   CRYPTO: [
-    { name: "Bitcoin (BTC)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "bitcoin" }, { name: "Ethereum (ETH)", value: "0x0b39d5D190fDB127d13458bd2086cDf950D3034C", uriScheme: "ethereum" }, { name: "Litecoin (LTC)", value: "ltc1q88kpywg3jxxg0jsx9c4e9d8gqs7p07fqptjgtv", uriScheme: "litecoin" }, { name: "Monero (XMR)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "monero" },
+    { name: "Bitcoin (BTC)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "bitcoin" },
+    { name: "Ethereum (ETH)", value: "0x0b39d5D190fDB127d13458bd2086cDf950D3034C", uriScheme: "ethereum" },
+    { name: "Litecoin (LTC)", value: "ltc1q88kpywg3jxxg0jsx9c4e9d8gqs7p07fqptjgtv", uriScheme: "litecoin" },
+    { name: "Monero (XMR)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "monero" },
   ]
 };
 
@@ -42,7 +47,7 @@ interface QrCodeData { value: string; uriScheme: string; name: string; }
 
 const getImageFilename = (artistName: string): string => artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
 const normalizeUrl = (url: string): string => {
-  const googleSheetId = url.match(new RegExp("https://docs\\.google\\.com/spreadsheets/d/([a-zA-Z0-9-_]+)"))?.[1];
+  const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
   return googleSheetId ? `https://trackerhub.cx/sh/${googleSheetId}` : url;
 };
 const parseCSV = (csvText: string): Artist[] => {
@@ -58,7 +63,7 @@ const parseCSV = (csvText: string): Artist[] => {
     if (name && url) {
       const count = nameCount[name] || 0;
       nameCount[name] = count + 1;
-      const newName = count === 0 ? name : count === 1 ? `${name} [Alt]` : `${name} [Alt #${count}]`;
+      const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}`: ''}]`;
       items.push({
         name: newName, url, imageFilename: getImageFilename(newName),
         isLinkWorking: isLinkWorkingStr?.toLowerCase() === 'yes', isUpdated: isUpdatedStr?.toLowerCase() === 'yes', isStarred: isStarredStr?.toLowerCase() === 'yes',
@@ -91,7 +96,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
       console.error(error);
     }
   };
-
   return [storedValue, setValue];
 }
 const useIsMobile = () => {
@@ -103,7 +107,7 @@ const useKeyPress = (targetKey: string, callback: () => void) => {
   const callbackRef = useRef(callback);
   useEffect(() => { callbackRef.current = callback; }, [callback]);
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => { if (event.key === targetKey) { event.preventDefault(); callbackRef.current(); } };
+    const handler = ({ key, preventDefault }: KeyboardEvent) => { if (key === targetKey) { preventDefault(); callbackRef.current(); } };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [targetKey]);
@@ -126,15 +130,15 @@ const GallerySkeleton = memo(() => (
 ));
 const HeaderSkeleton = memo(() => (
     <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900 mb-8">
-        <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
-            <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
-            <div className="sm:hidden flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
-            <Skeleton className="h-12 flex-1 rounded-xl bg-neutral-800" />
-            <div className="flex items-center gap-2">
-                <Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" />
-                <div className="hidden sm:flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
-            </div>
+      <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
+        <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
+        <div className="sm:hidden flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
+        <Skeleton className="h-12 flex-1 rounded-xl bg-neutral-800" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" />
+          <div className="hidden sm:flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
         </div>
+      </div>
     </header>
 ));
 const ErrorMessage = memo(({ message }: { message: string }) => (
@@ -145,10 +149,9 @@ const NoResultsMessage = memo(({ searchQuery }: { searchQuery: string }) => (
 ));
 const ArtistCard = memo(function ArtistCard({ artist, priority, onClick }: { artist: Artist; priority: boolean; onClick: (url: string) => void; }) {
   const googleSheetUrl = useMemo(() => {
-    const googleSheetId = artist.url.match(new RegExp("https://docs\\.google\\.com/spreadsheets/d/([a-zA-Z0-9-_]+)"))?.[1];
+    const googleSheetId = artist.url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
     return googleSheetId ? `https://docs.google.com/spreadsheets/d/${googleSheetId}/htmlview` : null;
   }, [artist.url]);
-
   return (
     <div role="link" tabIndex={0} className="bg-neutral-950 border border-neutral-800 hover:border-white/30 hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white" onClick={() => onClick(artist.url)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist.url)}>
       <div className="p-0 flex flex-col h-full">
@@ -179,7 +182,7 @@ const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChang
       <div className="sm:hidden"><HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} /></div>
       <div className="relative flex-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
-        <Input type="text" placeholder="Search artists..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all duration-300 rounded-xl w-full pl-12 pr-10 py-3" aria-label="Search artists" />
+        <Input type="text" placeholder="Search artists..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all duration-300 rounded-xl w-full pl-12 pr-10 h-12" aria-label="Search artists" />
         {searchQuery && (<Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-700" onClick={() => setSearchQuery("")} aria-label="Clear search"><X className="w-4 h-4" /></Button>)}
       </div>
       <div className="flex items-center gap-2">
@@ -190,7 +193,7 @@ const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChang
   </header>
 ));
 const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: boolean; onClose: () => void; visitorCount: number | null; onDonate: () => void; }) => (
-  <Modal isOpen={isOpen} onClose={onClose} ariaLabel="About ArtistGrid"><div className="p-6 pt-12 text-center"><h2 className="text-xl font-bold text-white mb-4">About ArtistGrid</h2><div className="text-neutral-300 space-y-4 text-sm sm:text-base"><p>Maintained by & <a href="https://prigoana.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">edideaur</a>.</p><p>Original trackers are in <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">this Google Sheet</a>.</p><p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p><div className="flex items-center justify-center gap-4 text-base pt-2"><a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">GitHub</a><a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">Discord</a><button onClick={() => { onClose(); onDonate(); }} className="underline hover:text-white transition-colors">Donate</button></div>{visitorCount !== null && (<p className="text-sm text-neutral-500 pt-4">You are visitor #{visitorCount.toLocaleString()}</p>)}</div></div></Modal>
+  <Modal isOpen={isOpen} onClose={onClose} ariaLabel="About ArtistGrid"><div className="p-6 pt-12 text-center"><h2 className="text-xl font-bold text-white mb-4">About ArtistGrid</h2><div className="text-neutral-300 space-y-4 text-sm sm:text-base"><p>Maintained by <a href="https://prigoana.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">edideaur</a>.</p><p>Original trackers are in <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">this Google Sheet</a>.</p><p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p><div className="flex items-center justify-center gap-4 text-base pt-2"><a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">GitHub</a><a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">Discord</a><button onClick={() => { onClose(); onDonate(); }} className="underline hover:text-white transition-colors">Donate</button></div>{visitorCount !== null && (<p className="text-sm text-neutral-500 pt-4">You are visitor #{visitorCount.toLocaleString()}</p>)}</div></div></Modal>
 ));
 const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void; }) => (
   <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-4 rounded-xl backdrop-blur-sm" onClick={onClose}><div className="bg-white p-4 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}><QRCode value={`${qrCodeData.uriScheme}:${qrCodeData.value}`} size={240} level="H" /></div><p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p><p className="text-xs text-neutral-300 mt-2 break-all text-center px-4 font-mono">{qrCodeData.value}</p><Button variant="ghost" className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg" onClick={onClose}>Close</Button></div>
@@ -200,7 +203,7 @@ const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   const { toast } = useToast();
   const handleCopy = useCallback((text: string, name: string) => { navigator.clipboard.writeText(text).then(() => { toast({ title: "Copied!", description: `${name} address copied to clipboard.`, }); }); }, [toast]);
   const closeQrCode = useCallback(() => setActiveQrCode(null), []);
-  useEffect(() => { if (!isOpen) { setActiveQrCode(null); } }, [isOpen]);
+  useEffect(() => { if (!isOpen) setActiveQrCode(null); }, [isOpen]);
   return (<Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options"><div className="p-6"><h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2><p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p><div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 -mr-2"><div className="grid grid-cols-2 gap-3">{DONATION_OPTIONS.URL.map((opt) => (<Button key={opt.name} asChild className="font-semibold rounded-lg"><a href={opt.value} target="_blank" rel="noopener noreferrer" className="w-full">{opt.name}</a></Button>))}</div><div className="relative flex items-center"><div className="flex-grow border-t border-neutral-800" /><span className="flex-shrink mx-4 text-xs text-neutral-500 uppercase">Or Crypto</span><div className="flex-grow border-t border-neutral-800" /></div><div className="space-y-4">{DONATION_OPTIONS.CRYPTO.map((option) => (<div key={option.name}><label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label><div className="flex items-center gap-2"><Input readOnly value={option.value} className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg" /><Button variant="outline" size="icon" onClick={() => setActiveQrCode({ ...option })} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Show ${option.name} QR code`}><QrCode className="h-4 w-4" /></Button><Button variant="outline" size="icon" onClick={() => handleCopy(option.value, option.name)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Copy ${option.name} address`}><CopyIcon className="h-4 w-4" /></Button></div></div>))}</div></div>{activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={closeQrCode} />}</div></Modal>);
 });
 
@@ -222,7 +225,6 @@ export default function ArtistGallery() {
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
-
     const loadData = async () => {
       setStatus("loading");
       const urlsToTry = useSheet ? [DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP, DATA_SOURCES.BACKUP] : [DATA_SOURCES.BACKUP, DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP];
@@ -230,8 +232,7 @@ export default function ArtistGallery() {
         try {
           const response = await fetch(url, { signal, cache: "no-store" });
           if (!response.ok) throw new Error(`Status ${response.status}`);
-          const csvText = await response.text();
-          setAllArtists(parseCSV(csvText));
+          setAllArtists(parseCSV(await response.text()));
           setStatus("success");
           return;
         } catch (error) {
@@ -288,12 +289,7 @@ export default function ArtistGallery() {
   const renderContent = () => {
     switch (status) {
       case "loading":
-        return (
-          <>
-            <HeaderSkeleton />
-            <main className="max-w-7xl mx-auto p-4 sm:p-6"><GallerySkeleton /></main>
-          </>
-        );
+        return <> <HeaderSkeleton /> <main className="max-w-7xl mx-auto p-4 sm:p-6"><GallerySkeleton /></main> </>;
       case "error":
         return <ErrorMessage message={errorMessage} />;
       case "success":
@@ -317,7 +313,7 @@ export default function ArtistGallery() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-8">
+    <div className="pb-8">
       <DonationModal isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal isOpen={activeModal === "info"} onClose={closeModal} visitorCount={visitorCount} onDonate={openDonationModal} />
       {renderContent()}

@@ -1,21 +1,19 @@
-// app/layout.tsx
-
 import type { Metadata, Viewport } from 'next';
-import { Toaster } from "@/components/ui/toaster"; // Make sure this path is correct
+import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 
-// --- RICH METADATA OBJECT ---
 const siteConfig = {
   name: "ArtistGrid",
-  url: "https://www.artistgrid.cx", // Change to your actual domain
-  ogImage: "https://www.artistgrid.cx/favicon.png", // URL to your open graph image
-  description: "Unreleased Music",
+  url: "https://www.artistgrid.cx",
+  ogImage: "https://www.artistgrid.cx/favicon.png",
+  description: "Discover and track unreleased music from your favorite artists.",
   links: {
     github: "https://github.com/ArtistGrid",
   },
-}
+};
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: "ArtistGrid | Unreleased Music",
     template: `%s | ArtistGrid`,
@@ -25,8 +23,9 @@ export const metadata: Metadata = {
   authors: [{ name: "eduardprigoana", url: "https://prigoana.com" }],
   creator: "ArtistGrid Team",
   keywords: ["unreleased music", "music tracker", "leaks", "snippets", "artist tracker", "music discovery"],
-  
-  // --- Open Graph (for social media) ---
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -34,25 +33,15 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,
-    images: [
-      {
-        url: siteConfig.ogImage,
-        alt: `${siteConfig.name} - Unreleased Music`,
-      },
-    ],
+    images: [{
+      url: siteConfig.ogImage,
+      alt: `${siteConfig.name} - Unreleased Music`,
+    }],
   },
-  
-  // --- Favicons and Icons ---
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
     apple: "/favicon.png",
-  },
-  
-  // --- Other Important Tags ---
-  metadataBase: new URL(siteConfig.url),
-  alternates: {
-    canonical: '/',
   },
 };
 
@@ -61,17 +50,12 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-}
+};
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
       <head>
-        {/* --- JSON-LD STRUCTURED DATA --- */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify({
@@ -87,8 +71,9 @@ export default function RootLayout({
           }) }}
         />
       </head>
-      <body className="bg-black">
+      <body className="bg-black text-white min-h-screen">
         {children}
+        <Toaster />
       </body>
     </html>
   );
