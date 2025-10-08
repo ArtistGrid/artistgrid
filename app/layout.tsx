@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
-  authors: [{ name: "eduardprigoana", url: "https://prigoana.com" }, { name: "justAMZ" }],
+  authors: [{ name: "eduardprigoana", url: "https://prigoana.com" }],
   creator: "ArtistGrid Team",
   keywords: ["unreleased music", "music tracker", "leaks", "snippets", "artist tracker", "music discovery"],
   
