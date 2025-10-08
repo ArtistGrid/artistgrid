@@ -41,6 +41,17 @@ const DONATION_OPTIONS = {
   ]
 };
 
+const CUSTOM_REDIRECTS: Record<string, string> = {
+  ye: "Kanye West",
+  drizzy: "Drake",
+  carti: "Playboi Carti",
+  kendrick: "Kendrick Lamar",
+  discord: "https://discord.gg/RdBeMZ2m8S",
+  github: "https://github.com/ArtistGrid",
+};
+
+const SUFFIXES_TO_STRIP = ["tracker"];
+
 interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
 interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; }
 interface QrCodeData { value: string; uriScheme: string; name: string; }
@@ -221,6 +232,7 @@ export default function ArtistGallery() {
   
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const isMobile = useIsMobile();
+  const hashProcessed = useRef(false);
   
   useEffect(() => {
     const controller = new AbortController();
@@ -281,6 +293,43 @@ export default function ArtistGallery() {
     const finalUrl = normalizeUrl(url);
     if (isMobile) window.location.href = finalUrl; else window.open(finalUrl, "_blank", "noopener,noreferrer");
   }, [isMobile]);
+
+  useEffect(() => {
+    if (status === 'success' && !hashProcessed.current && typeof window !== 'undefined' && window.location.hash) {
+      let processedHash = decodeURIComponent(window.location.hash.substring(1)).toLowerCase();
+      
+      for (const suffix of SUFFIXES_TO_STRIP) {
+        if (processedHash.endsWith(suffix)) {
+          processedHash = processedHash.slice(0, -processedHash.length + suffix.length);
+          break;
+        }
+      }
+
+      const redirectTarget = CUSTOM_REDIRECTS[processedHash];
+      if (redirectTarget) {
+        if (redirectTarget.startsWith('http')) {
+          window.location.href = redirectTarget;
+          hashProcessed.current = true;
+          return;
+        } else {
+          processedHash = redirectTarget;
+        }
+      }
+      
+      const normalizedTarget = processedHash.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      if (normalizedTarget) {
+        const targetArtist = allArtists.find(artist => 
+          artist.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalizedTarget
+        );
+
+        if (targetArtist) {
+          handleArtistClick(targetArtist.url);
+          hashProcessed.current = true;
+        }
+      }
+    }
+  }, [status, allArtists, handleArtistClick]);
 
   const closeModal = useCallback(() => setActiveModal(null), []);
   const openInfoModal = useCallback(() => setActiveModal('info'), []);
