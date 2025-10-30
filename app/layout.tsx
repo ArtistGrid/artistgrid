@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster";
+import Script from 'next/script';
 import './globals.css';
 
 const siteConfig = {
@@ -70,6 +71,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             }
           }) }}
         />
+        <Script
+          defer
+          data-domain="artistgrid.cx"
+          src="https://plausible.canine.tools/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js"
+          strategy="afterInteractive"
+        />
+        <Script id="plausible-inline" strategy="afterInteractive">
+          {`window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }`}
+        </Script>
       </head>
       <body className="bg-black text-white min-h-screen">
         {children}
