@@ -60,6 +60,7 @@ const SUFFIXES_TO_STRIP = ["tracker"];
 interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
 interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; }
 interface QrCodeData { value: string; uriScheme: string; name: string; }
+interface ArtistStats { name: string; events: number; visitors: number; conversion_rate: number; }
 
 const trackEvent = (eventName: string, props?: Record<string, any>) => {
   if (typeof window !== 'undefined' && window.plausible) {
@@ -255,6 +256,7 @@ const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
 export default function ArtistGallery() {
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
+  const [artistStats, setArtistStats] = useState<Map<string, number>>(new Map());
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
@@ -307,9 +309,26 @@ export default function ArtistGallery() {
         if (err instanceof Error && err.name !== 'AbortError') console.warn("Visitor count fetch failed:", err);
       }
     };
+
+    const loadArtistStats = async () => {
+      try {
+        const res = await fetch("https:/trends.artistgrid.cx/", { signal });
+        if (res.ok) {
+          const data: { results: ArtistStats[] } = await res.json();
+          const statsMap = new Map<string, number>();
+          data.results.forEach((stat, index) => {
+            statsMap.set(stat.name, index);
+          });
+          setArtistStats(statsMap);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') console.warn("Artist stats fetch failed:", err);
+      }
+    };
     
     loadData();
     loadVisitorCount();
+    loadArtistStats();
     
     return () => controller.abort();
   }, [useSheet]);
@@ -334,9 +353,20 @@ export default function ArtistGallery() {
   const fuse = useMemo(() => new Fuse(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true }), [artistsPassingFilters]);
 
   const filteredArtists = useMemo(() => {
-    if (!deferredQuery) return artistsPassingFilters;
-    return fuse.search(deferredQuery).map((r) => r.item);
-  }, [artistsPassingFilters, fuse, deferredQuery]);
+    const baseArtists = !deferredQuery ? artistsPassingFilters : fuse.search(deferredQuery).map((r) => r.item);
+    
+    return baseArtists.sort((a, b) => {
+      const aBaseName = a.name.replace(/\s*\[Alt.*?\]/, '').trim();
+      const bBaseName = b.name.replace(/\s*\[Alt.*?\]/, '').trim();
+      const aRank = artistStats.get(aBaseName);
+      const bRank = artistStats.get(bBaseName);
+      
+      if (aRank !== undefined && bRank !== undefined) return aRank - bRank;
+      if (aRank !== undefined) return -1;
+      if (bRank !== undefined) return 1;
+      return aBaseName.localeCompare(bBaseName);
+    });
+  }, [artistsPassingFilters, fuse, deferredQuery, artistStats]);
 
   const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
     trackEvent('Artist Click', { name: artist.name, source });
