@@ -60,7 +60,6 @@ const SUFFIXES_TO_STRIP = ["tracker"];
 interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
 interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; }
 interface QrCodeData { value: string; uriScheme: string; name: string; }
-interface ArtistStats { name: string; events: number; visitors: number; conversion_rate: number; }
 
 const trackEvent = (eventName: string, props?: Record<string, any>) => {
   if (typeof window !== 'undefined' && window.plausible) {
@@ -240,9 +239,9 @@ const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; o
 const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
   const { toast } = useToast();
-  const handleCopy = useCallback((text: string, name: string) => { 
+  const handleCopy = useCallback((text: string, name: string) => {
     trackEvent('Copy Address', { crypto: name });
-    navigator.clipboard.writeText(text).then(() => { toast({ title: "Copied!", description: `${name} address copied to clipboard.`, }); }); 
+    navigator.clipboard.writeText(text).then(() => { toast({ title: "Copied!", description: `${name} address copied to clipboard.`, }); });
   }, [toast]);
   const handleShowQr = useCallback((option: typeof DONATION_OPTIONS.CRYPTO[0]) => {
     trackEvent('Show QR Code', { crypto: option.name });
@@ -256,7 +255,6 @@ const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
 export default function ArtistGallery() {
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
-  const [artistStats, setArtistStats] = useState<Map<string, number>>(new Map());
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
@@ -266,12 +264,12 @@ export default function ArtistGallery() {
   const defaultFilters: FilterOptions = { showWorking: true, showUpdated: true, showStarred: false, showAlts: false };
   const [filterOptions, setFilterOptions] = useLocalStorage<FilterOptions>(LOCAL_STORAGE_KEYS.FILTER_OPTIONS, defaultFilters);
   const [useSheet, setUseSheet] = useLocalStorage<boolean>(LOCAL_STORAGE_KEYS.USE_SHEET, false);
-  
+
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const isMobile = useIsMobile();
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef('');
-  
+
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) {
         trackEvent('Search', { query: deferredQuery });
@@ -310,26 +308,9 @@ export default function ArtistGallery() {
       }
     };
 
-    const loadArtistStats = async () => {
-      try {
-        const res = await fetch("https:/trends.artistgrid.cx/", { signal });
-        if (res.ok) {
-          const data: { results: ArtistStats[] } = await res.json();
-          const statsMap = new Map<string, number>();
-          data.results.forEach((stat, index) => {
-            statsMap.set(stat.name, index);
-          });
-          setArtistStats(statsMap);
-        }
-      } catch (err) {
-        if (err instanceof Error && err.name !== 'AbortError') console.warn("Artist stats fetch failed:", err);
-      }
-    };
-    
     loadData();
     loadVisitorCount();
-    loadArtistStats();
-    
+
     return () => controller.abort();
   }, [useSheet]);
 
@@ -343,7 +324,7 @@ export default function ArtistGallery() {
     setUseSheet(value);
   }, [setUseSheet]);
 
-  const artistsPassingFilters = useMemo(() => allArtists.filter(artist => 
+  const artistsPassingFilters = useMemo(() => allArtists.filter(artist =>
     (filterOptions.showWorking ? artist.isLinkWorking : true) &&
     (filterOptions.showUpdated ? artist.isUpdated : true) &&
     (filterOptions.showStarred ? artist.isStarred : true) &&
@@ -353,20 +334,9 @@ export default function ArtistGallery() {
   const fuse = useMemo(() => new Fuse(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true }), [artistsPassingFilters]);
 
   const filteredArtists = useMemo(() => {
-    const baseArtists = !deferredQuery ? artistsPassingFilters : fuse.search(deferredQuery).map((r) => r.item);
-    
-    return baseArtists.sort((a, b) => {
-      const aBaseName = a.name.replace(/\s*\[Alt.*?\]/, '').trim();
-      const bBaseName = b.name.replace(/\s*\[Alt.*?\]/, '').trim();
-      const aRank = artistStats.get(aBaseName);
-      const bRank = artistStats.get(bBaseName);
-      
-      if (aRank !== undefined && bRank !== undefined) return aRank - bRank;
-      if (aRank !== undefined) return -1;
-      if (bRank !== undefined) return 1;
-      return aBaseName.localeCompare(bBaseName);
-    });
-  }, [artistsPassingFilters, fuse, deferredQuery, artistStats]);
+    if (!deferredQuery) return artistsPassingFilters;
+    return fuse.search(deferredQuery).map((r) => r.item);
+  }, [artistsPassingFilters, fuse, deferredQuery]);
 
   const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
     trackEvent('Artist Click', { name: artist.name, source });
@@ -377,7 +347,7 @@ export default function ArtistGallery() {
   useEffect(() => {
     if (status === 'success' && !hashProcessed.current && typeof window !== 'undefined' && window.location.hash) {
       let processedHash = decodeURIComponent(window.location.hash.substring(1)).toLowerCase();
-      
+
       for (const suffix of SUFFIXES_TO_STRIP) {
         if (processedHash.endsWith(suffix)) {
           processedHash = processedHash.slice(0, -processedHash.length + suffix.length);
@@ -395,11 +365,11 @@ export default function ArtistGallery() {
           processedHash = redirectTarget;
         }
       }
-      
+
       const normalizedTarget = processedHash.toLowerCase().replace(/[^a-z0-9]/g, "");
 
       if (normalizedTarget) {
-        const targetArtist = allArtists.find(artist => 
+        const targetArtist = allArtists.find(artist =>
           artist.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalizedTarget
         );
 
@@ -413,12 +383,12 @@ export default function ArtistGallery() {
   }, [status, allArtists, handleArtistClick]);
 
   const closeModal = useCallback(() => setActiveModal(null), []);
-  
+
   const openInfoModal = useCallback(() => {
     trackEvent('Header Click', { button: 'Info' });
     setActiveModal('info');
   }, []);
-  
+
   const openDonationModal = useCallback(() => {
     trackEvent('Header Click', { button: 'Donate' });
     setActiveModal('donate');
@@ -433,7 +403,7 @@ export default function ArtistGallery() {
       case "success":
         return (
           <>
-            <Header 
+            <Header
               searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterOptions={filterOptions}
               onFilterChange={handleFilterChange} onInfoClick={openInfoModal} onDonateClick={openDonationModal}
               useSheet={useSheet} onUseSheetChange={handleUseSheetChange}
