@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins } from "lucide-react";
+import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3 } from "lucide-react";
 
 declare global {
   interface Window {
@@ -32,6 +32,7 @@ const DATA_SOURCES = {
   BACKUP: "/backup.csv",
   REMOTE_BACKUP: "https://artistgrid.cx/backup.csv",
 };
+const TRENDS_API = "https://trends.artistgrid.cx/";
 const DONATION_OPTIONS = {
   URL: [
     { name: "PayPal", value: "https://paypal.me/eduardprigoana" },
@@ -58,7 +59,7 @@ const CUSTOM_REDIRECTS: Record<string, string> = {
 const SUFFIXES_TO_STRIP = ["tracker"];
 
 interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
-interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; }
+interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; sortByTrends: boolean; }
 interface QrCodeData { value: string; uriScheme: string; name: string; }
 
 const trackEvent = (eventName: string, props?: Record<string, any>) => {
@@ -69,7 +70,7 @@ const trackEvent = (eventName: string, props?: Record<string, any>) => {
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor">
-    <path d="M20.992 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.050 0.005 0.109 0.005 0.168 0 1.523-1.191 2.768-2.693 2.854l-0.008 0zM11.026 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.048 0.005 0.104 0.005 0.161 0 1.525-1.19 2.771-2.692 2.862l-0.008 0zM26.393 6.465c-1.763-0.832-3.811-1.49-5.955-1.871l-0.149-0.022c-0.005-0.001-0.011-0.002-0.017-0.002-0.035 0-0.065 0.019-0.081 0.047l-0 0c-0.234 0.411-0.488 0.924-0.717 1.45l-0.043 0.111c-1.030-0.165-2.218-0.259-3.428-0.259s-2.398 0.094-3.557 0.275l0.129-0.017c-0.27-0.63-0.528-1.142-0.813-1.638l0.041 0.077c-0.017-0.029-0.048-0.047-0.083-0.047-0.005 0-0.011 0-0.016 0.001l0.001-0c-2.293 0.403-4.342 1.060-6.256 1.957l0.151-0.064c-0.017 0.007-0.031 0.019-0.040 0.034l-0 0c-2.854 4.041-4.562 9.069-4.562 14.496 0 0.907 0.048 1.802 0.141 2.684l-0.009-0.11c0.003 0.029 0.018 0.053 0.039 0.070l0 0c2.14 1.601 4.628 2.891 7.313 3.738l0.176 0.048c0.008 0.003 0.018 0.004 0.028 0.004 0.032 0 0.060-0.015 0.077-0.038l0-0c0.535-0.72 1.044-1.536 1.485-2.392l0.047-0.1c0.006-0.012 0.010-0.027 0.010-0.043 0-0.041-0.026-0.075-0.062-0.089l-0.001-0c-0.912-0.352-1.683-0.727-2.417-1.157l0.077 0.042c-0.029-0.017-0.048-0.048-0.048-0.083 0-0.031 0.015-0.059 0.038-0.076l0-0c0.157-0.118 0.315-0.24 0.465-0.364 0.016-0.013 0.037-0.021 0.059-0.021 0.014 0 0.027 0.003 0.038 0.008l-0.001-0c2.208 1.061 4.8 1.681 7.536 1.681s5.329-0.62 7.643-1.727l-0.107 0.046c0.012-0.006 0.025-0.009 0.040-0.009 0.022 0 0.043 0.008 0.059 0.021l-0-0c0.15 0.124 0.307 0.248 0.466 0.365 0.023 0.018 0.038 0.046 0.038 0.077 0 0.035-0.019 0.065-0.046 0.082l-0 0c-0.661 0.395-1.432 0.769-2.235 1.078l-0.105 0.036c-0.036 0.014-0.062 0.049-0.062 0.089 0 0.016 0.004 0.031 0.011 0.044l-0-0.001c0.501 0.96 1.009 1.775 1.571 2.548l-0.040-0.057c0.017 0.024 0.046 0.040 0.077 0.040 0.010 0 0.020-0.002 0.029-0.004l-0.001 0c2.865-0.892 5.358-2.182 7.566-3.832l-0.065 0.047c0.022-0.016 0.036-0.041 0.039-0.069l0-0c0.087-0.784 0.136-1.694 0.136-2.615 0-5.415-1.712-10.43-4.623-14.534l0.052 0.078c-0.008-0.016-0.022-0.029-0.038-0.036l-0-0z"/>
+    <path d="M20.992 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.050 0.005 0.109 0.005 0.168 0 1.523-1.191 2.768-2.693 2.854l-0.008 0zM11.026 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.048 0.005 0.104 0.005 0.161 0 1.525-1.19 2.771-2.692 2.862l-0.008 0zM26.393 6.465c-1.763-0.832-3.811-1.49-5.955-1.871l-0.149-0.022c-0.005-0.001-0.011-0.002-0.017-0.002-0.035 0-0.065 0.019-0.081 0.047l-0 0c-0.234 0.411-0.488 0.924-0.717 1.45l-0.043 0.111c-1.030-0.165-2.218-0.259-3.428-0.259s-2.398 0.094-3.557 0.275l0.129-0.017c-0.27-0.63-0.528-1.142-0.813-1.638l0.041 0.077c-0.017-0.029-0.048-0.047-0.083-0.047-0.005 0-0.011 0-0.016 0.001l0.001-0c-2.293 0.403-4.342 1.060-6.256 1.957l0.151-0.064c-0.017 0.007-0.031 0.019-0.040 0.034l-0 0c-2.854 4.041-4.562 9.069-4.562 14.496 0 0.907 0.048 1.802 0.141 2.684l-0.009-0.11c0.003 0.029 0.018 0.053 0.039 0.070l0 0c2.14 1.601 4.628 2.891 7.313 3.738l0.176 0.048c0.008 0.003 0.018 0.004 0.028 0.004 0.032 0 0.060-0.015 0.077-0.038l0-0c0.535-0.72 1.044-1.536 1.485-2.392l0.047-0.1c0.006-0.012 0.010-0.027 0.010-0.043 0-0.041-0.026-0.075-0.062-0.089l-0.001-0c-0.912-0.352-1.683-0.727-2.417-1.157l0.077 0.042c-0.029-0.017-0.048-0.048-0.048-0.083 0-0.031 0.015-0.059 0.038-0.076l0-0c0.157-0.118 0.315-0.24 0.465-0.364 0.016-0.013 0.037-0.021 0.059-0.021 0.014 0 0.027 0.003 0.038 0.008l-0.001-0c2.208 1.061 4.8 1.681 7.536 1.681s5.329-0.62 7.643-1.727l-0.107 0.046c0.012-0.006 0.025-0.009 0.040-0.009 0.022 0 0.043 0.008 0.059 0.021l-0-0c0.15 0.124 0.307 0.248 0.466 0.365 0.023 0.018 0.038 0.046 0.038 0.077 0 0.035-0.019 0.065-0.046 0.082l-0 0c-0.661 0.395-1.432 0.769-2.235 1.078l-0.105 0.036c-0.036 0.014-0.062 0.049-0.062 0.089 0 0.016 0.004 0.031 0.011 0.044l-0-0.001c0.501 0.960 1.009 1.775 1.571 2.548l-0.040-0.057c0.017 0.024 0.046 0.040 0.077 0.040 0.010 0 0.020-0.002 0.029-0.004l-0.001 0c2.865-0.892 5.358-2.182 7.566-3.832l-0.065 0.047c0.022-0.016 0.036-0.041 0.039-0.069l0-0c0.087-0.784 0.136-1.694 0.136-2.615 0-5.415-1.712-10.43-4.623-14.534l0.052 0.078c-0.008-0.016-0.022-0.029-0.038-0.036l-0-0z"/>
   </svg>
 );
 
@@ -198,7 +199,7 @@ const ArtistGridDisplay = memo(({ artists, onArtistClick }: { artists: Artist[],
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{artists.map((artist, i) => (<div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}><ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} /></div>))}</div>
 ));
 const FilterControls = memo(({ options, onFilterChange, useSheet, onUseSheetChange }: { options: FilterOptions; onFilterChange: (key: keyof FilterOptions, value: boolean) => void; useSheet: boolean; onUseSheetChange: (value: boolean) => void; }) => (
-  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="Filter artists" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64 bg-neutral-950 border-neutral-800 text-neutral-200"><DropdownMenuLabel>Display Options</DropdownMenuLabel><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuCheckboxItem checked={options.showWorking} onCheckedChange={(c) => onFilterChange('showWorking', !!c)}>Show working links only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showUpdated} onCheckedChange={(c) => onFilterChange('showUpdated', !!c)}>Show updated trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showStarred} onCheckedChange={(c) => onFilterChange('showStarred', !!c)}>Show starred trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showAlts} onCheckedChange={(c) => onFilterChange('showAlts', !!c)}>Show alt trackers</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Data Source</DropdownMenuLabel><DropdownMenuCheckboxItem checked={useSheet} onCheckedChange={onUseSheetChange}>Use remote CSV</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>
+  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="Filter artists" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64 bg-neutral-950 border-neutral-800 text-neutral-200"><DropdownMenuLabel>Display Options</DropdownMenuLabel><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuCheckboxItem checked={options.showWorking} onCheckedChange={(c) => onFilterChange('showWorking', !!c)}>Show working links only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showUpdated} onCheckedChange={(c) => onFilterChange('showUpdated', !!c)}>Show updated trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showStarred} onCheckedChange={(c) => onFilterChange('showStarred', !!c)}>Show starred trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showAlts} onCheckedChange={(c) => onFilterChange('showAlts', !!c)}>Show alt trackers</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Sorting</DropdownMenuLabel><DropdownMenuCheckboxItem checked={options.sortByTrends} onCheckedChange={(c) => onFilterChange('sortByTrends', !!c)}>Sort by popularity</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Data Source</DropdownMenuLabel><DropdownMenuCheckboxItem checked={useSheet} onCheckedChange={onUseSheetChange}>Use remote CSV</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>
 ));
 const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick: () => void; onDonateClick: () => void; }) => (
   <div className="flex items-center gap-2">
@@ -253,6 +254,55 @@ const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   return (<Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options"><div className="p-6"><h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2><p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p><div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 -mr-2"><div className="grid grid-cols-2 gap-3">{DONATION_OPTIONS.URL.map((opt) => (<Button key={opt.name} asChild className="font-semibold rounded-lg"><a href={opt.value} target="_blank" rel="noopener noreferrer" className="w-full" onClick={() => trackEvent('Donation Link Click', { method: opt.name })}>{opt.name}</a></Button>))}</div><div className="relative flex items-center"><div className="flex-grow border-t border-neutral-800" /><span className="flex-shrink mx-4 text-xs text-neutral-500 uppercase">Or Crypto</span><div className="flex-grow border-t border-neutral-800" /></div><div className="space-y-4">{DONATION_OPTIONS.CRYPTO.map((option) => (<div key={option.name}><label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label><div className="flex items-center gap-2"><Input readOnly value={option.value} className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg" /><Button variant="outline" size="icon" onClick={() => handleShowQr(option)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Show ${option.name} QR code`}><QrCode className="h-4 w-4" /></Button><Button variant="outline" size="icon" onClick={() => handleCopy(option.value, option.name)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Copy ${option.name} address`}><CopyIcon className="h-4 w-4" /></Button></div></div>))}</div></div>{activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={closeQrCode} />}</div></Modal>);
 });
 
+const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedCount: number; totalCount: number; onDonateClick: () => void; }) => (
+  <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 mt-12 border-t border-neutral-800">
+    <div className="flex flex-col items-center gap-4">
+      <p className="text-sm text-neutral-400">
+        {displayedCount} of {totalCount} trackers displayed
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+        <a
+          href="https://github.com/ArtistGrid"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackEvent('Footer Click', { link: 'GitHub' })}
+          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+        >
+          <Github className="w-4 h-4" />
+          <span>GitHub</span>
+        </a>
+        <a
+          href="https://discord.gg/RdBeMZ2m8S"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackEvent('Footer Click', { link: 'Discord' })}
+          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+        >
+          <DiscordIcon className="w-4 h-4" />
+          <span>Discord</span>
+        </a>
+        <a
+          href="https://plausible.canine.tools/artistgrid.cx/"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackEvent('Footer Click', { link: 'Analytics' })}
+          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Analytics</span>
+        </a>
+        <button
+          onClick={() => { onDonateClick(); trackEvent('Footer Click', { link: 'Donate' }); }}
+          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+        >
+          <HandCoins className="w-4 h-4" />
+          <span>Donate</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+));
+
 export default function ArtistGallery() {
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -260,8 +310,10 @@ export default function ArtistGallery() {
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeModal, setActiveModal] = useState<null | "info" | "donate">(null);
+  const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
+  const [trendsLoaded, setTrendsLoaded] = useState(false);
 
-  const defaultFilters: FilterOptions = { showWorking: true, showUpdated: true, showStarred: false, showAlts: false };
+  const defaultFilters: FilterOptions = { showWorking: false, showUpdated: false, showStarred: false, showAlts: true, sortByTrends: true };
   const [filterOptions, setFilterOptions] = useLocalStorage<FilterOptions>(LOCAL_STORAGE_KEYS.FILTER_OPTIONS, defaultFilters);
   const [useSheet, setUseSheet] = useLocalStorage<boolean>(LOCAL_STORAGE_KEYS.USE_SHEET, false);
 
@@ -269,6 +321,8 @@ export default function ArtistGallery() {
   const isMobile = useIsMobile();
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef('');
+  const initialSortApplied = useRef(false);
+  const originalOrder = useRef<Artist[]>([]);
 
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) {
@@ -280,6 +334,59 @@ export default function ArtistGallery() {
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
+
+    const loadTrends = async () => {
+      try {
+        const response = await fetch(TRENDS_API, { signal, cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          const trendsMap = new Map<string, number>();
+          data.results?.forEach((item: any) => {
+            trendsMap.set(item.name, item.visitors || 0);
+          });
+          setTrendsData(trendsMap);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.warn('Failed to load trends:', error);
+        }
+      } finally {
+        setTrendsLoaded(true);
+      }
+    };
+
+    loadTrends();
+    return () => controller.abort();
+  }, []);
+
+  const sortArtistsByTrends = useCallback((artists: Artist[], trends: Map<string, number>): Artist[] => {
+    return [...artists].sort((a, b) => {
+      const aVisitors = trends.get(a.name) || 0;
+      const bVisitors = trends.get(b.name) || 0;
+
+      const getGroup = (artist: Artist, visitors: number) => {
+        if (artist.isStarred && visitors > 0) return 1;
+        if (artist.isStarred && visitors === 0) return 2;
+        if (!artist.isStarred && visitors > 0) return 3;
+        return 4;
+      };
+
+      const aGroup = getGroup(a, aVisitors);
+      const bGroup = getGroup(b, bVisitors);
+
+      if (aGroup !== bGroup) return aGroup - bGroup;
+
+      if ((aGroup === 1 || aGroup === 3) && aVisitors !== bVisitors) {
+        return bVisitors - aVisitors;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
     const loadData = async () => {
       setStatus("loading");
       const urlsToTry = useSheet ? [DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP, DATA_SOURCES.BACKUP] : [DATA_SOURCES.BACKUP, DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP];
@@ -287,7 +394,9 @@ export default function ArtistGallery() {
         try {
           const response = await fetch(url, { signal, cache: "no-store" });
           if (!response.ok) throw new Error(`Status ${response.status}`);
-          setAllArtists(parseCSV(await response.text()));
+          const parsed = parseCSV(await response.text());
+          originalOrder.current = parsed;
+          setAllArtists(parsed);
           setStatus("success");
           return;
         } catch (error) {
@@ -312,6 +421,30 @@ export default function ArtistGallery() {
     loadVisitorCount();
 
     return () => controller.abort();
+  }, [useSheet]);
+
+  useEffect(() => {
+    if (status === 'success' && trendsLoaded && !initialSortApplied.current && filterOptions.sortByTrends) {
+      setAllArtists(artists => {
+        if (artists.length === 0) return artists;
+        initialSortApplied.current = true;
+        return sortArtistsByTrends(artists, trendsData);
+      });
+    }
+  }, [status, trendsLoaded, sortArtistsByTrends, trendsData, filterOptions.sortByTrends]);
+
+  useEffect(() => {
+    if (status === 'success' && trendsLoaded && originalOrder.current.length > 0) {
+      if (filterOptions.sortByTrends) {
+        setAllArtists(sortArtistsByTrends(originalOrder.current, trendsData));
+      } else {
+        setAllArtists([...originalOrder.current]);
+      }
+    }
+  }, [filterOptions.sortByTrends, status, trendsLoaded, sortArtistsByTrends, trendsData]);
+
+  useEffect(() => {
+    initialSortApplied.current = false;
   }, [useSheet]);
 
   const handleFilterChange = useCallback((key: keyof FilterOptions, value: boolean) => {
@@ -350,7 +483,7 @@ export default function ArtistGallery() {
 
       for (const suffix of SUFFIXES_TO_STRIP) {
         if (processedHash.endsWith(suffix)) {
-          processedHash = processedHash.slice(0, -processedHash.length + suffix.length);
+          processedHash = processedHash.slice(0, -suffix.length);
           break;
         }
       }
@@ -362,11 +495,11 @@ export default function ArtistGallery() {
           hashProcessed.current = true;
           return;
         } else {
-          processedHash = redirectTarget;
+          processedHash = redirectTarget.toLowerCase();
         }
       }
 
-      const normalizedTarget = processedHash.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normalizedTarget = processedHash.replace(/[^a-z0-9]/g, "");
 
       if (normalizedTarget) {
         const targetArtist = allArtists.find(artist =>
@@ -394,30 +527,34 @@ export default function ArtistGallery() {
     setActiveModal('donate');
   }, []);
 
+  const isFullyLoaded = status === 'success' && trendsLoaded;
+
   const renderContent = () => {
-    switch (status) {
-      case "loading":
-        return <> <HeaderSkeleton /> <main className="max-w-7xl mx-auto p-4 sm:p-6"><GallerySkeleton /></main> </>;
-      case "error":
-        return <ErrorMessage message={errorMessage} />;
-      case "success":
-        return (
-          <>
-            <Header
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterOptions={filterOptions}
-              onFilterChange={handleFilterChange} onInfoClick={openInfoModal} onDonateClick={openDonationModal}
-              useSheet={useSheet} onUseSheetChange={handleUseSheetChange}
-            />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
-              {filteredArtists.length > 0 ? (
-                <ArtistGridDisplay artists={filteredArtists} onArtistClick={handleArtistClick} />
-              ) : (
-                <NoResultsMessage searchQuery={searchQuery} />
-              )}
-            </main>
-          </>
-        );
+    if (!isFullyLoaded) {
+      return <> <HeaderSkeleton /> <main className="max-w-7xl mx-auto p-4 sm:p-6"><GallerySkeleton /></main> </>;
     }
+
+    if (status === "error") {
+      return <ErrorMessage message={errorMessage} />;
+    }
+
+    return (
+      <>
+        <Header
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterOptions={filterOptions}
+          onFilterChange={handleFilterChange} onInfoClick={openInfoModal} onDonateClick={openDonationModal}
+          useSheet={useSheet} onUseSheetChange={handleUseSheetChange}
+        />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
+          {filteredArtists.length > 0 ? (
+            <ArtistGridDisplay artists={filteredArtists} onArtistClick={handleArtistClick} />
+          ) : (
+            <NoResultsMessage searchQuery={searchQuery} />
+          )}
+        </main>
+        <Footer displayedCount={filteredArtists.length} totalCount={allArtists.length} onDonateClick={openDonationModal} />
+      </>
+    );
   };
 
   return (
