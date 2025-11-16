@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3 } from "lucide-react";
+import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, ExternalLink } from "lucide-react";
 
 declare global {
   interface Window {
@@ -61,6 +61,7 @@ const SUFFIXES_TO_STRIP = ["tracker"];
 interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
 interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; sortByTrends: boolean; }
 interface QrCodeData { value: string; uriScheme: string; name: string; }
+type ViewType = 'tracker' | 'sheet';
 
 const trackEvent = (eventName: string, props?: Record<string, any>) => {
   if (typeof window !== 'undefined' && window.plausible) {
@@ -79,6 +80,16 @@ const normalizeUrl = (url: string): string => {
   const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
   return googleSheetId ? `https://trackerhub.cx/sh/${googleSheetId}` : url;
 };
+
+const getSheetViewUrl = (url: string): string => {
+  const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+  return googleSheetId ? `https://docs.google.com/spreadsheets/d/${googleSheetId}/edit` : url;
+};
+
+const getArtistSlug = (name: string): string => {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
 const parseCSV = (csvText: string): Artist[] => {
   const lines = csvText.trim().split("\n");
   const items: Artist[] = [];
@@ -154,6 +165,53 @@ const Modal: FC<{ isOpen: boolean; onClose: () => void; children: ReactNode; ari
     </div>
   );
 };
+
+const TrackerIframeOverlay = memo(({ url, artistName, viewType, onClose }: { url: string; artistName: string; viewType: ViewType; onClose: () => void }) => {
+  useKeyPress("Escape", onClose);
+
+  const handleOpenInNewTab = useCallback(() => {
+    trackEvent('Open in New Tab', { artist: artistName, viewType });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [url, artistName, viewType]);
+
+  const iframeStyle = viewType === 'sheet'
+    ? { top: '0', height: '100%' }
+    : { top: '-130px', height: 'calc(100% + 150px)' };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black overflow-hidden animate-in fade-in-0 duration-300">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleOpenInNewTab}
+          className="text-white hover:text-white hover:bg-white/20 transition-colors h-12 w-12 rounded-lg backdrop-blur-sm shadow-lg"
+          aria-label="Open in new tab"
+        >
+          <ExternalLink className="w-5 h-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="text-white hover:text-white hover:bg-white/20 transition-colors h-12 w-12 rounded-lg backdrop-blur-sm shadow-lg"
+          aria-label="Close tracker"
+        >
+          <X className="w-6 h-6" />
+        </Button>
+      </div>
+      <div className="relative h-full overflow-hidden">
+        <iframe
+          src={url}
+          className="absolute left-0 w-full border-0 animate-in slide-in-from-top-4 duration-500"
+          style={iframeStyle}
+          title={`${artistName} ${viewType === 'sheet' ? 'Sheet' : 'Tracker'}`}
+        />
+      </div>
+    </div>
+  );
+});
+
 const GallerySkeleton = memo(() => (
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{Array.from({ length: 18 }).map((_, i) => (<div key={i} className="bg-neutral-900 border-neutral-800 rounded-xl p-3"><Skeleton className="aspect-square w-full mb-3 bg-neutral-700 rounded-lg" /><Skeleton className="h-4 w-3/4 bg-neutral-700 rounded-md" /></div>))}</div>
 ));
@@ -176,11 +234,12 @@ const ErrorMessage = memo(({ message }: { message: string }) => (
 const NoResultsMessage = memo(({ searchQuery }: { searchQuery: string }) => (
   <div className="text-center py-20 animate-in fade-in-0 duration-500 flex flex-col items-center"><CircleSlash className="w-16 h-16 text-neutral-700 mb-4" /><p className="text-lg font-medium text-neutral-300">No Artists Found</p><p className="text-neutral-500 mt-1">{searchQuery ? `Your search for "${searchQuery}" didn't return any results.` : "Try adjusting your filters."}</p></div>
 ));
-const ArtistCard = memo(function ArtistCard({ artist, priority, onClick }: { artist: Artist; priority: boolean; onClick: (artist: Artist) => void; }) {
+const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheetClick }: { artist: Artist; priority: boolean; onClick: (artist: Artist) => void; onSheetClick: (url: string, name: string) => void; }) {
   const googleSheetUrl = useMemo(() => {
     const googleSheetId = artist.url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-    return googleSheetId ? `https://docs.google.com/spreadsheets/d/${googleSheetId}/htmlview` : null;
+    return googleSheetId ? getSheetViewUrl(artist.url) : null;
   }, [artist.url]);
+
   return (
     <div role="link" tabIndex={0} className="bg-neutral-950 border border-neutral-800 hover:border-white/30 hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white" onClick={() => onClick(artist)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}>
       <div className="p-0 flex flex-col h-full">
@@ -189,14 +248,25 @@ const ArtistCard = memo(function ArtistCard({ artist, priority, onClick }: { art
         </div>
         <div className="flex items-start justify-between p-3">
           <h3 className="font-semibold text-white text-sm leading-tight flex-1 mr-2">{artist.name}</h3>
-          {googleSheetUrl && (<a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`Open original Google Sheet for ${artist.name}`} className="flex-shrink-0 p-1 -m-1 rounded-md text-neutral-500 group-hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"><FileSpreadsheet className="w-4 h-4" /></a>)}
+          {googleSheetUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSheetClick(googleSheetUrl, artist.name);
+              }}
+              aria-label={`Open original Google Sheet for ${artist.name}`}
+              className="flex-shrink-0 p-1 -m-1 rounded-md text-neutral-500 group-hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 });
-const ArtistGridDisplay = memo(({ artists, onArtistClick }: { artists: Artist[], onArtistClick: (artist: Artist) => void }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{artists.map((artist, i) => (<div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}><ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} /></div>))}</div>
+const ArtistGridDisplay = memo(({ artists, onArtistClick, onSheetClick }: { artists: Artist[], onArtistClick: (artist: Artist) => void; onSheetClick: (url: string, name: string) => void; }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{artists.map((artist, i) => (<div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}><ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} onSheetClick={onSheetClick} /></div>))}</div>
 ));
 const FilterControls = memo(({ options, onFilterChange, useSheet, onUseSheetChange }: { options: FilterOptions; onFilterChange: (key: keyof FilterOptions, value: boolean) => void; useSheet: boolean; onUseSheetChange: (value: boolean) => void; }) => (
   <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="Filter artists" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64 bg-neutral-950 border-neutral-800 text-neutral-200"><DropdownMenuLabel>Display Options</DropdownMenuLabel><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuCheckboxItem checked={options.showWorking} onCheckedChange={(c) => onFilterChange('showWorking', !!c)}>Show working links only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showUpdated} onCheckedChange={(c) => onFilterChange('showUpdated', !!c)}>Show updated trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showStarred} onCheckedChange={(c) => onFilterChange('showStarred', !!c)}>Show starred trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showAlts} onCheckedChange={(c) => onFilterChange('showAlts', !!c)}>Show alt trackers</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Sorting</DropdownMenuLabel><DropdownMenuCheckboxItem checked={options.sortByTrends} onCheckedChange={(c) => onFilterChange('sortByTrends', !!c)}>Sort by popularity</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Data Source</DropdownMenuLabel><DropdownMenuCheckboxItem checked={useSheet} onCheckedChange={onUseSheetChange}>Use remote CSV</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>
@@ -310,6 +380,9 @@ export default function ArtistGallery() {
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeModal, setActiveModal] = useState<null | "info" | "donate">(null);
+  const [activeTrackerUrl, setActiveTrackerUrl] = useState<string | null>(null);
+  const [activeArtistName, setActiveArtistName] = useState<string>("");
+  const [activeViewType, setActiveViewType] = useState<ViewType>('tracker');
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
 
@@ -323,6 +396,46 @@ export default function ArtistGallery() {
   const prevQueryRef = useRef('');
   const initialSortApplied = useRef(false);
   const originalOrder = useRef<Artist[]>([]);
+  const originalTitle = useRef<string>('');
+
+  // Update URL hash and title when tracker/sheet opens
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!originalTitle.current) {
+        originalTitle.current = document.title;
+      }
+
+      if (activeTrackerUrl && activeArtistName) {
+        const slug = getArtistSlug(activeArtistName);
+        const newHash = `#${slug}?view=${activeViewType}`;
+
+        // Update URL without triggering navigation
+        window.history.pushState(null, '', newHash);
+
+        // Update title
+        document.title = `${activeArtistName} ${activeViewType === 'sheet' ? 'Sheet' : 'Tracker'} - ArtistGrid.cx`;
+      } else {
+        // Restore original state
+        window.history.pushState(null, '', window.location.pathname);
+        document.title = originalTitle.current;
+      }
+    }
+  }, [activeTrackerUrl, activeArtistName, activeViewType]);
+
+  // Handle overflow hidden when iframe is open
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (activeTrackerUrl) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [activeTrackerUrl]);
 
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) {
@@ -474,12 +587,39 @@ export default function ArtistGallery() {
   const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
     trackEvent('Artist Click', { name: artist.name, source });
     const finalUrl = normalizeUrl(artist.url);
-    if (isMobile) window.location.href = finalUrl; else window.open(finalUrl, "_blank", "noopener,noreferrer");
+
+    // For hash redirects or mobile, do direct navigation
+    if (source === 'Hash Redirect' || isMobile) {
+      window.location.href = finalUrl;
+    } else {
+      // For desktop grid clicks, show iframe overlay
+      setActiveTrackerUrl(finalUrl);
+      setActiveArtistName(artist.name);
+      setActiveViewType('tracker');
+    }
+  }, [isMobile]);
+
+  const handleSheetClick = useCallback((url: string, name: string) => {
+    trackEvent('Sheet Click', { name });
+
+    if (isMobile) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      setActiveTrackerUrl(url);
+      setActiveArtistName(name);
+      setActiveViewType('sheet');
+    }
   }, [isMobile]);
 
   useEffect(() => {
     if (status === 'success' && !hashProcessed.current && typeof window !== 'undefined' && window.location.hash) {
-      let processedHash = decodeURIComponent(window.location.hash.substring(1)).toLowerCase();
+      const hash = window.location.hash.substring(1); // Remove #
+      const [slugPart, queryPart] = hash.split('?');
+      let processedHash = decodeURIComponent(slugPart).toLowerCase();
+
+      // Check if view parameter exists
+      const urlParams = new URLSearchParams(queryPart || '');
+      const viewParam = urlParams.get('view') as ViewType | null;
 
       for (const suffix of SUFFIXES_TO_STRIP) {
         if (processedHash.endsWith(suffix)) {
@@ -507,15 +647,36 @@ export default function ArtistGallery() {
         );
 
         if (targetArtist) {
-          trackEvent('Hash Redirect', { artist: targetArtist.name, hash: processedHash });
-          handleArtistClick(targetArtist, 'Hash Redirect');
+          trackEvent('Hash Redirect', { artist: targetArtist.name, hash: processedHash, view: viewParam });
+
+          // Use iframe overlay for hash redirects on desktop
+          if (!isMobile) {
+            if (viewParam === 'sheet') {
+              const sheetUrl = getSheetViewUrl(targetArtist.url);
+              setActiveTrackerUrl(sheetUrl);
+              setActiveArtistName(targetArtist.name);
+              setActiveViewType('sheet');
+            } else {
+              const finalUrl = normalizeUrl(targetArtist.url);
+              setActiveTrackerUrl(finalUrl);
+              setActiveArtistName(targetArtist.name);
+              setActiveViewType('tracker');
+            }
+          } else {
+            handleArtistClick(targetArtist, 'Hash Redirect');
+          }
+
           hashProcessed.current = true;
         }
       }
     }
-  }, [status, allArtists, handleArtistClick]);
+  }, [status, allArtists, handleArtistClick, isMobile]);
 
   const closeModal = useCallback(() => setActiveModal(null), []);
+  const closeTrackerOverlay = useCallback(() => {
+    setActiveTrackerUrl(null);
+    setActiveArtistName('');
+  }, []);
 
   const openInfoModal = useCallback(() => {
     trackEvent('Header Click', { button: 'Info' });
@@ -547,7 +708,7 @@ export default function ArtistGallery() {
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
           {filteredArtists.length > 0 ? (
-            <ArtistGridDisplay artists={filteredArtists} onArtistClick={handleArtistClick} />
+            <ArtistGridDisplay artists={filteredArtists} onArtistClick={handleArtistClick} onSheetClick={handleSheetClick} />
           ) : (
             <NoResultsMessage searchQuery={searchQuery} />
           )}
@@ -558,9 +719,12 @@ export default function ArtistGallery() {
   };
 
   return (
-    <div className="pb-8">
+    <div className="pb-8 overflow-x-hidden">
       <DonationModal isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal isOpen={activeModal === "info"} onClose={closeModal} visitorCount={visitorCount} onDonate={openDonationModal} />
+      {activeTrackerUrl && (
+        <TrackerIframeOverlay url={activeTrackerUrl} artistName={activeArtistName} viewType={activeViewType} onClose={closeTrackerOverlay} />
+      )}
       {renderContent()}
     </div>
   );
