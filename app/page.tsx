@@ -78,7 +78,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 const getImageFilename = (artistName: string): string => artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
 const normalizeUrl = (url: string): string => {
   const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  return googleSheetId ? `hhttps://dev.artistgrid.cx/#${googleSheetId}` : url;
+  return googleSheetId ? `https://dev.artistgrid.cx/#${googleSheetId}` : url;
 };
 
 const getSheetViewUrl = (url: string): string => {
