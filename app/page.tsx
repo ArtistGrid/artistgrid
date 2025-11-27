@@ -599,16 +599,19 @@ if (source === 'Hash Redirect' || isMobile) {
 
   }, [isMobile]);
 
-  const handleSheetClick = useCallback((url: string, name: string) => {
-    trackEvent('Sheet Click', { name });
+const googleSheetId = artist.url.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+if (!googleSheetId) return;
 
-    if (isMobile) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      setActiveTrackerUrl(url);
-      setActiveArtistName(name);
-      setActiveViewType('sheet');
-    }
+const devUrl = `https://dev.artistgrid.cx/#${googleSheetId}`;
+
+if (source === 'Hash Redirect' || isMobile) {
+  window.location.href = devUrl;
+} else {
+  setActiveTrackerUrl(devUrl);
+  setActiveArtistName(artist.name);
+  setActiveViewType('tracker');
+}
+
   }, [isMobile]);
 
   useEffect(() => {
