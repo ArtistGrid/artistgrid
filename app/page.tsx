@@ -78,7 +78,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 const getImageFilename = (artistName: string): string => artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
 const normalizeUrl = (url: string): string => {
   const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  return googleSheetId ? `https://docs.google.com/spreadsheets/d/${googleSheetId}` : url;
+  return googleSheetId ? `hhttps://dev.artistgrid.cx/#${googleSheetId}` : url;
 };
 
 const getSheetViewUrl = (url: string): string => {
@@ -586,32 +586,29 @@ export default function ArtistGallery() {
 
   const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
     trackEvent('Artist Click', { name: artist.name, source });
-const slug = getArtistSlug(artist.name);
-const devUrl = `https://dev.artistgrid.cx/#${slug}`;
+    const finalUrl = normalizeUrl(artist.url);
 
-if (source === 'Hash Redirect' || isMobile) {
-  window.location.href = devUrl;
-} else {
-  setActiveTrackerUrl(devUrl);
-  setActiveArtistName(artist.name);
-  setActiveViewType('tracker');
-}
-
+    // For hash redirects or mobile, do direct navigation
+    if (source === 'Hash Redirect' || isMobile) {
+      window.location.href = finalUrl;
+    } else {
+      // For desktop grid clicks, show iframe overlay
+      setActiveTrackerUrl(finalUrl);
+      setActiveArtistName(artist.name);
+      setActiveViewType('tracker');
+    }
   }, [isMobile]);
 
-const googleSheetId = artist.url.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-if (!googleSheetId) return;
+  const handleSheetClick = useCallback((url: string, name: string) => {
+    trackEvent('Sheet Click', { name });
 
-const devUrl = `https://dev.artistgrid.cx/#${googleSheetId}`;
-
-if (source === 'Hash Redirect' || isMobile) {
-  window.location.href = devUrl;
-} else {
-  setActiveTrackerUrl(devUrl);
-  setActiveArtistName(artist.name);
-  setActiveViewType('tracker');
-}
-
+    if (isMobile) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      setActiveTrackerUrl(url);
+      setActiveArtistName(name);
+      setActiveViewType('sheet');
+    }
   }, [isMobile]);
 
   useEffect(() => {
