@@ -586,17 +586,17 @@ export default function ArtistGallery() {
 
   const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
     trackEvent('Artist Click', { name: artist.name, source });
-    const finalUrl = normalizeUrl(artist.url);
+const slug = getArtistSlug(artist.name);
+const devUrl = `https://dev.artistgrid.cx/#${slug}`;
 
-    // For hash redirects or mobile, do direct navigation
-    if (source === 'Hash Redirect' || isMobile) {
-      window.location.href = finalUrl;
-    } else {
-      // For desktop grid clicks, show iframe overlay
-      setActiveTrackerUrl(finalUrl);
-      setActiveArtistName(artist.name);
-      setActiveViewType('tracker');
-    }
+if (source === 'Hash Redirect' || isMobile) {
+  window.location.href = devUrl;
+} else {
+  setActiveTrackerUrl(devUrl);
+  setActiveArtistName(artist.name);
+  setActiveViewType('tracker');
+}
+
   }, [isMobile]);
 
   const handleSheetClick = useCallback((url: string, name: string) => {
