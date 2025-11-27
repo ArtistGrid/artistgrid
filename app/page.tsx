@@ -174,9 +174,11 @@ const TrackerIframeOverlay = memo(({ url, artistName, viewType, onClose }: { url
     window.open(url, '_blank', 'noopener,noreferrer');
   }, [url, artistName, viewType]);
 
-  const iframeStyle = viewType === 'sheet'
-    ? { top: '0', height: '100%' }
-    : { top: '-130px', height: 'calc(100% + 150px)' };
+const iframeStyle = {
+  top: '0',
+  height: '100%',
+};
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden animate-in fade-in-0 duration-300">
