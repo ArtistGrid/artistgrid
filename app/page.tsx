@@ -1,15 +1,18 @@
+// app/page.tsx
 "use client";
 
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, memo, useRef, FC, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Fuse from "fuse.js";
+import { usePlayer } from "./providers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, ExternalLink } from "lucide-react";
+import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, Radio } from "lucide-react";
 
 declare global {
   interface Window {
@@ -17,34 +20,35 @@ declare global {
   }
 }
 
-const QRCode = dynamic(() => import("qrcode.react").then(mod => mod.QRCodeSVG), {
-  ssr: false,
-  loading: () => <div className="w-[240px] h-[240px] rounded-lg bg-neutral-200 dark:bg-neutral-800 animate-pulse" />,
-});
+const QRCode = dynamic(() => import("qrcode.react").then(mod => mod.QRCodeSVG), { ssr: false, loading: () => <div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" /> });
 
 const ASSET_BASE = "https://assets.artistgrid.cx";
 const LOCAL_STORAGE_KEYS = {
-  USE_SHEET: 'artistGridUseSheet',
-  FILTER_OPTIONS: 'artistGridFilterOptions',
+  USE_SHEET: "artistGridUseSheet",
+  FILTER_OPTIONS: "artistGridFilterOptions",
+  CSV_CACHE_REMOTE: "artistGridCsvCache_remote",
+  CSV_CACHE_LOCAL: "artistGridCsvCache_local",
+  TRENDS_CACHE: "artistGridTrendsCache"
 };
 const DATA_SOURCES = {
   LIVE: "https://sheets.artistgrid.cx/artists.csv",
   BACKUP: "/backup.csv",
-  REMOTE_BACKUP: "https://artistgrid.cx/backup.csv",
+  REMOTE_BACKUP: "https://artistgrid.cx/backup.csv"
 };
 const TRENDS_API = "https://trends.artistgrid.cx/";
+const CACHE_EXPIRY = 1000 * 60 * 30;
 const DONATION_OPTIONS = {
   URL: [
     { name: "PayPal", value: "https://paypal.me/eduardprigoana" },
     { name: "Patreon", value: "https://www.patreon.com/c/ArtistGrid" },
     { name: "Liberapay", value: "https://liberapay.com/ArtistGrid/" },
-    { name: "Ko-fi", value: "https://ko-fi.com/artistgrid" },
+    { name: "Ko-fi", value: "https://ko-fi.com/artistgrid" }
   ],
   CRYPTO: [
     { name: "Bitcoin (BTC)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "bitcoin" },
     { name: "Ethereum (ETH)", value: "0x0b39d5D190fDB127d13458bd2086cDf950D3034C", uriScheme: "ethereum" },
     { name: "Litecoin (LTC)", value: "ltc1q88kpywg3jxxg0jsx9c4e9d8gqs7p07fqptjgtv", uriScheme: "litecoin" },
-    { name: "Monero (XMR)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "monero" },
+    { name: "Monero (XMR)", value: "bc1qn3ufzs4nk62lhfykx78atzjxx8hxptzmrm0ckr", uriScheme: "monero" }
   ]
 };
 const CUSTOM_REDIRECTS: Record<string, string> = {
@@ -53,41 +57,81 @@ const CUSTOM_REDIRECTS: Record<string, string> = {
   carti: "Playboi Carti",
   kendrick: "Kendrick Lamar",
   discord: "https://discord.gg/RdBeMZ2m8S",
-  github: "https://github.com/ArtistGrid",
+  github: "https://github.com/ArtistGrid"
 };
-
 const SUFFIXES_TO_STRIP = ["tracker"];
 
-interface Artist { name: string; url: string; imageFilename: string; isLinkWorking: boolean; isUpdated: boolean; isStarred: boolean; }
-interface FilterOptions { showWorking: boolean; showUpdated: boolean; showStarred: boolean; showAlts: boolean; sortByTrends: boolean; }
-interface QrCodeData { value: string; uriScheme: string; name: string; }
-type ViewType = 'tracker' | 'sheet';
+interface Artist {
+  name: string;
+  url: string;
+  imageFilename: string;
+  isLinkWorking: boolean;
+  isUpdated: boolean;
+  isStarred: boolean;
+}
+interface FilterOptions {
+  showWorking: boolean;
+  showUpdated: boolean;
+  showStarred: boolean;
+  showAlts: boolean;
+  sortByTrends: boolean;
+}
+interface QrCodeData {
+  value: string;
+  uriScheme: string;
+  name: string;
+}
+interface CacheData<T> {
+  data: T;
+  timestamp: number;
+}
 
 const trackEvent = (eventName: string, props?: Record<string, any>) => {
-  if (typeof window !== 'undefined' && window.plausible) {
-    window.plausible(eventName, props ? { props } : undefined);
-  }
+  if (typeof window !== "undefined" && window.plausible) window.plausible(eventName, props ? { props } : undefined);
 };
 
 const DiscordIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor">
-    <path d="M20.992 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.050 0.005 0.109 0.005 0.168 0 1.523-1.191 2.768-2.693 2.854l-0.008 0zM11.026 20.163c-1.511-0.099-2.699-1.349-2.699-2.877 0-0.051 0.001-0.102 0.004-0.153l-0 0.007c-0.003-0.048-0.005-0.104-0.005-0.161 0-1.525 1.19-2.771 2.692-2.862l0.008-0c1.509 0.082 2.701 1.325 2.701 2.847 0 0.062-0.002 0.123-0.006 0.184l0-0.008c0.003 0.048 0.005 0.104 0.005 0.161 0 1.525-1.19 2.771-2.692 2.862l-0.008 0zM26.393 6.465c-1.763-0.832-3.811-1.49-5.955-1.871l-0.149-0.022c-0.005-0.001-0.011-0.002-0.017-0.002-0.035 0-0.065 0.019-0.081 0.047l-0 0c-0.234 0.411-0.488 0.924-0.717 1.45l-0.043 0.111c-1.030-0.165-2.218-0.259-3.428-0.259s-2.398 0.094-3.557 0.275l0.129-0.017c-0.27-0.63-0.528-1.142-0.813-1.638l0.041 0.077c-0.017-0.029-0.048-0.047-0.083-0.047-0.005 0-0.011 0-0.016 0.001l0.001-0c-2.293 0.403-4.342 1.060-6.256 1.957l0.151-0.064c-0.017 0.007-0.031 0.019-0.040 0.034l-0 0c-2.854 4.041-4.562 9.069-4.562 14.496 0 0.907 0.048 1.802 0.141 2.684l-0.009-0.11c0.003 0.029 0.018 0.053 0.039 0.070l0 0c2.14 1.601 4.628 2.891 7.313 3.738l0.176 0.048c0.008 0.003 0.018 0.004 0.028 0.004 0.032 0 0.060-0.015 0.077-0.038l0-0c0.535-0.72 1.044-1.536 1.485-2.392l0.047-0.1c0.006-0.012 0.010-0.027 0.010-0.043 0-0.041-0.026-0.075-0.062-0.089l-0.001-0c-0.912-0.352-1.683-0.727-2.417-1.157l0.077 0.042c-0.029-0.017-0.048-0.048-0.048-0.083 0-0.031 0.015-0.059 0.038-0.076l0-0c0.157-0.118 0.315-0.24 0.465-0.364 0.016-0.013 0.037-0.021 0.059-0.021 0.014 0 0.027 0.003 0.038 0.008l-0.001-0c2.208 1.061 4.8 1.681 7.536 1.681s5.329-0.62 7.643-1.727l-0.107 0.046c0.012-0.006 0.025-0.009 0.040-0.009 0.022 0 0.043 0.008 0.059 0.021l-0-0c0.15 0.124 0.307 0.248 0.466 0.365 0.023 0.018 0.038 0.046 0.038 0.077 0 0.035-0.019 0.065-0.046 0.082l-0 0c-0.661 0.395-1.432 0.769-2.235 1.078l-0.105 0.036c-0.036 0.014-0.062 0.049-0.062 0.089 0 0.016 0.004 0.031 0.011 0.044l-0-0.001c0.501 0.960 1.009 1.775 1.571 2.548l-0.040-0.057c0.017 0.024 0.046 0.040 0.077 0.040 0.010 0 0.020-0.002 0.029-0.004l-0.001 0c2.865-0.892 5.358-2.182 7.566-3.832l-0.065 0.047c0.022-0.016 0.036-0.041 0.039-0.069l0-0c0.087-0.784 0.136-1.694 0.136-2.615 0-5.415-1.712-10.43-4.623-14.534l0.052 0.078c-0.008-0.016-0.022-0.029-0.038-0.036l-0-0z"/>
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
   </svg>
 );
 
+function getCachedData<T>(key: string): CacheData<T> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+    const entry: CacheData<T> = JSON.parse(cached);
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function isCacheExpired<T>(cache: CacheData<T> | null): boolean {
+  if (!cache) return true;
+  return Date.now() - cache.timestamp > CACHE_EXPIRY;
+}
+
+function setCachedData<T>(key: string, data: T) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {
+    console.warn("Cache write failed:", e);
+  }
+}
+
 const getImageFilename = (artistName: string): string => artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
-const normalizeUrl = (url: string): string => {
-  const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  return googleSheetId ? `https://trackerhub.cx/sh/${googleSheetId}` : url;
-};
 
 const getSheetViewUrl = (url: string): string => {
-  const googleSheetId = url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  return googleSheetId ? `https://docs.google.com/spreadsheets/d/${googleSheetId}/edit` : url;
+  const id = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+  return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : url;
 };
 
-const getArtistSlug = (name: string): string => {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const extractTrackerId = (url: string): string | null => {
+  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{44})/);
+  return match ? match[1] : null;
 };
 
 const parseCSV = (csvText: string): Artist[] => {
@@ -99,163 +143,156 @@ const parseCSV = (csvText: string): Artist[] => {
     if (!line) continue;
     const matches = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, "").trim()) || [];
     if (matches.length < 6) continue;
-    const [name, url, _credit, isLinkWorkingStr, isUpdatedStr, isStarredStr] = matches;
+    const [name, url, , isLinkWorkingStr, isUpdatedStr, isStarredStr] = matches;
     if (name && url) {
       const count = nameCount[name] || 0;
       nameCount[name] = count + 1;
-      const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}`: ''}]`;
+      const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
       items.push({
-        name: newName, url, imageFilename: getImageFilename(newName),
-        isLinkWorking: isLinkWorkingStr?.toLowerCase() === 'yes', isUpdated: isUpdatedStr?.toLowerCase() === 'yes', isStarred: isStarredStr?.toLowerCase() === 'yes',
+        name: newName,
+        url,
+        imageFilename: getImageFilename(newName),
+        isLinkWorking: isLinkWorkingStr?.toLowerCase() === "yes",
+        isUpdated: isUpdatedStr?.toLowerCase() === "yes",
+        isStarred: isStarredStr?.toLowerCase() === "yes"
       });
     }
   }
   return items;
 };
 
+const artistsEqual = (a: Artist[], b: Artist[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].name !== b[i].name || a[i].url !== b[i].url) return false;
+  }
+  return true;
+};
+
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') return initialValue;
+    if (typeof window === "undefined") return initialValue;
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(error);
+    } catch {
       return initialValue;
     }
   });
-
   const setValue = (value: T | ((val: T) => T)) => {
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
-      }
-    } catch (error) {
-      console.error(error);
+      if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (e) {
+      console.error(e);
     }
   };
   return [storedValue, setValue];
 }
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => { setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)); }, []);
-  return isMobile;
-};
+
 const useKeyPress = (targetKey: string, callback: () => void) => {
   const callbackRef = useRef(callback);
-  useEffect(() => { callbackRef.current = callback; }, [callback]);
   useEffect(() => {
-    const handler = ({ key, preventDefault }: KeyboardEvent) => { if (key === targetKey) { preventDefault(); callbackRef.current(); } };
+    callbackRef.current = callback;
+  }, [callback]);
+  useEffect(() => {
+    const handler = ({ key }: KeyboardEvent) => {
+      if (key === targetKey) callbackRef.current();
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [targetKey]);
 };
 
-const Modal: FC<{ isOpen: boolean; onClose: () => void; children: ReactNode; ariaLabel: string; }> = ({ isOpen, onClose, children, ariaLabel }) => {
+const Modal: FC<{ isOpen: boolean; onClose: () => void; children: ReactNode; ariaLabel: string }> = ({ isOpen, onClose, children, ariaLabel }) => {
   useKeyPress("Escape", onClose);
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" onClick={onClose} role="dialog" aria-modal="true" aria-label={ariaLabel} data-state={isOpen ? "open" : "closed"}>
-      <div className="bg-neutral-950 border border-neutral-800 shadow-2xl shadow-black/30 rounded-xl w-full max-w-md relative data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-top-[2%] data-[state=open]:slide-in-from-top-[2%]" onClick={(e) => e.stopPropagation()} data-state={isOpen ? "open" : "closed"}>
-        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-neutral-500 hover:text-white transition-colors h-8 w-8 rounded-lg" aria-label="Close popup"><X className="w-5 h-5" /></Button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={ariaLabel}>
+      <div className="bg-neutral-950 border border-neutral-800 shadow-2xl rounded-xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95" onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-neutral-500 hover:text-white h-8 w-8 rounded-lg">
+          <X className="w-5 h-5" />
+        </Button>
         {children}
       </div>
     </div>
   );
 };
 
-const TrackerIframeOverlay = memo(({ url, artistName, viewType, onClose }: { url: string; artistName: string; viewType: ViewType; onClose: () => void }) => {
-  useKeyPress("Escape", onClose);
-
-  const handleOpenInNewTab = useCallback(() => {
-    trackEvent('Open in New Tab', { artist: artistName, viewType });
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }, [url, artistName, viewType]);
-
-  const iframeStyle = viewType === 'sheet'
-    ? { top: '0', height: '100%' }
-    : { top: '-130px', height: 'calc(100% + 150px)' };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black overflow-hidden animate-in fade-in-0 duration-300">
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleOpenInNewTab}
-          className="text-white hover:text-white hover:bg-white/20 transition-colors h-12 w-12 rounded-lg backdrop-blur-sm shadow-lg"
-          aria-label="Open in new tab"
-        >
-          <ExternalLink className="w-5 h-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="text-white hover:text-white hover:bg-white/20 transition-colors h-12 w-12 rounded-lg backdrop-blur-sm shadow-lg"
-          aria-label="Close tracker"
-        >
-          <X className="w-6 h-6" />
-        </Button>
-      </div>
-      <div className="relative h-full overflow-hidden">
-        <iframe
-          src={url}
-          className="absolute left-0 w-full border-0 animate-in slide-in-from-top-4 duration-500"
-          style={iframeStyle}
-          title={`${artistName} ${viewType === 'sheet' ? 'Sheet' : 'Tracker'}`}
-        />
-      </div>
-    </div>
-  );
-});
-
 const GallerySkeleton = memo(() => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{Array.from({ length: 18 }).map((_, i) => (<div key={i} className="bg-neutral-900 border-neutral-800 rounded-xl p-3"><Skeleton className="aspect-square w-full mb-3 bg-neutral-700 rounded-lg" /><Skeleton className="h-4 w-3/4 bg-neutral-700 rounded-md" /></div>))}</div>
-));
-const HeaderSkeleton = memo(() => (
-    <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900 mb-8">
-      <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
-        <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
-        <div className="sm:hidden flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
-        <Skeleton className="h-12 flex-1 rounded-xl bg-neutral-800" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" />
-          <div className="hidden sm:flex items-center gap-2"><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /><Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" /></div>
-        </div>
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
+    {Array.from({ length: 18 }).map((_, i) => (
+      <div key={i} className="bg-neutral-900 rounded-xl p-3">
+        <Skeleton className="aspect-square w-full mb-3 bg-neutral-700 rounded-lg" />
+        <Skeleton className="h-4 w-3/4 bg-neutral-700 rounded-md" />
       </div>
-    </header>
+    ))}
+  </div>
 ));
-const ErrorMessage = memo(({ message }: { message: string }) => (
-  <div className="min-h-screen bg-black flex items-center justify-center p-4"><div className="text-center bg-neutral-900 border border-red-500/30 p-8 rounded-xl max-w-md"><h1 className="text-2xl font-bold text-white mb-2">Error Loading Artists</h1><p className="text-neutral-400">{message}</p></div></div>
-));
-const NoResultsMessage = memo(({ searchQuery }: { searchQuery: string }) => (
-  <div className="text-center py-20 animate-in fade-in-0 duration-500 flex flex-col items-center"><CircleSlash className="w-16 h-16 text-neutral-700 mb-4" /><p className="text-lg font-medium text-neutral-300">No Artists Found</p><p className="text-neutral-500 mt-1">{searchQuery ? `Your search for "${searchQuery}" didn't return any results.` : "Try adjusting your filters."}</p></div>
-));
-const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheetClick }: { artist: Artist; priority: boolean; onClick: (artist: Artist) => void; onSheetClick: (url: string, name: string) => void; }) {
-  const googleSheetUrl = useMemo(() => {
-    const googleSheetId = artist.url.match(/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-    return googleSheetId ? getSheetViewUrl(artist.url) : null;
-  }, [artist.url]);
 
+const HeaderSkeleton = memo(() => (
+  <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900 mb-8">
+    <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
+      <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
+      <Skeleton className="h-12 flex-1 rounded-xl bg-neutral-800" />
+      <Skeleton className="h-10 w-10 rounded-lg bg-neutral-800" />
+    </div>
+  </header>
+));
+
+const ErrorMessage = memo(({ message }: { message: string }) => (
+  <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="text-center bg-neutral-900 border border-red-500/30 p-8 rounded-xl max-w-md">
+      <h1 className="text-2xl font-bold text-white mb-2">Error Loading Artists</h1>
+      <p className="text-neutral-400">{message}</p>
+    </div>
+  </div>
+));
+
+const NoResultsMessage = memo(({ searchQuery }: { searchQuery: string }) => (
+  <div className="text-center py-20 flex flex-col items-center">
+    <CircleSlash className="w-16 h-16 text-neutral-700 mb-4" />
+    <p className="text-lg font-medium text-neutral-300">No Artists Found</p>
+    <p className="text-neutral-500 mt-1">
+      {searchQuery ? `Your search for "${searchQuery}" didn't return any results.` : "Try adjusting your filters."}
+    </p>
+  </div>
+));
+
+const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheetClick }: { artist: Artist; priority: boolean; onClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) {
+  const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
   return (
-    <div role="link" tabIndex={0} className="bg-neutral-950 border border-neutral-800 hover:border-white/30 hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white" onClick={() => onClick(artist)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}>
-      <div className="p-0 flex flex-col h-full">
+    <div
+      role="link"
+      tabIndex={0}
+      className="bg-neutral-950 border border-neutral-800 hover:border-white/30 hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
+      onClick={() => onClick(artist)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}
+    >
+      <div className="flex flex-col h-full">
         <div className="relative aspect-square w-full bg-neutral-900 overflow-hidden">
-          <Image src={`${ASSET_BASE}/${artist.imageFilename}`} alt={artist.name} fill sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw" className="object-cover transition-transform duration-300 ease-out group-hover:scale-105" priority={priority} quality={70} draggable={false} />
+          <Image
+            src={`${ASSET_BASE}/${artist.imageFilename}`}
+            alt={artist.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            priority={priority}
+            quality={70}
+            draggable={false}
+          />
         </div>
         <div className="flex items-start justify-between p-3">
           <h3 className="font-semibold text-white text-sm leading-tight flex-1 mr-2">{artist.name}</h3>
-          {googleSheetUrl && (
+          {trackerId && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onSheetClick(googleSheetUrl, artist.name);
+                onSheetClick(getSheetViewUrl(artist.url));
               }}
-              aria-label={`Open original Google Sheet for ${artist.name}`}
-              className="flex-shrink-0 p-1 -m-1 rounded-md text-neutral-500 group-hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+              className="flex-shrink-0 p-1 -m-1 rounded-md text-neutral-500 group-hover:text-white transition-colors"
+              aria-label={`Open sheet for ${artist.name}`}
             >
               <FileSpreadsheet className="w-4 h-4" />
             </button>
@@ -265,106 +302,335 @@ const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheet
     </div>
   );
 });
-const ArtistGridDisplay = memo(({ artists, onArtistClick, onSheetClick }: { artists: Artist[], onArtistClick: (artist: Artist) => void; onSheetClick: (url: string, name: string) => void; }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">{artists.map((artist, i) => (<div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}><ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} onSheetClick={onSheetClick} /></div>))}</div>
+
+const ArtistGridDisplay = memo(({ artists, onArtistClick, onSheetClick }: { artists: Artist[]; onArtistClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
+    {artists.map((artist, i) => (
+      <div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}>
+        <ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} onSheetClick={onSheetClick} />
+      </div>
+    ))}
+  </div>
 ));
-const FilterControls = memo(({ options, onFilterChange, useSheet, onUseSheetChange }: { options: FilterOptions; onFilterChange: (key: keyof FilterOptions, value: boolean) => void; useSheet: boolean; onUseSheetChange: (value: boolean) => void; }) => (
-  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="Filter artists" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64 bg-neutral-950 border-neutral-800 text-neutral-200"><DropdownMenuLabel>Display Options</DropdownMenuLabel><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuCheckboxItem checked={options.showWorking} onCheckedChange={(c) => onFilterChange('showWorking', !!c)}>Show working links only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showUpdated} onCheckedChange={(c) => onFilterChange('showUpdated', !!c)}>Show updated trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showStarred} onCheckedChange={(c) => onFilterChange('showStarred', !!c)}>Show starred trackers only</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={options.showAlts} onCheckedChange={(c) => onFilterChange('showAlts', !!c)}>Show alt trackers</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Sorting</DropdownMenuLabel><DropdownMenuCheckboxItem checked={options.sortByTrends} onCheckedChange={(c) => onFilterChange('sortByTrends', !!c)}>Sort by popularity</DropdownMenuCheckboxItem><DropdownMenuSeparator className="bg-neutral-800" /><DropdownMenuLabel>Data Source</DropdownMenuLabel><DropdownMenuCheckboxItem checked={useSheet} onCheckedChange={onUseSheetChange}>Use remote CSV</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>
+
+const FilterControls = memo(({ options, onFilterChange, useSheet, onUseSheetChange }: { options: FilterOptions; onFilterChange: (key: keyof FilterOptions, value: boolean) => void; useSheet: boolean; onUseSheetChange: (value: boolean) => void }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline" size="icon" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white" aria-label="Filter options">
+        <Filter className="w-4 h-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-64 bg-neutral-950 border-neutral-800 text-neutral-200">
+      <DropdownMenuLabel>Display Options</DropdownMenuLabel>
+      <DropdownMenuSeparator className="bg-neutral-800" />
+      <DropdownMenuCheckboxItem checked={options.showWorking} onCheckedChange={(c) => onFilterChange("showWorking", !!c)}>Show working links only</DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem checked={options.showUpdated} onCheckedChange={(c) => onFilterChange("showUpdated", !!c)}>Show updated trackers only</DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem checked={options.showStarred} onCheckedChange={(c) => onFilterChange("showStarred", !!c)}>Show starred trackers only</DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem checked={options.showAlts} onCheckedChange={(c) => onFilterChange("showAlts", !!c)}>Show alt trackers</DropdownMenuCheckboxItem>
+      <DropdownMenuSeparator className="bg-neutral-800" />
+      <DropdownMenuLabel>Sorting</DropdownMenuLabel>
+      <DropdownMenuCheckboxItem checked={options.sortByTrends} onCheckedChange={(c) => onFilterChange("sortByTrends", !!c)}>Sort by popularity</DropdownMenuCheckboxItem>
+      <DropdownMenuSeparator className="bg-neutral-800" />
+      <DropdownMenuLabel>Data Source</DropdownMenuLabel>
+      <DropdownMenuCheckboxItem checked={useSheet} onCheckedChange={onUseSheetChange}>Use remote CSV</DropdownMenuCheckboxItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 ));
-const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick: () => void; onDonateClick: () => void; }) => (
+
+const HeaderActions = memo(({ onInfoClick, onDonateClick, onLastFMClick, isLastFMConnected }: { onInfoClick: () => void; onDonateClick: () => void; onLastFMClick: () => void; isLastFMConnected: boolean }) => (
   <div className="flex items-center gap-2">
-    <Button variant="outline" size="icon" onClick={() => { trackEvent('Header Click', { button: 'Discord' }); window.open('https://discord.gg/RdBeMZ2m8S', '_blank', 'noopener,noreferrer'); }} aria-label="Join Discord" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white">
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={onLastFMClick}
+      aria-label="Last.fm"
+      className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 ${isLastFMConnected ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}
+    >
+      <Radio className="w-5 h-5" />
+    </Button>
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={() => {
+        trackEvent("Header Click", { button: "Discord" });
+        window.open("https://discord.gg/RdBeMZ2m8S", "_blank", "noopener,noreferrer");
+      }}
+      aria-label="Discord"
+      className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white hover:text-white"
+    >
       <DiscordIcon className="w-5 h-5" />
     </Button>
-    <Button variant="outline" size="icon" onClick={onDonateClick} aria-label="Donate" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white">
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={onDonateClick}
+      aria-label="Donate"
+      className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white hover:text-white"
+    >
       <HandCoins className="w-5 h-5" />
     </Button>
-    <Button variant="outline" size="icon" onClick={onInfoClick} aria-label="About ArtistGrid" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700 text-white hover:text-white">
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={onInfoClick}
+      aria-label="About"
+      className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white hover:text-white"
+    >
       <Info className="w-5 h-5" />
     </Button>
   </div>
 ));
-const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChange, onInfoClick, onDonateClick, useSheet, onUseSheetChange }: { searchQuery: string; setSearchQuery: (q: string) => void; filterOptions: FilterOptions; onFilterChange: (k: keyof FilterOptions, v: boolean) => void; onInfoClick: () => void; onDonateClick: () => void; useSheet: boolean; onUseSheetChange: (v: boolean) => void; }) => (
+
+const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChange, onInfoClick, onDonateClick, useSheet, onUseSheetChange, onLastFMClick, isLastFMConnected }: {
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  filterOptions: FilterOptions;
+  onFilterChange: (k: keyof FilterOptions, v: boolean) => void;
+  onInfoClick: () => void;
+  onDonateClick: () => void;
+  useSheet: boolean;
+  onUseSheetChange: (v: boolean) => void;
+  onLastFMClick: () => void;
+  isLastFMConnected: boolean;
+}) => (
   <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900 mb-8">
     <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
       <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
-      <div className="sm:hidden"><HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} /></div>
+      <div className="sm:hidden">
+        <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} onLastFMClick={onLastFMClick} isLastFMConnected={isLastFMConnected} />
+      </div>
       <div className="relative flex-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
-        <Input type="text" placeholder="Search artists..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all duration-300 rounded-xl w-full pl-12 pr-10 h-12" aria-label="Search artists" />
-        {searchQuery && (<Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-700" onClick={() => setSearchQuery("")} aria-label="Clear search"><X className="w-4 h-4" /></Button>)}
+        <Input
+          type="text"
+          placeholder="Search artists..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 rounded-xl w-full pl-12 pr-10 h-12"
+          aria-label="Search artists"
+        />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-neutral-500 hover:text-white"
+            onClick={() => setSearchQuery("")}
+            aria-label="Clear search"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <FilterControls options={filterOptions} onFilterChange={onFilterChange} useSheet={useSheet} onUseSheetChange={onUseSheetChange} />
-        <div className="hidden sm:flex"><HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} /></div>
+        <div className="hidden sm:flex">
+          <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} onLastFMClick={onLastFMClick} isLastFMConnected={isLastFMConnected} />
+        </div>
       </div>
     </div>
   </header>
 ));
-const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: boolean; onClose: () => void; visitorCount: number | null; onDonate: () => void; }) => (
-  <Modal isOpen={isOpen} onClose={onClose} ariaLabel="About ArtistGrid"><div className="p-6 pt-12 text-center"><h2 className="text-xl font-bold text-white mb-4">About ArtistGrid</h2><div className="text-neutral-300 space-y-4 text-sm sm:text-base"><p>Maintained by <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">edideaur</a> and <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">JustAMZ</a>.</p><p>Original trackers are in <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">this Google Sheet</a>.</p><p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p><div className="flex items-center justify-center gap-4 text-base pt-2"><a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">GitHub</a><a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">Discord</a><a href="https://plausible.canine.tools/artistgrid.cx/" target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('Modal Click', { modal: 'Info', action: 'Analytics' })} className="underline hover:text-white transition-colors">Analytics</a><button onClick={() => { onClose(); onDonate(); trackEvent('Modal Click', { modal: 'Info', action: 'Donate' }); }} className="underline hover:text-white transition-colors">Donate</button></div>{visitorCount !== null && (<p className="text-sm text-neutral-500 pt-4">You are visitor #{visitorCount.toLocaleString()}</p>)}</div></div></Modal>
+
+const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: boolean; onClose: () => void; visitorCount: number | null; onDonate: () => void }) => (
+  <Modal isOpen={isOpen} onClose={onClose} ariaLabel="About ArtistGrid">
+    <div className="p-6 pt-12 text-center">
+      <h2 className="text-xl font-bold text-white mb-4">About ArtistGrid</h2>
+      <div className="text-neutral-300 space-y-4 text-sm sm:text-base">
+        <p>
+          Maintained by{" "}
+          <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">edideaur</a>,{" "}
+          <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">JustAMZ</a>, and{" "}
+          <a href="https://sad.ovh" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">fucksophie</a>.
+        </p>
+        <p>
+          Original trackers are in{" "}
+          <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">this Google Sheet</a>.
+        </p>
+        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p>
+        <div className="flex items-center justify-center gap-4 text-base pt-2">
+          <a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">GitHub</a>
+          <a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Discord</a>
+          <a href="https://plausible.canine.tools/artistgrid.cx/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Analytics</a>
+          <button onClick={() => { onClose(); onDonate(); }} className="underline hover:text-white">Donate</button>
+        </div>
+        {visitorCount !== null && (
+          <p className="text-sm text-neutral-500 pt-4">You are visitor #{visitorCount.toLocaleString()}</p>
+        )}
+      </div>
+    </div>
+  </Modal>
 ));
-const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void; }) => (
-  <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-4 rounded-xl backdrop-blur-sm" onClick={onClose}><div className="bg-white p-4 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}><QRCode value={`${qrCodeData.uriScheme}:${qrCodeData.value}`} size={240} level="H" /></div><p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p><p className="text-xs text-neutral-300 mt-2 break-all text-center px-4 font-mono">{qrCodeData.value}</p><Button variant="ghost" className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg" onClick={onClose}>Close</Button></div>
+
+const LastFMModal = memo(({ isOpen, onClose, lastfm, token, setToken }: {
+  isOpen: boolean;
+  onClose: () => void;
+  lastfm: { isAuthenticated: boolean; username: string | null; getAuthUrl: () => Promise<{ token: string; url: string }>; completeAuth: (token: string) => Promise<{ success: boolean; username: string }>; disconnect: () => void };
+  token: string | null;
+  setToken: (t: string | null) => void;
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleConnect = async () => {
+    setIsLoading(true);
+    try {
+      const { token: newToken, url } = await lastfm.getAuthUrl();
+      setToken(newToken);
+      window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
+    } catch (e) {
+      console.error("Failed to get Last.fm auth URL:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      await lastfm.completeAuth(token);
+      setToken(null);
+      onClose();
+    } catch (e) {
+      console.error("Failed to complete Last.fm auth:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Last.fm Connection">
+      <div className="p-6 pt-12 text-center">
+        <Radio className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
+        <h2 className="text-xl font-bold text-white mb-2">Last.fm Scrobbling</h2>
+        {lastfm.isAuthenticated ? (
+          <div className="space-y-4">
+            <p className="text-neutral-300">
+              Connected as <span className="font-semibold text-white">{lastfm.username}</span>
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                lastfm.disconnect();
+                onClose();
+              }}
+              className="text-red-400 border-red-400/30 hover:bg-red-400/10"
+            >
+              Disconnect
+            </Button>
+          </div>
+        ) : token ? (
+          <div className="space-y-4">
+            <p className="text-neutral-400">Authorize in the popup window, then click below to complete</p>
+            <Button onClick={handleComplete} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
+              {isLoading ? "Connecting..." : "Complete Connection"}
+            </Button>
+            <Button variant="ghost" onClick={() => setToken(null)} className="text-neutral-500 hover:text-white">
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-neutral-400">Connect your Last.fm account to scrobble tracks while listening</p>
+            <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
+              {isLoading ? "Loading..." : "Connect Last.fm"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+});
+
+const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void }) => (
+  <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-4 rounded-xl backdrop-blur-sm" onClick={onClose}>
+    <div className="bg-white p-4 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <QRCode value={`${qrCodeData.uriScheme}:${qrCodeData.value}`} size={240} level="H" />
+    </div>
+    <p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p>
+    <p className="text-xs text-neutral-300 mt-2 break-all text-center px-4 font-mono">{qrCodeData.value}</p>
+    <Button variant="ghost" className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg" onClick={onClose}>Close</Button>
+  </div>
 ));
-const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
+
+const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
   const { toast } = useToast();
+
   const handleCopy = useCallback((text: string, name: string) => {
-    trackEvent('Copy Address', { crypto: name });
-    navigator.clipboard.writeText(text).then(() => { toast({ title: "Copied!", description: `${name} address copied to clipboard.`, }); });
+    trackEvent("Copy Address", { crypto: name });
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Copied!", description: `${name} address copied.` });
+    });
   }, [toast]);
+
   const handleShowQr = useCallback((option: typeof DONATION_OPTIONS.CRYPTO[0]) => {
-    trackEvent('Show QR Code', { crypto: option.name });
+    trackEvent("Show QR Code", { crypto: option.name });
     setActiveQrCode({ ...option });
   }, []);
 
-  const closeQrCode = useCallback(() => setActiveQrCode(null), []);
-  useEffect(() => { if (!isOpen) setActiveQrCode(null); }, [isOpen]);
-  return (<Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options"><div className="p-6"><h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2><p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p><div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 -mr-2"><div className="grid grid-cols-2 gap-3">{DONATION_OPTIONS.URL.map((opt) => (<Button key={opt.name} asChild className="font-semibold rounded-lg"><a href={opt.value} target="_blank" rel="noopener noreferrer" className="w-full" onClick={() => trackEvent('Donation Link Click', { method: opt.name })}>{opt.name}</a></Button>))}</div><div className="relative flex items-center"><div className="flex-grow border-t border-neutral-800" /><span className="flex-shrink mx-4 text-xs text-neutral-500 uppercase">Or Crypto</span><div className="flex-grow border-t border-neutral-800" /></div><div className="space-y-4">{DONATION_OPTIONS.CRYPTO.map((option) => (<div key={option.name}><label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label><div className="flex items-center gap-2"><Input readOnly value={option.value} className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg" /><Button variant="outline" size="icon" onClick={() => handleShowQr(option)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Show ${option.name} QR code`}><QrCode className="h-4 w-4" /></Button><Button variant="outline" size="icon" onClick={() => handleCopy(option.value, option.name)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Copy ${option.name} address`}><CopyIcon className="h-4 w-4" /></Button></div></div>))}</div></div>{activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={closeQrCode} />}</div></Modal>);
+  useEffect(() => {
+    if (!isOpen) setActiveQrCode(null);
+  }, [isOpen]);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2>
+        <p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p>
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 -mr-2">
+          <div className="grid grid-cols-2 gap-3">
+            {DONATION_OPTIONS.URL.map((opt) => (
+              <Button key={opt.name} asChild className="font-semibold rounded-lg">
+                <a href={opt.value} target="_blank" rel="noopener noreferrer">{opt.name}</a>
+              </Button>
+            ))}
+          </div>
+          <div className="relative flex items-center">
+            <div className="flex-grow border-t border-neutral-800" />
+            <span className="flex-shrink mx-4 text-xs text-neutral-500 uppercase">Or Crypto</span>
+            <div className="flex-grow border-t border-neutral-800" />
+          </div>
+          <div className="space-y-4">
+            {DONATION_OPTIONS.CRYPTO.map((option) => (
+              <div key={option.name}>
+                <label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={option.value} className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg" />
+                  <Button variant="outline" size="icon" onClick={() => handleShowQr(option)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Show ${option.name} QR code`}>
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => handleCopy(option.value, option.name)} className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg" aria-label={`Copy ${option.name} address`}>
+                    <CopyIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={() => setActiveQrCode(null)} />}
+      </div>
+    </Modal>
+  );
 });
 
-const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedCount: number; totalCount: number; onDonateClick: () => void; }) => (
+const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedCount: number; totalCount: number; onDonateClick: () => void }) => (
   <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 mt-12 border-t border-neutral-800">
     <div className="flex flex-col items-center gap-4">
-      <p className="text-sm text-neutral-400">
-        {displayedCount} of {totalCount} trackers displayed
-      </p>
+      <p className="text-sm text-neutral-400">{displayedCount} of {totalCount} trackers displayed</p>
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-        <a
-          href="https://github.com/ArtistGrid"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackEvent('Footer Click', { link: 'GitHub' })}
-          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-        >
+        <a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
           <Github className="w-4 h-4" />
           <span>GitHub</span>
         </a>
-        <a
-          href="https://discord.gg/RdBeMZ2m8S"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackEvent('Footer Click', { link: 'Discord' })}
-          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-        >
+        <a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
           <DiscordIcon className="w-4 h-4" />
           <span>Discord</span>
         </a>
-        <a
-          href="https://plausible.canine.tools/artistgrid.cx/"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackEvent('Footer Click', { link: 'Analytics' })}
-          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-        >
+        <a href="https://plausible.canine.tools/artistgrid.cx/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
           <BarChart3 className="w-4 h-4" />
           <span>Analytics</span>
         </a>
-        <button
-          onClick={() => { onDonateClick(); trackEvent('Footer Click', { link: 'Donate' }); }}
-          className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-        >
+        <button onClick={onDonateClick} className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
           <HandCoins className="w-4 h-4" />
           <span>Donate</span>
         </button>
@@ -374,15 +640,15 @@ const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedC
 ));
 
 export default function ArtistGallery() {
+  const router = useRouter();
+  const { state: playerState, lastfm } = usePlayer();
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeModal, setActiveModal] = useState<null | "info" | "donate">(null);
-  const [activeTrackerUrl, setActiveTrackerUrl] = useState<string | null>(null);
-  const [activeArtistName, setActiveArtistName] = useState<string>("");
-  const [activeViewType, setActiveViewType] = useState<ViewType>('tracker');
+  const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "lastfm">(null);
+  const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
 
@@ -391,81 +657,48 @@ export default function ArtistGallery() {
   const [useSheet, setUseSheet] = useLocalStorage<boolean>(LOCAL_STORAGE_KEYS.USE_SHEET, false);
 
   const deferredQuery = useDeferredValue(searchQuery.trim());
-  const isMobile = useIsMobile();
   const hashProcessed = useRef(false);
-  const prevQueryRef = useRef('');
+  const prevQueryRef = useRef("");
   const initialSortApplied = useRef(false);
   const originalOrder = useRef<Artist[]>([]);
-  const originalTitle = useRef<string>('');
-
-  // Update URL hash and title when tracker/sheet opens
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (!originalTitle.current) {
-        originalTitle.current = document.title;
-      }
-
-      if (activeTrackerUrl && activeArtistName) {
-        const slug = getArtistSlug(activeArtistName);
-        const newHash = `#${slug}?view=${activeViewType}`;
-
-        // Update URL without triggering navigation
-        window.history.pushState(null, '', newHash);
-
-        // Update title
-        document.title = `${activeArtistName} ${activeViewType === 'sheet' ? 'Sheet' : 'Tracker'} - ArtistGrid.cx`;
-      } else {
-        // Restore original state
-        window.history.pushState(null, '', window.location.pathname);
-        document.title = originalTitle.current;
-      }
-    }
-  }, [activeTrackerUrl, activeArtistName, activeViewType]);
-
-  // Handle overflow hidden when iframe is open
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (activeTrackerUrl) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
-
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }
-  }, [activeTrackerUrl]);
+  const hasCachedData = useRef(false);
 
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) {
-        trackEvent('Search', { query: deferredQuery });
+      trackEvent("Search", { query: deferredQuery });
     }
     prevQueryRef.current = deferredQuery;
   }, [deferredQuery]);
 
   useEffect(() => {
     const controller = new AbortController();
-    const { signal } = controller;
 
     const loadTrends = async () => {
-      try {
-        const response = await fetch(TRENDS_API, { signal, cache: 'no-store' });
-        if (response.ok) {
-          const data = await response.json();
-          const trendsMap = new Map<string, number>();
-          data.results?.forEach((item: any) => {
-            trendsMap.set(item.name, item.visitors || 0);
-          });
-          setTrendsData(trendsMap);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.warn('Failed to load trends:', error);
-        }
-      } finally {
+      const cacheKey = LOCAL_STORAGE_KEYS.TRENDS_CACHE;
+      const cached = getCachedData<{ results: { name: string; visitors: number }[] }>(cacheKey);
+
+      if (cached?.data) {
+        const map = new Map<string, number>();
+        cached.data.results?.forEach((item) => map.set(item.name, item.visitors || 0));
+        setTrendsData(map);
         setTrendsLoaded(true);
       }
+
+      if (isCacheExpired(cached)) {
+        try {
+          const response = await fetch(TRENDS_API, { signal: controller.signal, cache: "no-store" });
+          if (response.ok) {
+            const data = await response.json();
+            setCachedData(cacheKey, data);
+            const map = new Map<string, number>();
+            data.results?.forEach((item: any) => map.set(item.name, item.visitors || 0));
+            setTrendsData(map);
+          }
+        } catch (e) {
+          if (e instanceof Error && e.name !== "AbortError") console.warn("Failed to load trends:", e);
+        }
+      }
+      setTrendsLoaded(true);
     };
 
     loadTrends();
@@ -474,60 +707,74 @@ export default function ArtistGallery() {
 
   const sortArtistsByTrends = useCallback((artists: Artist[], trends: Map<string, number>): Artist[] => {
     return [...artists].sort((a, b) => {
-      const aVisitors = trends.get(a.name) || 0;
-      const bVisitors = trends.get(b.name) || 0;
-
-      const getGroup = (artist: Artist, visitors: number) => {
-        if (artist.isStarred && visitors > 0) return 1;
-        if (artist.isStarred && visitors === 0) return 2;
-        if (!artist.isStarred && visitors > 0) return 3;
+      const aV = trends.get(a.name) || 0;
+      const bV = trends.get(b.name) || 0;
+      const getGroup = (artist: Artist, v: number) => {
+        if (artist.isStarred && v > 0) return 1;
+        if (artist.isStarred) return 2;
+        if (v > 0) return 3;
         return 4;
       };
-
-      const aGroup = getGroup(a, aVisitors);
-      const bGroup = getGroup(b, bVisitors);
-
-      if (aGroup !== bGroup) return aGroup - bGroup;
-
-      if ((aGroup === 1 || aGroup === 3) && aVisitors !== bVisitors) {
-        return bVisitors - aVisitors;
-      }
-
+      const aG = getGroup(a, aV);
+      const bG = getGroup(b, bV);
+      if (aG !== bG) return aG - bG;
+      if ((aG === 1 || aG === 3) && aV !== bV) return bV - aV;
       return a.name.localeCompare(b.name);
     });
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    const { signal } = controller;
+
     const loadData = async () => {
-      setStatus("loading");
-      const urlsToTry = useSheet ? [DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP, DATA_SOURCES.BACKUP] : [DATA_SOURCES.BACKUP, DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP];
-      for (const url of urlsToTry) {
-        try {
-          const response = await fetch(url, { signal, cache: "no-store" });
-          if (!response.ok) throw new Error(`Status ${response.status}`);
-          const parsed = parseCSV(await response.text());
-          originalOrder.current = parsed;
-          setAllArtists(parsed);
-          setStatus("success");
-          return;
-        } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') return;
-          console.warn(`Failed to fetch from ${url}:`, error);
+      const cacheKey = useSheet ? LOCAL_STORAGE_KEYS.CSV_CACHE_REMOTE : LOCAL_STORAGE_KEYS.CSV_CACHE_LOCAL;
+      const cached = getCachedData<Artist[]>(cacheKey);
+
+      if (cached?.data && cached.data.length > 0) {
+        originalOrder.current = cached.data;
+        setAllArtists(cached.data);
+        setStatus("success");
+        hasCachedData.current = true;
+      } else {
+        setStatus("loading");
+      }
+
+      if (isCacheExpired(cached) || !cached?.data) {
+        const urlsToTry = useSheet
+          ? [DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP, DATA_SOURCES.BACKUP]
+          : [DATA_SOURCES.BACKUP, DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP];
+
+        for (const url of urlsToTry) {
+          try {
+            const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+            if (!response.ok) throw new Error(`Status ${response.status}`);
+            const parsed = parseCSV(await response.text());
+
+            if (!cached?.data || !artistsEqual(parsed, cached.data)) {
+              setCachedData(cacheKey, parsed);
+              originalOrder.current = parsed;
+              setAllArtists(parsed);
+            }
+            setStatus("success");
+            return;
+          } catch (e) {
+            if (e instanceof Error && e.name === "AbortError") return;
+            console.warn(`Failed to fetch from ${url}:`, e);
+          }
+        }
+
+        if (!hasCachedData.current) {
+          setErrorMessage("Could not load artist data.");
+          setStatus("error");
         }
       }
-      setErrorMessage("Could not load artist data from any available source.");
-      setStatus("error");
     };
 
     const loadVisitorCount = async () => {
       try {
-        const res = await fetch("https://121124.prigoana.com/artistgrid.cx/", { signal });
+        const res = await fetch("https://121124.prigoana.com/artistgrid.cx/", { signal: controller.signal });
         if (res.ok) setVisitorCount(Number((await res.json()).count));
-      } catch (err) {
-        if (err instanceof Error && err.name !== 'AbortError') console.warn("Visitor count fetch failed:", err);
-      }
+      } catch {}
     };
 
     loadData();
@@ -537,17 +784,14 @@ export default function ArtistGallery() {
   }, [useSheet]);
 
   useEffect(() => {
-    if (status === 'success' && trendsLoaded && !initialSortApplied.current && filterOptions.sortByTrends) {
-      setAllArtists(artists => {
-        if (artists.length === 0) return artists;
-        initialSortApplied.current = true;
-        return sortArtistsByTrends(artists, trendsData);
-      });
+    if (status === "success" && trendsLoaded && !initialSortApplied.current && filterOptions.sortByTrends && allArtists.length > 0) {
+      initialSortApplied.current = true;
+      setAllArtists(sortArtistsByTrends(allArtists, trendsData));
     }
-  }, [status, trendsLoaded, sortArtistsByTrends, trendsData, filterOptions.sortByTrends]);
+  }, [status, trendsLoaded, sortArtistsByTrends, trendsData, filterOptions.sortByTrends, allArtists]);
 
   useEffect(() => {
-    if (status === 'success' && trendsLoaded && originalOrder.current.length > 0) {
+    if (status === "success" && trendsLoaded && originalOrder.current.length > 0) {
       if (filterOptions.sortByTrends) {
         setAllArtists(sortArtistsByTrends(originalOrder.current, trendsData));
       } else {
@@ -558,15 +802,16 @@ export default function ArtistGallery() {
 
   useEffect(() => {
     initialSortApplied.current = false;
+    hasCachedData.current = false;
   }, [useSheet]);
 
   const handleFilterChange = useCallback((key: keyof FilterOptions, value: boolean) => {
-    trackEvent('Filter Change', { filter: key, enabled: value });
+    trackEvent("Filter Change", { filter: key, enabled: value });
     setFilterOptions(prev => ({ ...prev, [key]: value }));
   }, [setFilterOptions]);
 
   const handleUseSheetChange = useCallback((value: boolean) => {
-    trackEvent('Data Source Change', { source: value ? 'Remote CSV' : 'Local Backup' });
+    trackEvent("Data Source Change", { source: value ? "Remote CSV" : "Local Backup" });
     setUseSheet(value);
   }, [setUseSheet]);
 
@@ -584,42 +829,25 @@ export default function ArtistGallery() {
     return fuse.search(deferredQuery).map((r) => r.item);
   }, [artistsPassingFilters, fuse, deferredQuery]);
 
-  const handleArtistClick = useCallback((artist: Artist, source: 'Grid' | 'Hash Redirect' = 'Grid') => {
-    trackEvent('Artist Click', { name: artist.name, source });
-    const finalUrl = normalizeUrl(artist.url);
-
-    // For hash redirects or mobile, do direct navigation
-    if (source === 'Hash Redirect' || isMobile) {
-      window.location.href = finalUrl;
+  const handleArtistClick = useCallback((artist: Artist) => {
+    const trackerId = extractTrackerId(artist.url);
+    trackEvent("Artist Click", { name: artist.name });
+    if (trackerId) {
+      router.push(`/view?id=${trackerId}&name=${encodeURIComponent(artist.name)}`);
     } else {
-      // For desktop grid clicks, show iframe overlay
-      setActiveTrackerUrl(finalUrl);
-      setActiveArtistName(artist.name);
-      setActiveViewType('tracker');
+      window.open(artist.url, "_blank", "noopener,noreferrer");
     }
-  }, [isMobile]);
+  }, [router]);
 
-  const handleSheetClick = useCallback((url: string, name: string) => {
-    trackEvent('Sheet Click', { name });
-
-    if (isMobile) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      setActiveTrackerUrl(url);
-      setActiveArtistName(name);
-      setActiveViewType('sheet');
-    }
-  }, [isMobile]);
+  const handleSheetClick = useCallback((url: string) => {
+    trackEvent("Sheet Click", { url });
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, []);
 
   useEffect(() => {
-    if (status === 'success' && !hashProcessed.current && typeof window !== 'undefined' && window.location.hash) {
-      const hash = window.location.hash.substring(1); // Remove #
-      const [slugPart, queryPart] = hash.split('?');
-      let processedHash = decodeURIComponent(slugPart).toLowerCase();
-
-      // Check if view parameter exists
-      const urlParams = new URLSearchParams(queryPart || '');
-      const viewParam = urlParams.get('view') as ViewType | null;
+    if (status === "success" && !hashProcessed.current && typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      let processedHash = decodeURIComponent(hash).toLowerCase();
 
       for (const suffix of SUFFIXES_TO_STRIP) {
         if (processedHash.endsWith(suffix)) {
@@ -630,7 +858,7 @@ export default function ArtistGallery() {
 
       const redirectTarget = CUSTOM_REDIRECTS[processedHash];
       if (redirectTarget) {
-        if (redirectTarget.startsWith('http')) {
+        if (redirectTarget.startsWith("http")) {
           window.location.href = redirectTarget;
           hashProcessed.current = true;
           return;
@@ -640,71 +868,63 @@ export default function ArtistGallery() {
       }
 
       const normalizedTarget = processedHash.replace(/[^a-z0-9]/g, "");
-
       if (normalizedTarget) {
-        const targetArtist = allArtists.find(artist =>
-          artist.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalizedTarget
-        );
-
+        const targetArtist = allArtists.find(artist => artist.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalizedTarget);
         if (targetArtist) {
-          trackEvent('Hash Redirect', { artist: targetArtist.name, hash: processedHash, view: viewParam });
-
-          // Use iframe overlay for hash redirects on desktop
-          if (!isMobile) {
-            if (viewParam === 'sheet') {
-              const sheetUrl = getSheetViewUrl(targetArtist.url);
-              setActiveTrackerUrl(sheetUrl);
-              setActiveArtistName(targetArtist.name);
-              setActiveViewType('sheet');
-            } else {
-              const finalUrl = normalizeUrl(targetArtist.url);
-              setActiveTrackerUrl(finalUrl);
-              setActiveArtistName(targetArtist.name);
-              setActiveViewType('tracker');
-            }
-          } else {
-            handleArtistClick(targetArtist, 'Hash Redirect');
-          }
-
+          trackEvent("Hash Redirect", { artist: targetArtist.name });
+          handleArtistClick(targetArtist);
           hashProcessed.current = true;
         }
       }
     }
-  }, [status, allArtists, handleArtistClick, isMobile]);
+  }, [status, allArtists, handleArtistClick]);
 
   const closeModal = useCallback(() => setActiveModal(null), []);
-  const closeTrackerOverlay = useCallback(() => {
-    setActiveTrackerUrl(null);
-    setActiveArtistName('');
-  }, []);
-
   const openInfoModal = useCallback(() => {
-    trackEvent('Header Click', { button: 'Info' });
-    setActiveModal('info');
+    trackEvent("Header Click", { button: "Info" });
+    setActiveModal("info");
   }, []);
-
   const openDonationModal = useCallback(() => {
-    trackEvent('Header Click', { button: 'Donate' });
-    setActiveModal('donate');
+    trackEvent("Header Click", { button: "Donate" });
+    setActiveModal("donate");
+  }, []);
+  const openLastFMModal = useCallback(() => {
+    trackEvent("Header Click", { button: "LastFM" });
+    setActiveModal("lastfm");
   }, []);
 
-  const isFullyLoaded = status === 'success' && trendsLoaded;
+  const isFirstLoad = status === "loading" && !hasCachedData.current;
+  const hasPlayerActive = !!playerState.currentTrack;
 
   const renderContent = () => {
-    if (!isFullyLoaded) {
-      return <> <HeaderSkeleton /> <main className="max-w-7xl mx-auto p-4 sm:p-6"><GallerySkeleton /></main> </>;
+    if (isFirstLoad) {
+      return (
+        <>
+          <HeaderSkeleton />
+          <main className="max-w-7xl mx-auto p-4 sm:p-6">
+            <GallerySkeleton />
+          </main>
+        </>
+      );
     }
 
-    if (status === "error") {
+    if (status === "error" && !hasCachedData.current) {
       return <ErrorMessage message={errorMessage} />;
     }
 
     return (
       <>
         <Header
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterOptions={filterOptions}
-          onFilterChange={handleFilterChange} onInfoClick={openInfoModal} onDonateClick={openDonationModal}
-          useSheet={useSheet} onUseSheetChange={handleUseSheetChange}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filterOptions={filterOptions}
+          onFilterChange={handleFilterChange}
+          onInfoClick={openInfoModal}
+          onDonateClick={openDonationModal}
+          useSheet={useSheet}
+          onUseSheetChange={handleUseSheetChange}
+          onLastFMClick={openLastFMModal}
+          isLastFMConnected={lastfm.isAuthenticated}
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
           {filteredArtists.length > 0 ? (
@@ -719,12 +939,10 @@ export default function ArtistGallery() {
   };
 
   return (
-    <div className="pb-8 overflow-x-hidden">
+    <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-24" : "pb-8"}`}>
       <DonationModal isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal isOpen={activeModal === "info"} onClose={closeModal} visitorCount={visitorCount} onDonate={openDonationModal} />
-      {activeTrackerUrl && (
-        <TrackerIframeOverlay url={activeTrackerUrl} artistName={activeArtistName} viewType={activeViewType} onClose={closeTrackerOverlay} />
-      )}
+      <LastFMModal isOpen={activeModal === "lastfm"} onClose={closeModal} lastfm={lastfm} token={lastfmToken} setToken={setLastfmToken} />
       {renderContent()}
     </div>
   );

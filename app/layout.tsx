@@ -1,7 +1,11 @@
-import type { Metadata, Viewport } from 'next';
+// app/layout.tsx
+import type { Metadata, Viewport } from "next";
+import Script from "next/script";
+import "./globals.css";
+
+import { PlayerProvider } from "./providers";
+import { GlobalPlayer } from "@/components/global-player";
 import { Toaster } from "@/components/ui/toaster";
-import Script from 'next/script';
-import './globals.css';
 
 const siteConfig = {
   name: "ArtistGrid",
@@ -19,6 +23,7 @@ export const metadata: Metadata = {
     default: "ArtistGrid | Unreleased Music",
     template: `%s | ArtistGrid`,
   },
+
   description: siteConfig.description,
   applicationName: siteConfig.name,
   authors: [{ name: "eduardprigoana", url: "https://prigoana.com" }],
@@ -34,10 +39,12 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,
-    images: [{
-      url: siteConfig.ogImage,
-      alt: `${siteConfig.name} - Unreleased Music`,
-    }],
+    images: [
+      {
+        url: siteConfig.ogImage,
+        alt: `${siteConfig.name} - Unreleased Music`,
+      },
+    ],
   },
   icons: {
     icon: "/favicon.png",
@@ -47,44 +54,65 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
-  width: 'device-width',
+  themeColor: "#000000",
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className="dark">
       <head>
+        {/* Schema.org JSON-LD */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            "name": siteConfig.name,
-            "url": siteConfig.url,
-            "potentialAction": {
-              "@type": "SearchAction",
-              "target": `${siteConfig.url}/?q={search_term_string}`,
-              "query-input": "required name=search_term_string"
-            }
-          }) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: siteConfig.name,
+              url: siteConfig.url,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${siteConfig.url}/?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
         />
+
+        {/* Plausible Analytics */}
         <Script
           defer
           data-domain="artistgrid.cx"
           src="https://plausible.canine.tools/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js"
           strategy="afterInteractive"
         />
+
         <Script id="plausible-inline" strategy="afterInteractive">
-          {`window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }`}
+          {`
+            window.plausible = window.plausible || function() {
+              (window.plausible.q = window.plausible.q || []).push(arguments)
+            }
+          `}
         </Script>
       </head>
+
       <body className="bg-black text-white min-h-screen">
-        {children}
-        <Toaster />
+        <PlayerProvider>
+          {children}
+          <GlobalPlayer />
+          <Toaster />
+        </PlayerProvider>
       </body>
     </html>
   );
 }
+
+
+
