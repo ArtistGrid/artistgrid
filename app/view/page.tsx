@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2 } from "lucide-react";
 
-const API_BASE = "http://localhost:3001/get";
+const API_BASE = "https://api.artistgrid.cx/get";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
 const TRACKER_ID_LENGTH = 44;
