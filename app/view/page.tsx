@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2 } from "lucide-react";
 
-const API_BASE = "https://api.artistgrid.cx/get";
+const API_BASE = "https://tracker.israeli.ovh/get";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
 const TRACKER_ID_LENGTH = 44;
@@ -206,7 +206,11 @@ function TrackerViewContent() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/${trackerId}`, { signal: controller.signal });
+        const res = await fetch(`${API_BASE}/${trackerId}`, { signal: controller.signal, redirect: "manual" });
+        if(res.type == "opaqueredirect") {
+          location.href = `${API_BASE}/${trackerId}`;
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!json || typeof json !== "object" || Object.keys(json).length === 0) throw new Error("Empty response");
