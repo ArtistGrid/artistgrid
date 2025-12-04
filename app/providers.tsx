@@ -9,7 +9,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "krakenfiles" | "imgur" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;

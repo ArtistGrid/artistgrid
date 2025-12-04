@@ -25,7 +25,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "krakenfiles" | "imgur" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi"  | "krakenfiles" | "imgur" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -132,7 +132,9 @@ function getTrackSource(url: string): Track["source"] {
   if (normalized.includes("pillows.su/f/")) return "pillows";
   if (normalized.includes("music.froste.lol/song/")) return "froste";
   if (normalized.includes("krakenfiles.com/view/")) return "krakenfiles";
+  if (normalized.includes("juicewrldapi.com/juicewrld")) return "juicewrldapi";
   if (normalized.includes("imgur.gg/")) return "imgur";
+
   return "unknown";
 }
 
@@ -165,6 +167,9 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         const data = await res.json();
         return data.success ? data.mp3 : null;
       } catch { return null; }
+    }
+    case "juicewrldapi": {
+      return url;
     }
     default: return null;
   }
