@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, Radio } from "lucide-react";
+import { API_BASE } from "./view/page";
 
 declare global {
   interface Window {
@@ -260,13 +261,17 @@ const NoResultsMessage = memo(({ searchQuery }: { searchQuery: string }) => (
   </div>
 ));
 
-const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheetClick }: { artist: Artist; priority: boolean; onClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) {
+const ArtistCard = memo(function ArtistCard({ isTested, artist, priority, onClick, onSheetClick }: { isTested: boolean, artist: Artist; priority: boolean; onClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) {
   const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
   return (
     <div
       role="link"
       tabIndex={0}
-      className="bg-neutral-950 border border-neutral-800 hover:border-white/30 hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
+      className={
+        (isTested
+          ? "border-yellow-500 hover:border-yellow-200/30"
+          : "border-neutral-800 hover:border-white/30")
+        + " bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"}
       onClick={() => onClick(artist)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}
     >
@@ -303,11 +308,11 @@ const ArtistCard = memo(function ArtistCard({ artist, priority, onClick, onSheet
   );
 });
 
-const ArtistGridDisplay = memo(({ artists, onArtistClick, onSheetClick }: { artists: Artist[]; onArtistClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) => (
+const ArtistGridDisplay = memo(({ testedTrackers, artists, onArtistClick, onSheetClick }: { testedTrackers: string[], artists: Artist[]; onArtistClick: (artist: Artist) => void; onSheetClick: (url: string) => void }) => (
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
     {artists.map((artist, i) => (
       <div key={artist.imageFilename} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}>
-        <ArtistCard artist={artist} priority={i < 18} onClick={onArtistClick} onSheetClick={onSheetClick} />
+        <ArtistCard isTested={testedTrackers.includes(extractTrackerId(artist.url || "") || "")} artist={artist} priority={i < 18} onClick={onArtistClick} onSheetClick={onSheetClick} />
       </div>
     ))}
   </div>
@@ -651,6 +656,7 @@ export default function ArtistGallery() {
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
+  const [testedTrackers, setTestedTrackers] = useState<string[]>([]);
 
   const defaultFilters: FilterOptions = { showWorking: false, showUpdated: false, showStarred: false, showAlts: true, sortByTrends: true };
   const [filterOptions, setFilterOptions] = useLocalStorage<FilterOptions>(LOCAL_STORAGE_KEYS.FILTER_OPTIONS, defaultFilters);
@@ -662,6 +668,15 @@ export default function ArtistGallery() {
   const initialSortApplied = useRef(false);
   const originalOrder = useRef<Artist[]>([]);
   const hasCachedData = useRef(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const working = await fetch(API_BASE + "/tested");
+      if (!working.ok) return;
+      setTestedTrackers(await working.json())
+    }
+    load()
+  }, [])
 
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) {
@@ -911,7 +926,6 @@ export default function ArtistGallery() {
     if (status === "error" && !hasCachedData.current) {
       return <ErrorMessage message={errorMessage} />;
     }
-
     return (
       <>
         <Header
@@ -928,7 +942,7 @@ export default function ArtistGallery() {
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
           {filteredArtists.length > 0 ? (
-            <ArtistGridDisplay artists={filteredArtists} onArtistClick={handleArtistClick} onSheetClick={handleSheetClick} />
+            <ArtistGridDisplay testedTrackers={testedTrackers}  artists={filteredArtists} onArtistClick={handleArtistClick} onSheetClick={handleSheetClick} />
           ) : (
             <NoResultsMessage searchQuery={searchQuery} />
           )}

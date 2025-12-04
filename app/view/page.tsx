@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2 } from "lucide-react";
 
-const API_BASE = "https://tracker.israeli.ovh/get";
+export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
 const TRACKER_ID_LENGTH = 44;
@@ -206,12 +206,10 @@ function TrackerViewContent() {
 
   useEffect(() => {
     const id = searchParams.get("id");
-    const name = searchParams.get("name");
     if (id && isValidTrackerId(id)) {
       setTrackerId(id);
       setInputValue(id);
     }
-    if (name) setArtistName(decodeURIComponent(name));
   }, [searchParams]);
 
   useEffect(() => {
@@ -229,9 +227,9 @@ function TrackerViewContent() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/${trackerId}`, { signal: controller.signal, redirect: "manual" });
+        const res = await fetch(`${API_BASE}/get/${trackerId}`, { signal: controller.signal, redirect: "manual" });
         if(res.type == "opaqueredirect") {
-          location.href = `${API_BASE}/${trackerId}`;
+          location.href = `${API_BASE}/get/${trackerId}`;
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -239,6 +237,7 @@ function TrackerViewContent() {
         if (!json || typeof json !== "object" || Object.keys(json).length === 0) throw new Error("Empty response");
         setData(json.eras);
         setStatus("success");
+        setArtistName(json.name || "");
         const firstEra = Object.keys(json)[0];
         if (firstEra) setExpandedEras(new Set([firstEra]));
         preloadAllUrls(json.eras, trackerId);
