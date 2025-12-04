@@ -35,14 +35,37 @@ interface Track {
   artistName?: string;
 }
 
-interface Era {
+export interface Era {
   name: string;
-  image?: string;
   extra?: string;
+  timeline?: string;
+  fileInfo?: string[];
+  image?: string;
   description?: string;
-  data: Record<string, any[]>;
+  data?: Record<string, TALeak[]>;
 }
 
+export interface TALeak {
+  name: string;
+  extra?: string;
+  description?: string;
+  track_length?: string;
+  leak_date?: string;
+  file_date?: string;
+  type?: string;
+  available_length?: string;
+  quality?: string;
+  url?: string;
+  urls?: string[] | undefined;
+}
+
+
+export interface TrackerResponse {
+  name: string | null | undefined,
+  tabs: string[],
+  current_tab: string,
+  eras: Record<string, Era>,
+}
 interface FilterOptions {
   showPlayableOnly: boolean;
   qualityFilter: string;
@@ -212,13 +235,13 @@ function TrackerViewContent() {
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json: TrackerResponse = await res.json();
         if (!json || typeof json !== "object" || Object.keys(json).length === 0) throw new Error("Empty response");
-        setData(json);
+        setData(json.eras);
         setStatus("success");
         const firstEra = Object.keys(json)[0];
         if (firstEra) setExpandedEras(new Set([firstEra]));
-        preloadAllUrls(json, trackerId);
+        preloadAllUrls(json.eras, trackerId);
       } catch (e: any) {
         if (e.name === "AbortError") return;
         setErrorMessage(e.message);
