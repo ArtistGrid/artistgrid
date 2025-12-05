@@ -32,8 +32,8 @@ const LOCAL_STORAGE_KEYS = {
   TRENDS_CACHE: "artistGridTrendsCache"
 };
 const DATA_SOURCES = {
-  LIVE: "https://sheets.artistgrid.cx/artists.csv",
-  BACKUP: "/backup.csv",
+  LIVE: "/backup.csv",
+  BACKUP: "https://sheets.artistgrid.cx/artists.csv",
   REMOTE_BACKUP: "https://artistgrid.cx/backup.csv"
 };
 const TRENDS_API = "https://trends.artistgrid.cx/";
