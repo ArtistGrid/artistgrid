@@ -1,7 +1,7 @@
 // app/view/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePlayer } from "@/app/providers";
@@ -10,14 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2 } from "lucide-react";
+import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share } from "lucide-react";
 
-export const API_BASE = "https://tracker.israeli.ovh";
+export const API_BASE = "http://localhost:3001";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
 const TRACKER_ID_LENGTH = 44;
 const CACHE_KEY_PREFIX = "artistgrid_tracker_";
 const CACHE_EXPIRY = 1000 * 60 * 60 * 24;
+
+const ART_TABS = ["Art"];
+const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 
 interface Track {
   id: string;
@@ -25,7 +28,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi"  | "krakenfiles" | "imgur" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -59,44 +62,64 @@ export interface TALeak {
   urls?: string[] | undefined;
 }
 
-
 export interface TrackerResponse {
-  name: string | null | undefined,
-  tabs: string[],
-  current_tab: string,
-  eras: Record<string, Era>,
+  name: string | null | undefined;
+  tabs: string[];
+  current_tab: string;
+  eras: Record<string, Era>;
 }
+
 interface FilterOptions {
   showPlayableOnly: boolean;
   qualityFilter: string;
 }
 
 interface CacheEntry {
-  data: any;
+  data: TrackerResponse;
   timestamp: number;
   resolvedUrls: Record<string, string | null>;
 }
 
-function getCache(trackerId: string): CacheEntry | null {
+interface LastFMModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  lastfm: {
+    isAuthenticated: boolean;
+    username: string | null;
+    getAuthUrl: () => Promise<{ token: string; url: string }>;
+    completeAuth: (token: string) => Promise<{ success: boolean; username: string }>;
+    disconnect: () => void;
+  };
+  token: string | null;
+  setToken: (t: string | null) => void;
+}
+
+function getCache(trackerId: string, tab?: string): CacheEntry | null {
   if (typeof window === "undefined") return null;
   try {
-    const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${trackerId}`);
+    const key = tab ? `${CACHE_KEY_PREFIX}${trackerId}_${tab}` : `${CACHE_KEY_PREFIX}${trackerId}`;
+    const cached = localStorage.getItem(key);
     if (!cached) return null;
     const entry: CacheEntry = JSON.parse(cached);
     if (Date.now() - entry.timestamp > CACHE_EXPIRY) {
-      localStorage.removeItem(`${CACHE_KEY_PREFIX}${trackerId}`);
+      localStorage.removeItem(key);
       return null;
     }
     return entry;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-function setCache(trackerId: string, data: any, resolvedUrls: Record<string, string | null>) {
+function setCache(trackerId: string, data: TrackerResponse, resolvedUrls: Record<string, string | null>, tab?: string) {
   if (typeof window === "undefined") return;
   try {
+    const key = tab ? `${CACHE_KEY_PREFIX}${trackerId}_${tab}` : `${CACHE_KEY_PREFIX}${trackerId}`;
     const entry: CacheEntry = { data, timestamp: Date.now(), resolvedUrls };
-    localStorage.setItem(`${CACHE_KEY_PREFIX}${trackerId}`, JSON.stringify(entry));
-  } catch (e) { console.warn("Cache write failed:", e); }
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch (e) {
+    console.warn("Cache write failed:", e);
+  }
 }
 
 function generateTrackId(url: string): string {
@@ -127,6 +150,16 @@ function extractImgurId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+function extractPixeldrainId(url: string): string | null {
+  const match = url.match(/pixeldrain\.com\/u\/([a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function extractSoundcloudPath(url: string): string | null {
+  const match = url.match(/soundcloud\.com\/([^\/]+\/[^\/\?]+)/);
+  return match ? match[1] : null;
+}
+
 function getTrackSource(url: string): Track["source"] {
   const normalized = normalizePillowsUrl(url);
   if (normalized.includes("pillows.su/f/")) return "pillows";
@@ -134,7 +167,8 @@ function getTrackSource(url: string): Track["source"] {
   if (normalized.includes("krakenfiles.com/view/")) return "krakenfiles";
   if (normalized.includes("juicewrldapi.com/juicewrld")) return "juicewrldapi";
   if (normalized.includes("imgur.gg/")) return "imgur";
-
+  if (normalized.includes("pixeldrain.com/u/")) return "pixeldrain";
+  if (normalized.includes("soundcloud.com/")) return "soundcloud";
   return "unknown";
 }
 
@@ -157,7 +191,9 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         const res = await fetch(`${KRAKENFILES_API}${id}`);
         const data = await res.json();
         return data.success ? data.m4a : null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     }
     case "imgur": {
       const id = extractImgurId(normalized);
@@ -166,12 +202,23 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         const res = await fetch(`${IMGUR_API}${id}`);
         const data = await res.json();
         return data.success ? data.mp3 : null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
+    }
+    case "pixeldrain": {
+      const id = extractPixeldrainId(normalized);
+      return id ? `https://pixeldrain.com/api/file/${id}` : null;
+    }
+    case "soundcloud": {
+      const path = extractSoundcloudPath(normalized);
+      return path ? `https://sc.bloat.cat/_/restream/${path}?metadata=true` : null;
     }
     case "juicewrldapi": {
       return url;
     }
-    default: return null;
+    default:
+      return null;
   }
 }
 
@@ -191,14 +238,241 @@ function isValidTrackerId(id: string): boolean {
   return id.trim().length === TRACKER_ID_LENGTH && /^[a-zA-Z0-9_-]+$/.test(id.trim());
 }
 
+function encodeTrackForUrl(url: string): string {
+  return btoa(url).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeTrackFromUrl(encoded: string): string | null {
+  try {
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padding = (4 - (base64.length % 4)) % 4;
+    return atob(base64 + "=".repeat(padding));
+  } catch {
+    return null;
+  }
+}
+
+function transformUrlForOpening(url: string): string {
+  if (url.includes("soundcloud.com/")) {
+    const path = extractSoundcloudPath(url);
+    if (path) {
+      return `https://sc.bloat.cat/${path}`;
+    }
+  }
+  return url;
+}
+
+const Modal = ({ isOpen, onClose, children, ariaLabel }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; ariaLabel: string }) => {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={ariaLabel}>
+      <div className="bg-neutral-950 border border-neutral-800 shadow-2xl rounded-xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95" onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-neutral-500 hover:text-white h-8 w-8 rounded-lg">
+          <X className="w-5 h-5" />
+        </Button>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const LastFMModal = ({ isOpen, onClose, lastfm, token, setToken }: LastFMModalProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleConnect = async () => {
+    setIsLoading(true);
+    try {
+      const { token: newToken, url } = await lastfm.getAuthUrl();
+      setToken(newToken);
+      window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
+    } catch (e) {
+      console.error("Failed to get Last.fm auth URL:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      await lastfm.completeAuth(token);
+      setToken(null);
+      onClose();
+    } catch (e) {
+      console.error("Failed to complete Last.fm auth:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Last.fm Connection">
+      <div className="p-6 pt-12 text-center">
+        <Radio className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
+        <h2 className="text-xl font-bold text-white mb-2">Last.fm Scrobbling</h2>
+        {lastfm.isAuthenticated ? (
+          <div className="space-y-4">
+            <p className="text-neutral-300">
+              Connected as <span className="font-semibold text-white">{lastfm.username}</span>
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                lastfm.disconnect();
+                onClose();
+              }}
+              className="text-red-400 border-red-400/30 hover:bg-red-400/10"
+            >
+              Disconnect
+            </Button>
+          </div>
+        ) : token ? (
+          <div className="space-y-4">
+            <p className="text-neutral-400">Authorize in the popup window, then click below to complete</p>
+            <Button onClick={handleComplete} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
+              {isLoading ? "Connecting..." : "Complete Connection"}
+            </Button>
+            <Button variant="ghost" onClick={() => setToken(null)} className="text-neutral-500 hover:text-white">
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-neutral-400">Connect your Last.fm account to scrobble tracks while listening</p>
+            <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
+              {isLoading ? "Loading..." : "Connect Last.fm"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+};
+
+const ImageLightbox = ({ src, alt, originalUrl, onClose }: { src: string; alt: string; originalUrl: string; onClose: () => void }) => {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleImageClick = () => {
+    window.open(originalUrl, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <img src={src} alt={alt} className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={handleImageClick} title="Click to open original" />
+        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4 text-white hover:bg-white/10">
+          <X className="w-6 h-6" />
+        </Button>
+        <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-neutral-400">Click image to open original link</p>
+      </div>
+    </div>
+  );
+};
+
+const ArtGallery = ({ eras, onImageClick }: { eras: Record<string, Era>; onImageClick: (url: string, name: string) => void }) => {
+  const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set([Object.keys(eras)[0] || ""]));
+
+  const toggleEra = (eraKey: string) => {
+    setExpandedEras((prev) => {
+      const next = new Set(prev);
+      if (next.has(eraKey)) next.delete(eraKey);
+      else next.add(eraKey);
+      return next;
+    });
+  };
+
+  const getImageUrl = (url: string): string | null => {
+    if (url.includes("ibb.co")) {
+      const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/);
+      if (match) return `https://i.ibb.co/${match[1]}/image.jpg`;
+    }
+    if (url.includes("imgur.com") || url.includes("i.imgur.com")) {
+      const match = url.match(/imgur\.com\/([a-zA-Z0-9]+)/);
+      if (match) return `https://i.imgur.com/${match[1]}.jpg`;
+    }
+    if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return url;
+    return null;
+  };
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(eras).map(([key, era]) => (
+        <div key={key} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden">
+          <button className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors" onClick={() => toggleEra(key)}>
+            {era.image ? <img src={era.image} alt={era.name} className="w-16 h-16 rounded-xl object-cover bg-neutral-800" /> : <div className="w-16 h-16 rounded-xl bg-neutral-800" />}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-white">{era.name || key}</h3>
+              {era.extra && <p className="text-sm text-neutral-500">{era.extra}</p>}
+            </div>
+            <ChevronDown className={`w-5 h-5 text-neutral-500 transition-transform ${expandedEras.has(key) ? "rotate-180" : ""}`} />
+          </button>
+          {expandedEras.has(key) && era.data && (
+            <div className="px-5 pb-5">
+              {Object.entries(era.data).map(([cat, items]) => (
+                <div key={cat} className="mb-6 last:mb-0">
+                  {cat !== "Default" && <h4 className="text-sm font-semibold text-neutral-300 pb-3 mb-3 border-b border-neutral-800">{cat}</h4>}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {(items as TALeak[]).map((item, i) => {
+                      const url = item.url || (item.urls && item.urls[0]);
+                      const imageUrl = url ? getImageUrl(url) : null;
+                      return (
+                        <div
+                          key={i}
+                          className="group cursor-pointer rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition-all"
+                          onClick={() => url && onImageClick(url, item.name)}
+                        >
+                          <div className="aspect-square relative bg-neutral-800">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-600">
+                                <LinkIcon className="w-8 h-8" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-3">
+                            <p className="text-sm font-medium text-white truncate">{item.name}</p>
+                            {item.description && <p className="text-xs text-neutral-500 truncate mt-1">{item.description}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function TrackerViewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { state: playerState, playTrack, addToQueue, togglePlayPause } = usePlayer();
+  const { state: playerState, playTrack, addToQueue, togglePlayPause, lastfm } = usePlayer();
   const [trackerId, setTrackerId] = useState(searchParams.get("id") || "");
   const [inputValue, setInputValue] = useState(searchParams.get("id") || "");
-  const [data, setData] = useState<Record<string, Era> | null>(null);
+  const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(searchParams.get("artist"));
+  const [data, setData] = useState<TrackerResponse | null>(null);
+  const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -207,58 +481,175 @@ function TrackerViewContent() {
   const [resolvedUrls, setResolvedUrls] = useState<Map<string, string | null>>(new Map());
   const [resolveProgress, setResolveProgress] = useState({ current: 0, total: 0 });
   const [isPreloading, setIsPreloading] = useState(false);
-  const [artistName, setArtistName] = useState<string>("");
+  const [currentTab, setCurrentTab] = useState<string>("");
+  const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
+  const [lastfmToken, setLastfmToken] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string; originalUrl: string } | null>(null);
+  const [highlightedTrackUrl, setHighlightedTrackUrl] = useState<string | null>(null);
+  const highlightedTrackRef = useRef<HTMLDivElement | null>(null);
+  const pendingTrackUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const id = searchParams.get("id");
+    const trackParam = searchParams.get("track");
+    const artistParam = searchParams.get("artist");
     if (id && isValidTrackerId(id)) {
       setTrackerId(id);
       setInputValue(id);
     }
+    if (artistParam) {
+      setArtistNameFromUrl(artistParam);
+    }
+    if (trackParam) {
+      const decodedUrl = decodeTrackFromUrl(trackParam);
+      if (decodedUrl) {
+        pendingTrackUrlRef.current = decodedUrl;
+        setHighlightedTrackUrl(decodedUrl);
+      }
+    }
   }, [searchParams]);
 
   useEffect(() => {
-    if (!trackerId || !isValidTrackerId(trackerId)) return;
-    const controller = new AbortController();
-    const load = async () => {
-      setStatus("loading");
-      const cached = getCache(trackerId);
-      if (cached) {
-        setData(cached.data);
-        setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
-        setStatus("success");
-        const firstEra = Object.keys(cached.data)[0];
-        if (firstEra) setExpandedEras(new Set([firstEra]));
+    if (highlightedTrackRef.current && highlightedTrackUrl) {
+      setTimeout(() => {
+        highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 500);
+    }
+  }, [highlightedTrackUrl, data]);
+
+  const artistDisplayName = useMemo(() => {
+    return artistNameFromUrl || "Unknown Artist";
+  }, [artistNameFromUrl]);
+
+  useEffect(() => {
+    if (pendingTrackUrlRef.current && data && resolvedUrls.size > 0) {
+      const trackUrl = pendingTrackUrlRef.current;
+      pendingTrackUrlRef.current = null;
+
+      for (const [, era] of Object.entries(data.eras)) {
+        if (!era.data) continue;
+        for (const [, tracks] of Object.entries(era.data)) {
+          if (!Array.isArray(tracks)) continue;
+          for (const track of tracks) {
+            const url = getTrackUrl(track);
+            if (url === trackUrl) {
+              const playableUrl = resolvedUrls.get(url);
+              if (playableUrl) {
+                const eraImage = getEraImage(era);
+                const trackObj: Track = {
+                  id: generateTrackId(url),
+                  name: track.name || "Unknown",
+                  extra: track.extra || "",
+                  url,
+                  playableUrl,
+                  source: getTrackSource(url),
+                  quality: track.quality && !isUrl(track.quality) ? track.quality : undefined,
+                  trackLength: track.track_length,
+                  type: track.type,
+                  description: getTrackDescription(track) || undefined,
+                  eraImage,
+                  eraName: era.name,
+                  artistName: artistDisplayName,
+                };
+                playTrack(trackObj);
+              }
+              return;
+            }
+          }
+        }
+      }
+    }
+  }, [data, resolvedUrls, playTrack, artistDisplayName]);
+
+  const fetchBaseEraImages = useCallback(async (id: string) => {
+    try {
+      const cached = getCache(id);
+      if (cached?.data?.eras) {
+        const images: Record<string, string> = {};
+        Object.entries(cached.data.eras).forEach(([key, era]) => {
+          if (era.image) images[era.name || key] = era.image;
+        });
+        setBaseEraImages(images);
         return;
       }
-      try {
-        const res = await fetch(`${API_BASE}/get/${trackerId}`, { signal: controller.signal, redirect: "manual" });
-        if(res.type == "opaqueredirect") {
-          location.href = `${API_BASE}/get/${trackerId}`;
+
+      const res = await fetch(`${API_BASE}/get/${id}`);
+      if (res.ok) {
+        const json: TrackerResponse = await res.json();
+        if (json?.eras) {
+          const images: Record<string, string> = {};
+          Object.entries(json.eras).forEach(([key, era]) => {
+            if (era.image) images[era.name || key] = era.image;
+          });
+          setBaseEraImages(images);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch base era images:", e);
+    }
+  }, []);
+
+  const loadTrackerData = useCallback(async (id: string, tab?: string) => {
+    setStatus("loading");
+
+    if (tab) {
+      fetchBaseEraImages(id);
+    }
+
+    const cached = getCache(id, tab);
+    if (cached) {
+      setData(cached.data);
+      setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
+      setCurrentTab(cached.data.current_tab);
+      setStatus("success");
+      const firstEra = Object.keys(cached.data.eras)[0];
+      if (firstEra) setExpandedEras(new Set([firstEra]));
+      return;
+    }
+
+    try {
+      const url = tab ? `${API_BASE}/get/${id}?tab=${encodeURIComponent(tab)}` : `${API_BASE}/get/${id}`;
+      const res = await fetch(url, { redirect: "manual" });
+
+      if (res.type === "opaqueredirect") {
+        return;
+      }
+
+      if (!res.ok) {
+        if (res.status === 500 || res.status === 404) {
           return;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json: TrackerResponse = await res.json();
-        if (!json || typeof json !== "object" || Object.keys(json).length === 0) throw new Error("Empty response");
-        setData(json.eras);
-        setStatus("success");
-        setArtistName(json.name || "");
-        const firstEra = Object.keys(json)[0];
-        if (firstEra) setExpandedEras(new Set([firstEra]));
-        preloadAllUrls(json.eras, trackerId);
-      } catch (e: any) {
-        if (e.name === "AbortError") return;
-        setErrorMessage(e.message);
-        setStatus("error");
+        throw new Error(`HTTP ${res.status}`);
       }
-    };
-    load();
-    return () => controller.abort();
-  }, [trackerId]);
 
-  const preloadAllUrls = async (apiData: Record<string, Era>, id: string) => {
+      const json: TrackerResponse = await res.json();
+      if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) {
+        return;
+      }
+
+      setData(json);
+      setCurrentTab(json.current_tab);
+      setStatus("success");
+
+      const firstEra = Object.keys(json.eras)[0];
+      if (firstEra) setExpandedEras(new Set([firstEra]));
+
+      if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
+        preloadAllUrls(json.eras, id, tab, json);
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError") return;
+      }
+  }, [fetchBaseEraImages]);
+
+  useEffect(() => {
+    if (!trackerId || !isValidTrackerId(trackerId)) return;
+    loadTrackerData(trackerId);
+  }, [trackerId, loadTrackerData]);
+
+  const preloadAllUrls = async (eras: Record<string, Era>, id: string, tab: string | undefined, trackerData: TrackerResponse) => {
     const urls: string[] = [];
-    Object.values(apiData).forEach((era) => {
+    Object.values(eras).forEach((era) => {
       if (!era.data) return;
       Object.values(era.data).forEach((tracks) => {
         if (!Array.isArray(tracks)) return;
@@ -276,13 +667,22 @@ function TrackerViewContent() {
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
       const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
-      results.forEach(({ url, playable }) => { resolved[url] = playable; });
+      results.forEach(({ url, playable }) => {
+        resolved[url] = playable;
+      });
       setResolvedUrls(new Map(Object.entries(resolved)));
       setResolveProgress({ current: Math.min(i + batchSize, urls.length), total: urls.length });
     }
-    setCache(id, apiData, resolved);
+    setCache(id, trackerData, resolved, tab);
     setIsPreloading(false);
   };
+
+  const getEraImage = useCallback((era: Era): string | undefined => {
+    if (era.image) return era.image;
+    const eraName = era.name;
+    if (eraName && baseEraImages[eraName]) return baseEraImages[eraName];
+    return undefined;
+  }, [baseEraImages]);
 
   const handleLoad = useCallback(() => {
     if (!isValidTrackerId(inputValue)) {
@@ -293,10 +693,33 @@ function TrackerViewContent() {
   }, [inputValue, router, toast]);
 
   const handleShare = useCallback(() => {
-    const url = `${window.location.origin}/view?id=${trackerId}${artistName ? `&name=${encodeURIComponent(artistName)}` : ""}`;
+    let url = `${window.location.origin}/view?id=${trackerId}`;
+    if (artistNameFromUrl) {
+      url += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
+    }
     navigator.clipboard.writeText(url);
     toast({ title: "Copied!", description: "Share link copied to clipboard" });
-  }, [trackerId, artistName, toast]);
+  }, [trackerId, artistNameFromUrl, toast]);
+
+  const handleShareTrack = useCallback((trackUrl: string, trackName: string) => {
+    const encodedTrack = encodeTrackForUrl(trackUrl);
+    let shareUrl = `${window.location.origin}/view?id=${trackerId}&track=${encodedTrack}`;
+    if (artistNameFromUrl) {
+      shareUrl += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
+    }
+    if (currentTab && currentTab !== data?.tabs?.[0]) {
+      shareUrl += `&tab=${encodeURIComponent(currentTab)}`;
+    }
+    navigator.clipboard.writeText(shareUrl);
+    toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
+  }, [trackerId, artistNameFromUrl, currentTab, data?.tabs, toast]);
+
+  const handleTabChange = useCallback((tab: string) => {
+    if (!trackerId || tab === currentTab) return;
+    setResolvedUrls(new Map());
+    setHighlightedTrackUrl(null);
+    loadTrackerData(trackerId, tab);
+  }, [trackerId, currentTab, loadTrackerData]);
 
   const toggleEra = useCallback((eraKey: string) => {
     setExpandedEras((prev) => {
@@ -305,6 +728,11 @@ function TrackerViewContent() {
       else next.add(eraKey);
       return next;
     });
+  }, []);
+
+  const handleOpenUrl = useCallback((url: string) => {
+    const transformedUrl = transformUrlForOpening(url);
+    window.open(transformedUrl, "_blank", "noopener,noreferrer");
   }, []);
 
   const handlePlayTrack = useCallback(async (rawTrack: any, era: Era) => {
@@ -317,9 +745,10 @@ function TrackerViewContent() {
     let playableUrl = resolvedUrls.get(url);
     if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
     if (!playableUrl) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      handleOpenUrl(url);
       return;
     }
+    const eraImage = getEraImage(era);
     const track: Track = {
       id: generateTrackId(url),
       name: rawTrack.name || "Unknown",
@@ -331,12 +760,12 @@ function TrackerViewContent() {
       trackLength: rawTrack.track_length,
       type: rawTrack.type,
       description: getTrackDescription(rawTrack) || undefined,
-      eraImage: era.image,
+      eraImage,
       eraName: era.name,
-      artistName: artistName || undefined,
+      artistName: artistDisplayName,
     };
     playTrack(track);
-  }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, artistName]);
+  }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, artistDisplayName, getEraImage, handleOpenUrl]);
 
   const handleAddToQueue = useCallback(async (rawTrack: any, era: Era) => {
     const url = getTrackUrl(rawTrack);
@@ -347,6 +776,7 @@ function TrackerViewContent() {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
     }
+    const eraImage = getEraImage(era);
     const track: Track = {
       id: generateTrackId(url),
       name: rawTrack.name || "Unknown",
@@ -354,13 +784,13 @@ function TrackerViewContent() {
       url,
       playableUrl,
       source: getTrackSource(url),
-      eraImage: era.image,
+      eraImage,
       eraName: era.name,
-      artistName: artistName || undefined,
+      artistName: artistDisplayName,
     };
     addToQueue(track);
     toast({ title: "Added to queue", description: track.name });
-  }, [resolvedUrls, addToQueue, toast, artistName]);
+  }, [resolvedUrls, addToQueue, toast, artistDisplayName, getEraImage]);
 
   const handleDownload = useCallback(async (rawTrack: any) => {
     const url = getTrackUrl(rawTrack);
@@ -383,14 +813,52 @@ function TrackerViewContent() {
 
   const handleOpenOriginal = useCallback((rawTrack: any) => {
     const url = getTrackUrl(rawTrack);
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    if (url) handleOpenUrl(url);
+  }, [handleOpenUrl]);
+
+  const handleArtImageClick = useCallback((url: string, name: string) => {
+    const getDirectImageUrl = (u: string): string | null => {
+      if (u.includes("ibb.co")) {
+        const match = u.match(/ibb\.co\/([a-zA-Z0-9]+)/);
+        if (match) return `https://i.ibb.co/${match[1]}/image.jpg`;
+      }
+      if (u.includes("imgur.com")) {
+        const match = u.match(/imgur\.com\/([a-zA-Z0-9]+)/);
+        if (match) return `https://i.imgur.com/${match[1]}.jpg`;
+      }
+      if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return u;
+      return null;
+    };
+
+    const directUrl = getDirectImageUrl(url);
+    if (directUrl) {
+      setLightboxImage({ src: directUrl, alt: name, originalUrl: url });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   }, []);
 
+  const isArtTab = ART_TABS.includes(currentTab);
+
+  const erasWithImages = useMemo(() => {
+    if (!data?.eras) return null;
+    const result: Record<string, Era> = {};
+    Object.entries(data.eras).forEach(([key, era]) => {
+      result[key] = {
+        ...era,
+        image: getEraImage(era),
+      };
+    });
+    return result;
+  }, [data?.eras, getEraImage]);
+
   const filteredData = useMemo(() => {
-    if (!data) return null;
+    if (!erasWithImages) return null;
+    if (isArtTab) return erasWithImages;
+
     const result: Record<string, Era> = {};
     const query = searchQuery.toLowerCase();
-    Object.entries(data).forEach(([key, era]) => {
+    Object.entries(erasWithImages).forEach(([key, era]) => {
       if (!era.data) return;
       const filteredCategories: Record<string, any[]> = {};
       Object.entries(era.data).forEach(([cat, tracks]) => {
@@ -411,25 +879,28 @@ function TrackerViewContent() {
       if (Object.keys(filteredCategories).length > 0) result[key] = { ...era, data: filteredCategories };
     });
     return result;
-  }, [data, searchQuery, filters, resolvedUrls]);
+  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab]);
 
   const qualities = useMemo(() => {
-    if (!data) return [];
+    if (!data?.eras) return [];
     const set = new Set<string>();
-    Object.values(data).forEach((era) => {
+    Object.values(data.eras).forEach((era) => {
       if (!era.data) return;
       Object.values(era.data).forEach((tracks) => {
         if (!Array.isArray(tracks)) return;
-        tracks.forEach((t) => { if (t.quality && !isUrl(t.quality)) set.add(t.quality); });
+        tracks.forEach((t) => {
+          if (t.quality && !isUrl(t.quality)) set.add(t.quality);
+        });
       });
     });
     return Array.from(set);
   }, [data]);
 
   const stats = useMemo(() => {
-    let total = 0, playable = 0;
-    if (data) {
-      Object.values(data).forEach((era) => {
+    let total = 0,
+      playable = 0;
+    if (data?.eras) {
+      Object.values(data.eras).forEach((era) => {
         if (!era.data) return;
         Object.values(era.data).forEach((tracks) => {
           if (Array.isArray(tracks)) {
@@ -449,16 +920,42 @@ function TrackerViewContent() {
     <div className="min-h-screen bg-black pb-24">
       <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
         <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</Link>
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">
+            ArtistGrid
+          </Link>
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
             <Input type="text" placeholder="Paste tracker ID (44 characters)..." value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLoad()} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 rounded-xl w-full pl-12 pr-10 h-12" />
-            {inputValue && <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-neutral-500 hover:text-white" onClick={() => setInputValue("")}><X className="w-4 h-4" /></Button>}
+            {inputValue && (
+              <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-neutral-500 hover:text-white" onClick={() => setInputValue("")}>
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-          {trackerId && <Button variant="outline" size="icon" onClick={handleShare} className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"><Share2 className="w-4 h-4" /></Button>}
-          <Button onClick={handleLoad} className="bg-white text-black hover:bg-neutral-200">Load</Button>
+          {trackerId && (
+            <Button variant="outline" size="icon" onClick={handleShare} className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white">
+              <Share2 className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setLastfmModalOpen(true)}
+            aria-label="Last.fm"
+            className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 ${lastfm.isAuthenticated ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}
+          >
+            <Radio className="w-5 h-5" />
+          </Button>
+          <Button onClick={handleLoad} className="bg-white text-black hover:bg-neutral-200">
+            Load
+          </Button>
         </div>
       </header>
+
+      <LastFMModal isOpen={lastfmModalOpen} onClose={() => setLastfmModalOpen(false)} lastfm={lastfm} token={lastfmToken} setToken={setLastfmToken} />
+
+      {lightboxImage && <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} originalUrl={lightboxImage.originalUrl} onClose={() => setLightboxImage(null)} />}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {status === "idle" && (
           <div className="text-center py-20">
@@ -466,17 +963,34 @@ function TrackerViewContent() {
             <p className="text-neutral-500">Tracker IDs are exactly 44 characters long</p>
           </div>
         )}
+
         {status === "loading" && (
           <div className="space-y-6">
-            <div className="text-center py-4"><div className="inline-flex items-center gap-2 text-neutral-400"><Loader2 className="w-5 h-5 animate-spin" /><span>Loading tracker data...</span></div></div>
+            <div className="text-center py-4">
+              <div className="inline-flex items-center gap-2 text-neutral-400">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Loading tracker data...</span>
+              </div>
+            </div>
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
-                <div className="flex items-center gap-4 mb-4"><Skeleton className="w-16 h-16 rounded-xl bg-neutral-800" /><div className="flex-1"><Skeleton className="h-5 w-1/3 bg-neutral-800 mb-2" /><Skeleton className="h-4 w-1/4 bg-neutral-800" /></div></div>
-                <div className="space-y-3">{Array.from({ length: 3 }).map((_, j) => <Skeleton key={j} className="h-16 bg-neutral-800 rounded-xl" />)}</div>
+                <div className="flex items-center gap-4 mb-4">
+                  <Skeleton className="w-16 h-16 rounded-xl bg-neutral-800" />
+                  <div className="flex-1">
+                    <Skeleton className="h-5 w-1/3 bg-neutral-800 mb-2" />
+                    <Skeleton className="h-4 w-1/4 bg-neutral-800" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <Skeleton key={j} className="h-16 bg-neutral-800 rounded-xl" />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         )}
+
         {status === "error" && (
           <div className="flex items-center justify-center py-20">
             <div className="text-center bg-neutral-900 border border-red-500/30 p-8 rounded-xl max-w-md">
@@ -485,35 +999,77 @@ function TrackerViewContent() {
             </div>
           </div>
         )}
+
         {status === "success" && data && (
           <>
-            {artistName && <h1 className="text-2xl font-bold text-white mb-6">{artistName}</h1>}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                <Input type="text" placeholder="Search tracks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-neutral-800 text-white pl-10 h-10 rounded-lg" />
+            <h1 className="text-2xl font-bold text-white mb-4">{artistDisplayName}</h1>
+
+            {data.tabs && data.tabs.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-neutral-800 overflow-x-auto">
+                {data.tabs.map((tab) => (
+                  <Button
+                    key={tab}
+                    variant={currentTab === tab ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTabChange(tab)}
+                    className={`flex-shrink-0 ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}
+                  >
+                    {tab}
+                  </Button>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                {isPreloading ? (
-                  <div className="flex items-center gap-2 text-sm text-neutral-400"><Loader2 className="w-4 h-4 animate-spin" /><span>{resolveProgress.current}/{resolveProgress.total}</span></div>
-                ) : resolvedUrls.size > 0 ? (
-                  <span className="text-sm text-neutral-500">{stats.playable}/{stats.total} playable</span>
-                ) : null}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 bg-neutral-950 border-neutral-800 text-neutral-200">
-                    <DropdownMenuLabel>Filters</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-neutral-800" />
-                    <DropdownMenuCheckboxItem checked={filters.showPlayableOnly} onCheckedChange={(c) => setFilters(f => ({ ...f, showPlayableOnly: !!c }))}>Show playable only</DropdownMenuCheckboxItem>
-                    <DropdownMenuSeparator className="bg-neutral-800" />
-                    <DropdownMenuLabel>Quality</DropdownMenuLabel>
-                    <DropdownMenuCheckboxItem checked={filters.qualityFilter === "all"} onCheckedChange={() => setFilters(f => ({ ...f, qualityFilter: "all" }))}>All qualities</DropdownMenuCheckboxItem>
-                    {qualities.map((q) => <DropdownMenuCheckboxItem key={q} checked={filters.qualityFilter === q} onCheckedChange={() => setFilters(f => ({ ...f, qualityFilter: q }))}>{q}</DropdownMenuCheckboxItem>)}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            )}
+
+            {!isArtTab && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Input type="text" placeholder="Search tracks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-neutral-800 text-white pl-10 h-10 rounded-lg" />
+                </div>
+                <div className="flex items-center gap-3">
+                  {isPreloading ? (
+                    <div className="flex items-center gap-2 text-sm text-neutral-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>
+                        {resolveProgress.current}/{resolveProgress.total}
+                      </span>
+                    </div>
+                  ) : resolvedUrls.size > 0 ? (
+                    <span className="text-sm text-neutral-500">
+                      {stats.playable}/{stats.total} playable
+                    </span>
+                  ) : null}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white">
+                        <Filter className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-neutral-950 border-neutral-800 text-neutral-200">
+                      <DropdownMenuLabel>Filters</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-neutral-800" />
+                      <DropdownMenuCheckboxItem checked={filters.showPlayableOnly} onCheckedChange={(c) => setFilters((f) => ({ ...f, showPlayableOnly: !!c }))}>
+                        Show playable only
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuSeparator className="bg-neutral-800" />
+                      <DropdownMenuLabel>Quality</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem checked={filters.qualityFilter === "all"} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: "all" }))}>
+                        All qualities
+                      </DropdownMenuCheckboxItem>
+                      {qualities.map((q) => (
+                        <DropdownMenuCheckboxItem key={q} checked={filters.qualityFilter === q} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: q }))}>
+                          {q}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-            </div>
-            {filteredData && Object.keys(filteredData).length > 0 ? (
+            )}
+
+            {isArtTab && filteredData ? (
+              <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+            ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-6">
                 {Object.entries(filteredData).map(([key, era]) => (
                   <div key={key} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden">
@@ -528,48 +1084,87 @@ function TrackerViewContent() {
                     {expandedEras.has(key) && (
                       <div className="px-5 pb-5">
                         {era.description && <p className="text-sm text-neutral-400 p-4 bg-black/30 rounded-xl mb-5">{era.description}</p>}
-                        {Object.entries(era.data).map(([cat, tracks]) => (
-                          <div key={cat} className="mb-6 last:mb-0">
-                            <h4 className="text-sm font-semibold text-neutral-300 pb-3 mb-3 border-b border-neutral-800">{cat}</h4>
-                            <div className="space-y-2">
-                              {(tracks as any[]).map((track, i) => {
-                                const url = getTrackUrl(track);
-                                const playableUrl = url ? resolvedUrls.get(url) : null;
-                                const isPlayable = !!playableUrl;
-                                const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
-                                const isCurrentTrack = playerState.currentTrack?.url === url;
-                                const description = getTrackDescription(track);
-                                return (
-                                  <div key={i} className={`rounded-xl transition-colors ${isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
-                                    <div className="flex items-center gap-3 p-3">
-                                      <button onClick={() => handlePlayTrack(track, era)} className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full hover:scale-110 transition-transform ${isPlayable ? "bg-white text-black" : "bg-neutral-700 text-neutral-400"}`}>
-                                        {isCurrentlyPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                                      </button>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-semibold text-white text-sm truncate">{track.name || "Unknown"}</div>
-                                        {track.extra && <div className="text-xs text-neutral-500 truncate">{track.extra}</div>}
+                        {era.data &&
+                          Object.entries(era.data).map(([cat, tracks]) => (
+                            <div key={cat} className="mb-6 last:mb-0">
+                              <h4 className="text-sm font-semibold text-neutral-300 pb-3 mb-3 border-b border-neutral-800">{cat}</h4>
+                              <div className="space-y-2">
+                                {(tracks as any[]).map((track, i) => {
+                                  const url = getTrackUrl(track);
+                                  const playableUrl = url ? resolvedUrls.get(url) : null;
+                                  const isPlayable = !!playableUrl;
+                                  const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
+                                  const isCurrentTrack = playerState.currentTrack?.url === url;
+                                  const isHighlighted = url === highlightedTrackUrl;
+                                  const description = getTrackDescription(track);
+                                  return (
+                                    <div
+                                      key={i}
+                                      ref={isHighlighted ? highlightedTrackRef : null}
+                                      className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}
+                                    >
+                                      <div className="flex items-center gap-3 p-3">
+                                        {isPlayable ? (
+                                          <button onClick={() => handlePlayTrack(track, era)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
+                                            {isCurrentlyPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                                          </button>
+                                        ) : (
+                                          <button onClick={() => url && handleOpenUrl(url)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
+                                            <LinkIcon className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="font-semibold text-white text-sm truncate">{track.name || "Unknown"}</div>
+                                          {track.extra && <div className="text-xs text-neutral-500 truncate">{track.extra}</div>}
+                                        </div>
+                                        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                                          {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.type}</span>}
+                                          {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
+                                          {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
+                                        </div>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 rounded-lg">
+                                              <MoreHorizontal className="w-4 h-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
+                                            {url && (
+                                              <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
+                                                <Share className="w-4 h-4 mr-2" />
+                                                Share Track
+                                              </DropdownMenuItem>
+                                            )}
+                                            {isPlayable && (
+                                              <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer">
+                                                <ListPlus className="w-4 h-4 mr-2" />
+                                                Add to Queue
+                                              </DropdownMenuItem>
+                                            )}
+                                            {isPlayable && (
+                                              <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer">
+                                                <Download className="w-4 h-4 mr-2" />
+                                                Download
+                                              </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer">
+                                              <ExternalLink className="w-4 h-4 mr-2" />
+                                              Open Original URL
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </div>
-                                      <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-                                        {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.type}</span>}
-                                        {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
-                                        {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
-                                      </div>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 rounded-lg"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
-                                          {isPlayable && <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>}
-                                          {isPlayable && <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>}
-                                          <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
+                                      {description && (
+                                        <div className="px-3 pb-3">
+                                          <p className="text-xs text-neutral-500 pl-[52px]">{description}</p>
+                                        </div>
+                                      )}
                                     </div>
-                                    {description && <div className="px-3 pb-3"><p className="text-xs text-neutral-500 pl-[52px]">{description}</p></div>}
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -584,6 +1179,13 @@ function TrackerViewContent() {
             )}
           </>
         )}
+
+        <div className="mt-12 pt-6 border-t border-neutral-800">
+          <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-4 py-2 rounded-lg max-w-xl mx-auto">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
+          </div>
+        </div>
       </main>
     </div>
   );

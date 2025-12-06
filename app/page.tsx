@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, Radio } from "lucide-react";
+import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, AlertTriangle } from "lucide-react";
 import { API_BASE } from "./view/page";
 
 declare global {
@@ -29,7 +29,8 @@ const LOCAL_STORAGE_KEYS = {
   FILTER_OPTIONS: "artistGridFilterOptions",
   CSV_CACHE_REMOTE: "artistGridCsvCache_remote",
   CSV_CACHE_LOCAL: "artistGridCsvCache_local",
-  TRENDS_CACHE: "artistGridTrendsCache"
+  TRENDS_CACHE: "artistGridTrendsCache",
+  MESSAGE_HASH: "artistGridMessageHash"
 };
 const DATA_SOURCES = {
   LIVE: "/backup.csv",
@@ -61,6 +62,26 @@ const CUSTOM_REDIRECTS: Record<string, string> = {
   github: "https://github.com/ArtistGrid"
 };
 const SUFFIXES_TO_STRIP = ["tracker"];
+
+const ANNOUNCEMENT_MESSAGE = `# Welcome.
+
+We've made some updates:
+
+- **New Tab System**: Browse different categories like Released, Best Of, Art, and more
+- **Art Gallery**: View album artwork and promotional materials
+- **Share Tracks**: Share direct links to specific tracks with friends
+
+Thank You.`;
+
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(36);
+}
 
 interface Artist {
   name: string;
@@ -221,6 +242,34 @@ const Modal: FC<{ isOpen: boolean; onClose: () => void; children: ReactNode; ari
   );
 };
 
+const AnnouncementModal = memo(({ isOpen, onClose, message }: { isOpen: boolean; onClose: () => void; message: string }) => {
+  const renderMarkdown = (text: string) => {
+    const lines = text.split("\n");
+    return lines.map((line, i) => {
+      if (line.startsWith("# ")) {
+        return <h2 key={i} className="text-xl font-bold text-white mb-4">{line.slice(2)}</h2>;
+      }
+      if (line.startsWith("- **")) {
+        const match = line.match(/- \*\*(.+?)\*\*: (.+)/);
+        if (match) {
+          return <p key={i} className="text-neutral-300 mb-2">• <strong className="text-white">{match[1]}</strong>: {match[2]}</p>;
+        }
+      }
+      if (line.trim() === "") return <br key={i} />;
+      return <p key={i} className="text-neutral-300 mb-2">{line}</p>;
+    });
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Announcement">
+      <div className="p-6 pt-12">
+        {renderMarkdown(message)}
+        <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">Got it!</Button>
+      </div>
+    </Modal>
+  );
+});
+
 const GallerySkeleton = memo(() => (
   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
     {Array.from({ length: 18 }).map((_, i) => (
@@ -342,17 +391,8 @@ const FilterControls = memo(({ options, onFilterChange, useSheet, onUseSheetChan
   </DropdownMenu>
 ));
 
-const HeaderActions = memo(({ onInfoClick, onDonateClick, onLastFMClick, isLastFMConnected }: { onInfoClick: () => void; onDonateClick: () => void; onLastFMClick: () => void; isLastFMConnected: boolean }) => (
+const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick: () => void; onDonateClick: () => void }) => (
   <div className="flex items-center gap-2">
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={onLastFMClick}
-      aria-label="Last.fm"
-      className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 ${isLastFMConnected ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}
-    >
-      <Radio className="w-5 h-5" />
-    </Button>
     <Button
       variant="outline"
       size="icon"
@@ -386,7 +426,7 @@ const HeaderActions = memo(({ onInfoClick, onDonateClick, onLastFMClick, isLastF
   </div>
 ));
 
-const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChange, onInfoClick, onDonateClick, useSheet, onUseSheetChange, onLastFMClick, isLastFMConnected }: {
+const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChange, onInfoClick, onDonateClick, useSheet, onUseSheetChange }: {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filterOptions: FilterOptions;
@@ -395,14 +435,12 @@ const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChang
   onDonateClick: () => void;
   useSheet: boolean;
   onUseSheetChange: (v: boolean) => void;
-  onLastFMClick: () => void;
-  isLastFMConnected: boolean;
 }) => (
   <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900 mb-8">
     <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
       <h1 className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</h1>
       <div className="sm:hidden">
-        <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} onLastFMClick={onLastFMClick} isLastFMConnected={isLastFMConnected} />
+        <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} />
       </div>
       <div className="relative flex-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
@@ -429,7 +467,7 @@ const Header = memo(({ searchQuery, setSearchQuery, filterOptions, onFilterChang
       <div className="flex items-center gap-2">
         <FilterControls options={filterOptions} onFilterChange={onFilterChange} useSheet={useSheet} onUseSheetChange={onUseSheetChange} />
         <div className="hidden sm:flex">
-          <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} onLastFMClick={onLastFMClick} isLastFMConnected={isLastFMConnected} />
+          <HeaderActions onInfoClick={onInfoClick} onDonateClick={onDonateClick} />
         </div>
       </div>
     </div>
@@ -465,86 +503,6 @@ const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: b
     </div>
   </Modal>
 ));
-
-const LastFMModal = memo(({ isOpen, onClose, lastfm, token, setToken }: {
-  isOpen: boolean;
-  onClose: () => void;
-  lastfm: { isAuthenticated: boolean; username: string | null; getAuthUrl: () => Promise<{ token: string; url: string }>; completeAuth: (token: string) => Promise<{ success: boolean; username: string }>; disconnect: () => void };
-  token: string | null;
-  setToken: (t: string | null) => void;
-}) => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleConnect = async () => {
-    setIsLoading(true);
-    try {
-      const { token: newToken, url } = await lastfm.getAuthUrl();
-      setToken(newToken);
-      window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
-    } catch (e) {
-      console.error("Failed to get Last.fm auth URL:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!token) return;
-    setIsLoading(true);
-    try {
-      await lastfm.completeAuth(token);
-      setToken(null);
-      onClose();
-    } catch (e) {
-      console.error("Failed to complete Last.fm auth:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Last.fm Connection">
-      <div className="p-6 pt-12 text-center">
-        <Radio className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
-        <h2 className="text-xl font-bold text-white mb-2">Last.fm Scrobbling</h2>
-        {lastfm.isAuthenticated ? (
-          <div className="space-y-4">
-            <p className="text-neutral-300">
-              Connected as <span className="font-semibold text-white">{lastfm.username}</span>
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                lastfm.disconnect();
-                onClose();
-              }}
-              className="text-red-400 border-red-400/30 hover:bg-red-400/10"
-            >
-              Disconnect
-            </Button>
-          </div>
-        ) : token ? (
-          <div className="space-y-4">
-            <p className="text-neutral-400">Authorize in the popup window, then click below to complete</p>
-            <Button onClick={handleComplete} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
-              {isLoading ? "Connecting..." : "Complete Connection"}
-            </Button>
-            <Button variant="ghost" onClick={() => setToken(null)} className="text-neutral-500 hover:text-white">
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-neutral-400">Connect your Last.fm account to scrobble tracks while listening</p>
-            <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
-              {isLoading ? "Loading..." : "Connect Last.fm"}
-            </Button>
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-});
 
 const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void }) => (
   <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-4 rounded-xl backdrop-blur-sm" onClick={onClose}>
@@ -618,9 +576,9 @@ const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   );
 });
 
-const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedCount: number; totalCount: number; onDonateClick: () => void }) => (
+const Footer = memo(({ displayedCount, totalCount, onDonateClick, visitorCount }: { displayedCount: number; totalCount: number; onDonateClick: () => void; visitorCount: number | null }) => (
   <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 mt-12 border-t border-neutral-800">
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-6">
       <p className="text-sm text-neutral-400">{displayedCount} of {totalCount} trackers displayed</p>
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
         <a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
@@ -640,20 +598,48 @@ const Footer = memo(({ displayedCount, totalCount, onDonateClick }: { displayedC
           <span>Donate</span>
         </button>
       </div>
+      <div className="text-center space-y-3 pt-4 border-t border-neutral-800 w-full">
+        <p className="text-sm text-neutral-300">
+          Maintained by{" "}
+          <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">edideaur</a>,{" "}
+          <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">JustAMZ</a>, and{" "}
+          <a href="https://sad.ovh" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">fucksophie</a>.
+        </p>
+        <p className="text-sm text-neutral-400">
+          Original trackers are in{" "}
+          <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">this Google Sheet</a>.
+        </p>
+        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p>
+        {visitorCount !== null && (
+          <p className="text-sm text-neutral-500 pt-2">You are visitor #{visitorCount.toLocaleString()}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-4 py-2 rounded-lg">
+        <AlertTriangle className="w-4 h-4" />
+        <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
+      </div>
     </div>
   </footer>
 ));
 
+function getCleanArtistName(name: string): string {
+  let cleanName = name.trim();
+  const altMatch = cleanName.match(/^(.+?)\s*\[Alt.*?\]$/i);
+  if (altMatch) {
+    cleanName = altMatch[1].trim();
+  }
+  return cleanName;
+}
+
 export default function ArtistGallery() {
   const router = useRouter();
-  const { state: playerState, lastfm } = usePlayer();
+  const { state: playerState } = usePlayer();
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "lastfm">(null);
-  const [lastfmToken, setLastfmToken] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(null);
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
   const [testedTrackers, setTestedTrackers] = useState<string[]>([]);
@@ -668,6 +654,24 @@ export default function ArtistGallery() {
   const initialSortApplied = useRef(false);
   const originalOrder = useRef<Artist[]>([]);
   const hasCachedData = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
+      const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
+      if (storedHash !== currentHash) {
+        setActiveModal("announcement");
+      }
+    }
+  }, []);
+
+  const handleDismissAnnouncement = useCallback(() => {
+    setActiveModal(null);
+    if (typeof window !== "undefined") {
+      const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, currentHash);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -848,7 +852,8 @@ export default function ArtistGallery() {
     const trackerId = extractTrackerId(artist.url);
     trackEvent("Artist Click", { name: artist.name });
     if (trackerId) {
-      router.push(`/view?id=${trackerId}&name=${encodeURIComponent(artist.name)}`);
+      const cleanName = getCleanArtistName(artist.name);
+      router.push(`/view?id=${trackerId}&artist=${encodeURIComponent(cleanName)}`);
     } else {
       window.open(artist.url, "_blank", "noopener,noreferrer");
     }
@@ -903,10 +908,6 @@ export default function ArtistGallery() {
     trackEvent("Header Click", { button: "Donate" });
     setActiveModal("donate");
   }, []);
-  const openLastFMModal = useCallback(() => {
-    trackEvent("Header Click", { button: "LastFM" });
-    setActiveModal("lastfm");
-  }, []);
 
   const isFirstLoad = status === "loading" && !hasCachedData.current;
   const hasPlayerActive = !!playerState.currentTrack;
@@ -937,26 +938,24 @@ export default function ArtistGallery() {
           onDonateClick={openDonationModal}
           useSheet={useSheet}
           onUseSheetChange={handleUseSheetChange}
-          onLastFMClick={openLastFMModal}
-          isLastFMConnected={lastfm.isAuthenticated}
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
           {filteredArtists.length > 0 ? (
-            <ArtistGridDisplay testedTrackers={testedTrackers}  artists={filteredArtists} onArtistClick={handleArtistClick} onSheetClick={handleSheetClick} />
+            <ArtistGridDisplay testedTrackers={testedTrackers} artists={filteredArtists} onArtistClick={handleArtistClick} onSheetClick={handleSheetClick} />
           ) : (
             <NoResultsMessage searchQuery={searchQuery} />
           )}
         </main>
-        <Footer displayedCount={filteredArtists.length} totalCount={allArtists.length} onDonateClick={openDonationModal} />
+        <Footer displayedCount={filteredArtists.length} totalCount={allArtists.length} onDonateClick={openDonationModal} visitorCount={visitorCount} />
       </>
     );
   };
 
   return (
     <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-24" : "pb-8"}`}>
+      <AnnouncementModal isOpen={activeModal === "announcement"} onClose={handleDismissAnnouncement} message={ANNOUNCEMENT_MESSAGE} />
       <DonationModal isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal isOpen={activeModal === "info"} onClose={closeModal} visitorCount={visitorCount} onDonate={openDonationModal} />
-      <LastFMModal isOpen={activeModal === "lastfm"} onClose={closeModal} lastfm={lastfm} token={lastfmToken} setToken={setLastfmToken} />
       {renderContent()}
     </div>
   );

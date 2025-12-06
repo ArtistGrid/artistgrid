@@ -9,7 +9,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -65,6 +65,19 @@ export function usePlayer() {
   const context = useContext(PlayerContext);
   if (!context) throw new Error("usePlayer must be used within PlayerProvider");
   return context;
+}
+
+export function extractArtistName(trackerName: string | null | undefined): string {
+  if (!trackerName) return "Unknown Artist";
+  let name = trackerName.trim();
+  const suffixes = [" Tracker", " tracker", " TRACKER"];
+  for (const suffix of suffixes) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return name || "Unknown Artist";
 }
 
 function md5(string: string): string {
@@ -190,6 +203,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const getScrobbleArtist = useCallback((track: Track): string => {
+    if (track.artistName) return track.artistName;
+    return track.eraName || "Unknown Artist";
+  }, []);
+
+  const updateMediaSession = useCallback((track: Track, isPlaying: boolean) => {
+    if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+
+    const artwork: MediaImage[] = [];
+    if (track.eraImage) {
+      artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
+    }
+
+    const artist = getScrobbleArtist(track);
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist,
+      album: track.eraName || "",
+      artwork,
+    });
+
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [getScrobbleArtist]);
+
   const generateSignature = useCallback((params: Record<string, string>): string => {
     const filteredParams = { ...params };
     delete filteredParams.format;
@@ -220,27 +258,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const scrobbleTrack = useCallback(async (track: Track) => {
     if (!lastfmSession?.key || hasScrobbledRef.current) return;
     try {
+      const artist = getScrobbleArtist(track);
       const params: Record<string, string> = {
-        artist: track.artistName || track.eraName || "Unknown Artist",
+        artist,
         track: track.name,
         timestamp: Math.floor(Date.now() / 1000).toString(),
       };
       if (track.eraName) params.album = track.eraName;
       await makeLastFMRequest("track.scrobble", params, true);
       hasScrobbledRef.current = true;
-      console.log("Scrobbled:", track.name);
     } catch (e) { console.error("Failed to scrobble:", e); }
-  }, [lastfmSession, makeLastFMRequest]);
+  }, [lastfmSession, makeLastFMRequest, getScrobbleArtist]);
 
   const updateNowPlaying = useCallback(async (track: Track) => {
     if (!lastfmSession?.key) return;
     try {
-      const params: Record<string, string> = { artist: track.artistName || track.eraName || "Unknown Artist", track: track.name };
+      const artist = getScrobbleArtist(track);
+      const params: Record<string, string> = { artist, track: track.name };
       if (track.eraName) params.album = track.eraName;
       await makeLastFMRequest("track.updateNowPlaying", params, true);
-      console.log("Now playing:", track.name);
     } catch (e) { console.error("Failed to update now playing:", e); }
-  }, [lastfmSession, makeLastFMRequest]);
+  }, [lastfmSession, makeLastFMRequest, getScrobbleArtist]);
 
   const scheduleScrobble = useCallback((track: Track, duration: number) => {
     clearScrobbleTimer();
@@ -249,12 +287,75 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     scrobbleTimerRef.current = setTimeout(() => scrobbleTrack(track), threshold);
   }, [clearScrobbleTimer, scrobbleTrack]);
 
+  const playNext = useCallback(() => {
+    setState(s => {
+      if (s.queue.length === 0) return s;
+      const [next, ...rest] = s.queue;
+      if (audioRef.current && next.playableUrl) {
+        clearScrobbleTimer();
+        hasScrobbledRef.current = false;
+        currentTrackRef.current = next;
+        audioRef.current.src = next.playableUrl;
+        audioRef.current.play().catch(console.error);
+        setHistory(h => [...h, next]);
+        if (lastfmSession?.key) updateNowPlaying(next);
+        updateMediaSession(next, true);
+        return { ...s, currentTrack: next, queue: rest, isPlaying: true };
+      }
+      return s;
+    });
+  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
+
+  const playPrevious = useCallback(() => {
+    if (history.length < 2) return;
+    const prev = history[history.length - 2];
+    if (audioRef.current && prev.playableUrl) {
+      clearScrobbleTimer();
+      hasScrobbledRef.current = false;
+      currentTrackRef.current = prev;
+      audioRef.current.src = prev.playableUrl;
+      audioRef.current.play().catch(console.error);
+      if (lastfmSession?.key) updateNowPlaying(prev);
+      updateMediaSession(prev, true);
+      setState(s => ({ ...s, currentTrack: prev, isPlaying: true }));
+    }
+  }, [history, clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "mediaSession" in navigator) {
+      navigator.mediaSession.setActionHandler("play", () => {
+        if (audioRef.current) audioRef.current.play().catch(console.error);
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        if (audioRef.current) audioRef.current.pause();
+      });
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        playPrevious();
+      });
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        playNext();
+      });
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (audioRef.current && details.seekTime !== undefined) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
+    }
+  }, [playNext, playPrevious]);
+
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.volume = state.volume;
       audioRef.current.addEventListener("timeupdate", () => {
         setState(s => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
+        if ("mediaSession" in navigator && audioRef.current) {
+          navigator.mediaSession.setPositionState({
+            duration: audioRef.current.duration || 0,
+            playbackRate: audioRef.current.playbackRate,
+            position: audioRef.current.currentTime,
+          });
+        }
       });
       audioRef.current.addEventListener("loadedmetadata", () => {
         const duration = audioRef.current?.duration || 0;
@@ -274,19 +375,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               setHistory(h => [...h, next]);
               currentTrackRef.current = next;
               if (lastfmSession?.key) updateNowPlaying(next);
+              updateMediaSession(next, true);
               return { ...s, currentTrack: next, queue: rest, isPlaying: true };
             }
+          }
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "none";
           }
           return { ...s, isPlaying: false };
         });
       });
-      audioRef.current.addEventListener("play", () => setState(s => ({ ...s, isPlaying: true })));
+      audioRef.current.addEventListener("play", () => {
+        setState(s => {
+          if (s.currentTrack) updateMediaSession(s.currentTrack, true);
+          return { ...s, isPlaying: true };
+        });
+      });
       audioRef.current.addEventListener("pause", () => {
-        setState(s => ({ ...s, isPlaying: false }));
+        setState(s => {
+          if (s.currentTrack) updateMediaSession(s.currentTrack, false);
+          return { ...s, isPlaying: false };
+        });
         clearScrobbleTimer();
       });
     }
-  }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, state.volume]);
+  }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume]);
 
   const playTrack = useCallback((track: Track) => {
     if (!audioRef.current || !track.playableUrl) return;
@@ -298,7 +411,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setHistory(h => [...h, track]);
     setState(s => ({ ...s, currentTrack: track, isPlaying: true }));
     if (lastfmSession?.key) updateNowPlaying(track);
-  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying]);
+    updateMediaSession(track, true);
+  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
 
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -327,38 +441,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, queue: [] }));
   }, []);
 
-  const playNext = useCallback(() => {
-    setState(s => {
-      if (s.queue.length === 0) return s;
-      const [next, ...rest] = s.queue;
-      if (audioRef.current && next.playableUrl) {
-        clearScrobbleTimer();
-        hasScrobbledRef.current = false;
-        currentTrackRef.current = next;
-        audioRef.current.src = next.playableUrl;
-        audioRef.current.play().catch(console.error);
-        setHistory(h => [...h, next]);
-        if (lastfmSession?.key) updateNowPlaying(next);
-        return { ...s, currentTrack: next, queue: rest, isPlaying: true };
-      }
-      return s;
-    });
-  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying]);
-
-  const playPrevious = useCallback(() => {
-    if (history.length < 2) return;
-    const prev = history[history.length - 2];
-    if (audioRef.current && prev.playableUrl) {
-      clearScrobbleTimer();
-      hasScrobbledRef.current = false;
-      currentTrackRef.current = prev;
-      audioRef.current.src = prev.playableUrl;
-      audioRef.current.play().catch(console.error);
-      if (lastfmSession?.key) updateNowPlaying(prev);
-      setState(s => ({ ...s, currentTrack: prev, isPlaying: true }));
-    }
-  }, [history, clearScrobbleTimer, lastfmSession, updateNowPlaying]);
-
   const closePlayer = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -368,6 +450,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     currentTrackRef.current = null;
     setState(s => ({ ...s, currentTrack: null, isPlaying: false, queue: [], currentTime: 0, duration: 0 }));
     setHistory([]);
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = "none";
+    }
   }, [clearScrobbleTimer]);
 
   const getAuthUrl = useCallback(async (): Promise<{ token: string; url: string }> => {
