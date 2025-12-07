@@ -44,6 +44,7 @@ export interface Era {
   timeline?: string;
   fileInfo?: string[];
   image?: string;
+  color?: string;
   description?: string;
   data?: Record<string, TALeak[]>;
 }
@@ -631,9 +632,6 @@ function TrackerViewContent() {
       setCurrentTab(json.current_tab);
       setStatus("success");
 
-      const firstEra = Object.keys(json.eras)[0];
-      if (firstEra) setExpandedEras(new Set([firstEra]));
-
       if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
         preloadAllUrls(json.eras, id, tab, json);
       }
@@ -1072,7 +1070,7 @@ function TrackerViewContent() {
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-6">
                 {Object.entries(filteredData).map(([key, era]) => (
-                  <div key={key} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden">
+                  <div key={key} style={{background: era.color ? `color-mix(in srgb, ${era.color}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)"}} className={`border border-neutral-800 rounded-xl overflow-hidden`}>
                     <button className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors" onClick={() => toggleEra(key)}>
                       {era.image ? <img src={era.image} alt={era.name} className="w-16 h-16 rounded-xl object-cover bg-neutral-800" /> : <div className="w-16 h-16 rounded-xl bg-neutral-800" />}
                       <div className="flex-1 min-w-0">
