@@ -44,7 +44,9 @@ export interface Era {
   timeline?: string;
   fileInfo?: string[];
   image?: string;
-  color?: string;
+  textColor?: string;
+  backgroundColor?: string;
+
   description?: string;
   data?: Record<string, TALeak[]>;
 }
@@ -603,8 +605,6 @@ function TrackerViewContent() {
       setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
       setCurrentTab(cached.data.current_tab);
       setStatus("success");
-      const firstEra = Object.keys(cached.data.eras)[0];
-      if (firstEra) setExpandedEras(new Set([firstEra]));
       return;
     }
 
@@ -1070,11 +1070,11 @@ function TrackerViewContent() {
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-6">
                 {Object.entries(filteredData).map(([key, era]) => (
-                  <div key={key} style={{background: era.color ? `color-mix(in srgb, ${era.color}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)"}} className={`border border-neutral-800 rounded-xl overflow-hidden`}>
-                    <button className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors" onClick={() => toggleEra(key)}>
+                  <div key={key} style={{background: era.backgroundColor ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)"}} className={`border border-neutral-800 rounded-xl overflow-hidden`}>
+                    <button style={{ color: "black" }} className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors" onClick={() => toggleEra(key)}>
                       {era.image ? <img src={era.image} alt={era.name} className="w-16 h-16 rounded-xl object-cover bg-neutral-800" /> : <div className="w-16 h-16 rounded-xl bg-neutral-800" />}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-white">{era.name || key}</h3>
+                        <h3 style={{ color: era.textColor ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)` : "white" }} className="text-lg font-bold">{era.name || key}</h3>
                         {era.extra && <p className="text-sm text-neutral-500">{era.extra}</p>}
                       </div>
                       <ChevronDown className={`w-5 h-5 text-neutral-500 transition-transform ${expandedEras.has(key) ? "rotate-180" : ""}`} />
