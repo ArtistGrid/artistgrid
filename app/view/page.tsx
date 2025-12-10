@@ -1,4 +1,3 @@
-// app/view/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share } from "lucide-react";
+import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward } from "lucide-react";
 
 export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
@@ -18,9 +17,9 @@ const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
 const TRACKER_ID_LENGTH = 44;
 const CACHE_KEY_PREFIX = "artistgrid_tracker_";
 const CACHE_EXPIRY = 1000 * 60 * 60 * 24;
-
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
+const PRELOAD_COUNT = 3;
 
 interface Track {
   id: string;
@@ -46,7 +45,6 @@ export interface Era {
   image?: string;
   textColor?: string;
   backgroundColor?: string;
-
   description?: string;
   data?: Record<string, TALeak[]>;
 }
@@ -97,6 +95,13 @@ interface LastFMModalProps {
   setToken: (t: string | null) => void;
 }
 
+interface PlayableTrackData {
+  track: TALeak;
+  era: Era;
+  url: string;
+  playableUrl: string;
+}
+
 function getCache(trackerId: string, tab?: string): CacheEntry | null {
   if (typeof window === "undefined") return null;
   try {
@@ -120,9 +125,7 @@ function setCache(trackerId: string, data: TrackerResponse, resolvedUrls: Record
     const key = tab ? `${CACHE_KEY_PREFIX}${trackerId}_${tab}` : `${CACHE_KEY_PREFIX}${trackerId}`;
     const entry: CacheEntry = { data, timestamp: Date.now(), resolvedUrls };
     localStorage.setItem(key, JSON.stringify(entry));
-  } catch (e) {
-    console.warn("Cache write failed:", e);
-  }
+  } catch {}
 }
 
 function generateTrackId(url: string): string {
@@ -217,23 +220,22 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
       const path = extractSoundcloudPath(normalized);
       return path ? `https://sc.bloat.cat/_/restream/${path}?metadata=true` : null;
     }
-    case "juicewrldapi": {
+    case "juicewrldapi":
       return url;
-    }
     default:
       return null;
   }
 }
 
-function getTrackUrl(track: any): string | null {
+function getTrackUrl(track: TALeak): string | null {
   if (track.url && isUrl(track.url)) return normalizePillowsUrl(track.url);
   if (track.quality && isUrl(track.quality)) return normalizePillowsUrl(track.quality);
   if (track.available_length && isUrl(track.available_length)) return normalizePillowsUrl(track.available_length);
   return null;
 }
 
-function getTrackDescription(track: any): string | null {
-  return track.description || track.notes || track.info || null;
+function getTrackDescription(track: TALeak): string | null {
+  return (track as any).description || (track as any).notes || (track as any).info || null;
 }
 
 function isValidTrackerId(id: string): boolean {
@@ -258,11 +260,13 @@ function decodeTrackFromUrl(encoded: string): string | null {
 function transformUrlForOpening(url: string): string {
   if (url.includes("soundcloud.com/")) {
     const path = extractSoundcloudPath(url);
-    if (path) {
-      return `https://sc.bloat.cat/${path}`;
-    }
+    if (path) return `https://sc.bloat.cat/${path}`;
   }
   return url;
+}
+
+function getGoogleSheetsUrl(trackerId: string): string {
+  return `https://docs.google.com/spreadsheets/d/${trackerId}/htmlview`;
 }
 
 const Modal = ({ isOpen, onClose, children, ariaLabel }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; ariaLabel: string }) => {
@@ -278,7 +282,7 @@ const Modal = ({ isOpen, onClose, children, ariaLabel }: { isOpen: boolean; onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={ariaLabel}>
       <div className="bg-neutral-950 border border-neutral-800 shadow-2xl rounded-xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95" onClick={(e) => e.stopPropagation()}>
-        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-neutral-500 hover:text-white h-8 w-8 rounded-lg">
+        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 text-neutral-500 hover:text-white h-8 w-8 rounded-lg z-10">
           <X className="w-5 h-5" />
         </Button>
         {children}
@@ -296,9 +300,7 @@ const LastFMModal = ({ isOpen, onClose, lastfm, token, setToken }: LastFMModalPr
       const { token: newToken, url } = await lastfm.getAuthUrl();
       setToken(newToken);
       window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
-    } catch (e) {
-      console.error("Failed to get Last.fm auth URL:", e);
-    } finally {
+    } catch {} finally {
       setIsLoading(false);
     }
   };
@@ -310,9 +312,7 @@ const LastFMModal = ({ isOpen, onClose, lastfm, token, setToken }: LastFMModalPr
       await lastfm.completeAuth(token);
       setToken(null);
       onClose();
-    } catch (e) {
-      console.error("Failed to complete Last.fm auth:", e);
-    } finally {
+    } catch {} finally {
       setIsLoading(false);
     }
   };
@@ -324,36 +324,19 @@ const LastFMModal = ({ isOpen, onClose, lastfm, token, setToken }: LastFMModalPr
         <h2 className="text-xl font-bold text-white mb-2">Last.fm Scrobbling</h2>
         {lastfm.isAuthenticated ? (
           <div className="space-y-4">
-            <p className="text-neutral-300">
-              Connected as <span className="font-semibold text-white">{lastfm.username}</span>
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                lastfm.disconnect();
-                onClose();
-              }}
-              className="text-red-400 border-red-400/30 hover:bg-red-400/10"
-            >
-              Disconnect
-            </Button>
+            <p className="text-neutral-300">Connected as <span className="font-semibold text-white">{lastfm.username}</span></p>
+            <Button variant="outline" onClick={() => { lastfm.disconnect(); onClose(); }} className="text-red-400 border-red-400/30 hover:bg-red-400/10">Disconnect</Button>
           </div>
         ) : token ? (
           <div className="space-y-4">
             <p className="text-neutral-400">Authorize in the popup window, then click below to complete</p>
-            <Button onClick={handleComplete} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
-              {isLoading ? "Connecting..." : "Complete Connection"}
-            </Button>
-            <Button variant="ghost" onClick={() => setToken(null)} className="text-neutral-500 hover:text-white">
-              Cancel
-            </Button>
+            <Button onClick={handleComplete} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">{isLoading ? "Connecting..." : "Complete Connection"}</Button>
+            <Button variant="ghost" onClick={() => setToken(null)} className="text-neutral-500 hover:text-white">Cancel</Button>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-neutral-400">Connect your Last.fm account to scrobble tracks while listening</p>
-            <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
-              {isLoading ? "Loading..." : "Connect Last.fm"}
-            </Button>
+            <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">{isLoading ? "Loading..." : "Connect Last.fm"}</Button>
           </div>
         )}
       </div>
@@ -370,17 +353,11 @@ const ImageLightbox = ({ src, alt, originalUrl, onClose }: { src: string; alt: s
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const handleImageClick = () => {
-    window.open(originalUrl, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-        <img src={src} alt={alt} className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={handleImageClick} title="Click to open original" />
-        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4 text-white hover:bg-white/10">
-          <X className="w-6 h-6" />
-        </Button>
+        <img src={src} alt={alt} className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")} title="Click to open original" />
+        <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4 text-white hover:bg-white/10"><X className="w-6 h-6" /></Button>
         <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-neutral-400">Click image to open original link</p>
       </div>
     </div>
@@ -434,19 +411,9 @@ const ArtGallery = ({ eras, onImageClick }: { eras: Record<string, Era>; onImage
                       const url = item.url || (item.urls && item.urls[0]);
                       const imageUrl = url ? getImageUrl(url) : null;
                       return (
-                        <div
-                          key={i}
-                          className="group cursor-pointer rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition-all"
-                          onClick={() => url && onImageClick(url, item.name)}
-                        >
+                        <div key={i} className="group cursor-pointer rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition-all" onClick={() => url && onImageClick(url, item.name)}>
                           <div className="aspect-square relative bg-neutral-800">
-                            {imageUrl ? (
-                              <img src={imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-neutral-600">
-                                <LinkIcon className="w-8 h-8" />
-                              </div>
-                            )}
+                            {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-neutral-600"><LinkIcon className="w-8 h-8" /></div>}
                           </div>
                           <div className="p-3">
                             <p className="text-sm font-medium text-white truncate">{item.name}</p>
@@ -466,17 +433,47 @@ const ArtGallery = ({ eras, onImageClick }: { eras: Record<string, Era>; onImage
   );
 };
 
+const FallbackView = ({ trackerId, sheetsUrl }: { trackerId: string; sheetsUrl: string }) => {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="max-w-lg w-full bg-neutral-950 border border-neutral-800 rounded-xl p-8 text-center">
+        <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
+        <h1 className="text-2xl font-bold text-white mb-4">Unable to Load Tracker</h1>
+        <p className="text-neutral-400 mb-6">
+          We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google Sheets.
+        </p>
+        <Button asChild className="bg-white text-black hover:bg-neutral-200 mb-6 w-full">
+          <a href={sheetsUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Open Original Spreadsheet
+          </a>
+        </Button>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 text-left">
+          <p className="text-xs text-neutral-500 leading-relaxed">
+            <strong className="text-neutral-400">Disclaimer:</strong> ArtistGrid is not affiliated with, endorsed by, or associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not host, store, or distribute any copyrighted content. All data is sourced from publicly available Google Sheets and third-party services.
+          </p>
+        </div>
+        <div className="mt-6">
+          <Link href="/" className="text-sm text-neutral-500 hover:text-white transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function TrackerViewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { state: playerState, playTrack, addToQueue, togglePlayPause, lastfm } = usePlayer();
+  const { state: playerState, playTrack, addToQueue, clearQueue, togglePlayPause, lastfm } = usePlayer();
   const [trackerId, setTrackerId] = useState(searchParams.get("id") || "");
   const [inputValue, setInputValue] = useState(searchParams.get("id") || "");
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(searchParams.get("artist"));
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "fallback">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
@@ -491,6 +488,120 @@ function TrackerViewContent() {
   const [highlightedTrackUrl, setHighlightedTrackUrl] = useState<string | null>(null);
   const highlightedTrackRef = useRef<HTMLDivElement | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
+  const preloadedAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
+
+  const getEraImage = useCallback((era: Era): string | undefined => {
+    if (era.image) return era.image;
+    const eraName = era.name;
+    if (eraName && baseEraImages[eraName]) return baseEraImages[eraName];
+    return undefined;
+  }, [baseEraImages]);
+
+  const erasWithImages = useMemo(() => {
+    if (!data?.eras) return null;
+    const result: Record<string, Era> = {};
+    for (const [key, era] of Object.entries(data.eras)) {
+      result[key] = { ...era, image: getEraImage(era) };
+    }
+    return result;
+  }, [data?.eras, getEraImage]);
+
+  const isArtTab = ART_TABS.includes(currentTab);
+
+  const filteredData = useMemo(() => {
+    if (!erasWithImages) return null;
+    if (isArtTab) return erasWithImages;
+    const result: Record<string, Era> = {};
+    const query = searchQuery.toLowerCase();
+    for (const [key, era] of Object.entries(erasWithImages)) {
+      if (!era.data) continue;
+      const filteredCategories: Record<string, TALeak[]> = {};
+      for (const [cat, tracks] of Object.entries(era.data)) {
+        if (!Array.isArray(tracks)) continue;
+        const filtered = tracks.filter((t) => {
+          const url = getTrackUrl(t);
+          if (!url) return false;
+          if (filters.showPlayableOnly && !resolvedUrls.get(url)) return false;
+          if (filters.qualityFilter !== "all" && !(t.quality?.toLowerCase() || "").includes(filters.qualityFilter.toLowerCase())) return false;
+          if (query) {
+            const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
+            if (!searchable.includes(query)) return false;
+          }
+          return true;
+        });
+        if (filtered.length > 0) filteredCategories[cat] = filtered;
+      }
+      if (Object.keys(filteredCategories).length > 0) result[key] = { ...era, data: filteredCategories };
+    }
+    return result;
+  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab]);
+
+  const allPlayableTracks = useMemo((): PlayableTrackData[] => {
+    if (!filteredData) return [];
+    const tracks: PlayableTrackData[] = [];
+    for (const era of Object.values(filteredData)) {
+      if (!era.data) continue;
+      for (const trackList of Object.values(era.data)) {
+        if (!Array.isArray(trackList)) continue;
+        for (const track of trackList) {
+          const url = getTrackUrl(track);
+          const playableUrl = url ? resolvedUrls.get(url) : null;
+          if (url && playableUrl) tracks.push({ track, era, url, playableUrl });
+        }
+      }
+    }
+    return tracks;
+  }, [filteredData, resolvedUrls]);
+
+  const createTrackObject = useCallback((rawTrack: TALeak, era: Era, url: string, playableUrl: string): Track => ({
+    id: generateTrackId(url),
+    name: rawTrack.name || "Unknown",
+    extra: rawTrack.extra || "",
+    url,
+    playableUrl,
+    source: getTrackSource(url),
+    quality: rawTrack.quality && !isUrl(rawTrack.quality) ? rawTrack.quality : undefined,
+    trackLength: rawTrack.track_length,
+    type: rawTrack.type,
+    description: getTrackDescription(rawTrack) || undefined,
+    eraImage: getEraImage(era),
+    eraName: era.name,
+    artistName: artistDisplayName,
+  }), [artistDisplayName, getEraImage]);
+
+  const preloadNextTracks = useCallback((queue: Track[]) => {
+    const currentPreloaded = preloadedAudioRef.current;
+    const urlsToPreload = queue.slice(0, PRELOAD_COUNT).map(t => t.playableUrl).filter((url): url is string => !!url);
+    for (const [url, audio] of currentPreloaded.entries()) {
+      if (!urlsToPreload.includes(url)) {
+        audio.src = "";
+        currentPreloaded.delete(url);
+      }
+    }
+    for (const url of urlsToPreload) {
+      if (!currentPreloaded.has(url)) {
+        const audio = new Audio();
+        audio.preload = "auto";
+        audio.src = url;
+        currentPreloaded.set(url, audio);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    preloadNextTracks(playerState.queue);
+  }, [playerState.queue, preloadNextTracks]);
+
+  useEffect(() => {
+    return () => {
+      for (const audio of preloadedAudioRef.current.values()) {
+        audio.src = "";
+      }
+      preloadedAudioRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const id = searchParams.get("id");
@@ -500,9 +611,7 @@ function TrackerViewContent() {
       setTrackerId(id);
       setInputValue(id);
     }
-    if (artistParam) {
-      setArtistNameFromUrl(artistParam);
-    }
+    if (artistParam) setArtistNameFromUrl(artistParam);
     if (trackParam) {
       const decodedUrl = decodeTrackFromUrl(trackParam);
       if (decodedUrl) {
@@ -514,47 +623,24 @@ function TrackerViewContent() {
 
   useEffect(() => {
     if (highlightedTrackRef.current && highlightedTrackUrl) {
-      setTimeout(() => {
-        highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 500);
+      setTimeout(() => highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
     }
   }, [highlightedTrackUrl, data]);
-
-  const artistDisplayName = useMemo(() => {
-    return artistNameFromUrl || "Unknown Artist";
-  }, [artistNameFromUrl]);
 
   useEffect(() => {
     if (pendingTrackUrlRef.current && data && resolvedUrls.size > 0) {
       const trackUrl = pendingTrackUrlRef.current;
       pendingTrackUrlRef.current = null;
-
-      for (const [, era] of Object.entries(data.eras)) {
+      for (const era of Object.values(data.eras)) {
         if (!era.data) continue;
-        for (const [, tracks] of Object.entries(era.data)) {
+        for (const tracks of Object.values(era.data)) {
           if (!Array.isArray(tracks)) continue;
           for (const track of tracks) {
             const url = getTrackUrl(track);
             if (url === trackUrl) {
               const playableUrl = resolvedUrls.get(url);
               if (playableUrl) {
-                const eraImage = getEraImage(era);
-                const trackObj: Track = {
-                  id: generateTrackId(url),
-                  name: track.name || "Unknown",
-                  extra: track.extra || "",
-                  url,
-                  playableUrl,
-                  source: getTrackSource(url),
-                  quality: track.quality && !isUrl(track.quality) ? track.quality : undefined,
-                  trackLength: track.track_length,
-                  type: track.type,
-                  description: getTrackDescription(track) || undefined,
-                  eraImage,
-                  eraName: era.name,
-                  artistName: artistDisplayName,
-                };
-                playTrack(trackObj);
+                playTrack(createTrackObject(track, era, url, playableUrl));
               }
               return;
             }
@@ -562,101 +648,45 @@ function TrackerViewContent() {
         }
       }
     }
-  }, [data, resolvedUrls, playTrack, artistDisplayName]);
+  }, [data, resolvedUrls, playTrack, createTrackObject]);
 
   const fetchBaseEraImages = useCallback(async (id: string) => {
     try {
       const cached = getCache(id);
       if (cached?.data?.eras) {
         const images: Record<string, string> = {};
-        Object.entries(cached.data.eras).forEach(([key, era]) => {
+        for (const [key, era] of Object.entries(cached.data.eras)) {
           if (era.image) images[era.name || key] = era.image;
-        });
+        }
         setBaseEraImages(images);
         return;
       }
-
       const res = await fetch(`${API_BASE}/get/${id}`);
       if (res.ok) {
         const json: TrackerResponse = await res.json();
         if (json?.eras) {
           const images: Record<string, string> = {};
-          Object.entries(json.eras).forEach(([key, era]) => {
+          for (const [key, era] of Object.entries(json.eras)) {
             if (era.image) images[era.name || key] = era.image;
-          });
+          }
           setBaseEraImages(images);
         }
       }
-    } catch (e) {
-      console.warn("Failed to fetch base era images:", e);
-    }
+    } catch {}
   }, []);
-
-  const loadTrackerData = useCallback(async (id: string, tab?: string) => {
-    setStatus("loading");
-
-    if (tab) {
-      fetchBaseEraImages(id);
-    }
-
-    const cached = getCache(id, tab);
-    if (cached) {
-      setData(cached.data);
-      setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
-      setCurrentTab(cached.data.current_tab);
-      setStatus("success");
-      return;
-    }
-
-    try {
-      const url = tab ? `${API_BASE}/get/${id}?tab=${encodeURIComponent(tab)}` : `${API_BASE}/get/${id}`;
-      const res = await fetch(url, { redirect: "manual" });
-
-      if (res.type === "opaqueredirect") {
-        return;
-      }
-
-      if (!res.ok) {
-        if (res.status === 500 || res.status === 404) {
-          return;
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const json: TrackerResponse = await res.json();
-      if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) {
-        return;
-      }
-
-      setData(json);
-      setCurrentTab(json.current_tab);
-      setStatus("success");
-
-      if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
-        preloadAllUrls(json.eras, id, tab, json);
-      }
-    } catch (e: any) {
-      if (e.name === "AbortError") return;
-      }
-  }, [fetchBaseEraImages]);
-
-  useEffect(() => {
-    if (!trackerId || !isValidTrackerId(trackerId)) return;
-    loadTrackerData(trackerId);
-  }, [trackerId, loadTrackerData]);
 
   const preloadAllUrls = async (eras: Record<string, Era>, id: string, tab: string | undefined, trackerData: TrackerResponse) => {
     const urls: string[] = [];
-    Object.values(eras).forEach((era) => {
-      if (!era.data) return;
-      Object.values(era.data).forEach((tracks) => {
-        if (!Array.isArray(tracks)) return;
-        tracks.forEach((t) => {
+    for (const era of Object.values(eras)) {
+      if (!era.data) continue;
+      for (const tracks of Object.values(era.data)) {
+        if (!Array.isArray(tracks)) continue;
+        for (const t of tracks) {
           const url = getTrackUrl(t);
           if (url) urls.push(url);
-        });
-      });
-    });
+        }
+      }
+    }
     if (urls.length === 0) return;
     setIsPreloading(true);
     setResolveProgress({ current: 0, total: urls.length });
@@ -665,9 +695,7 @@ function TrackerViewContent() {
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
       const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
-      results.forEach(({ url, playable }) => {
-        resolved[url] = playable;
-      });
+      for (const { url, playable } of results) resolved[url] = playable;
       setResolvedUrls(new Map(Object.entries(resolved)));
       setResolveProgress({ current: Math.min(i + batchSize, urls.length), total: urls.length });
     }
@@ -675,12 +703,46 @@ function TrackerViewContent() {
     setIsPreloading(false);
   };
 
-  const getEraImage = useCallback((era: Era): string | undefined => {
-    if (era.image) return era.image;
-    const eraName = era.name;
-    if (eraName && baseEraImages[eraName]) return baseEraImages[eraName];
-    return undefined;
-  }, [baseEraImages]);
+  const loadTrackerData = useCallback(async (id: string, tab?: string) => {
+    setStatus("loading");
+    if (tab) fetchBaseEraImages(id);
+    const cached = getCache(id, tab);
+    if (cached) {
+      setData(cached.data);
+      setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
+      setCurrentTab(cached.data.current_tab);
+      setStatus("success");
+      return;
+    }
+    try {
+      const url = tab ? `${API_BASE}/get/${id}?tab=${encodeURIComponent(tab)}` : `${API_BASE}/get/${id}`;
+      const res = await fetch(url, { redirect: "manual" });
+      if (res.type === "opaqueredirect") {
+        setStatus("fallback");
+        return;
+      }
+      if (!res.ok) {
+        setStatus("fallback");
+        return;
+      }
+      const json: TrackerResponse = await res.json();
+      if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) {
+        setStatus("fallback");
+        return;
+      }
+      setData(json);
+      setCurrentTab(json.current_tab);
+      setStatus("success");
+      if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
+    } catch {
+      setStatus("fallback");
+    }
+  }, [fetchBaseEraImages]);
+
+  useEffect(() => {
+    if (!trackerId || !isValidTrackerId(trackerId)) return;
+    loadTrackerData(trackerId);
+  }, [trackerId, loadTrackerData]);
 
   const handleLoad = useCallback(() => {
     if (!isValidTrackerId(inputValue)) {
@@ -692,9 +754,7 @@ function TrackerViewContent() {
 
   const handleShare = useCallback(() => {
     let url = `${window.location.origin}/view?id=${trackerId}`;
-    if (artistNameFromUrl) {
-      url += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
-    }
+    if (artistNameFromUrl) url += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Copied!", description: "Share link copied to clipboard" });
   }, [trackerId, artistNameFromUrl, toast]);
@@ -702,12 +762,8 @@ function TrackerViewContent() {
   const handleShareTrack = useCallback((trackUrl: string, trackName: string) => {
     const encodedTrack = encodeTrackForUrl(trackUrl);
     let shareUrl = `${window.location.origin}/view?id=${trackerId}&track=${encodedTrack}`;
-    if (artistNameFromUrl) {
-      shareUrl += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
-    }
-    if (currentTab && currentTab !== data?.tabs?.[0]) {
-      shareUrl += `&tab=${encodeURIComponent(currentTab)}`;
-    }
+    if (artistNameFromUrl) shareUrl += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
+    if (currentTab && currentTab !== data?.tabs?.[0]) shareUrl += `&tab=${encodeURIComponent(currentTab)}`;
     navigator.clipboard.writeText(shareUrl);
     toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
   }, [trackerId, artistNameFromUrl, currentTab, data?.tabs, toast]);
@@ -729,11 +785,10 @@ function TrackerViewContent() {
   }, []);
 
   const handleOpenUrl = useCallback((url: string) => {
-    const transformedUrl = transformUrlForOpening(url);
-    window.open(transformedUrl, "_blank", "noopener,noreferrer");
+    window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
   }, []);
 
-  const handlePlayTrack = useCallback(async (rawTrack: any, era: Era) => {
+  const handlePlayTrack = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
     if (playerState.currentTrack?.url === url) {
@@ -746,26 +801,19 @@ function TrackerViewContent() {
       handleOpenUrl(url);
       return;
     }
-    const eraImage = getEraImage(era);
-    const track: Track = {
-      id: generateTrackId(url),
-      name: rawTrack.name || "Unknown",
-      extra: rawTrack.extra || "",
-      url,
-      playableUrl,
-      source: getTrackSource(url),
-      quality: rawTrack.quality && !isUrl(rawTrack.quality) ? rawTrack.quality : undefined,
-      trackLength: rawTrack.track_length,
-      type: rawTrack.type,
-      description: getTrackDescription(rawTrack) || undefined,
-      eraImage,
-      eraName: era.name,
-      artistName: artistDisplayName,
-    };
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
+    clearQueue();
     playTrack(track);
-  }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, artistDisplayName, getEraImage, handleOpenUrl]);
+    const currentIdx = allPlayableTracks.findIndex(t => t.url === url);
+    if (currentIdx !== -1) {
+      const remainingTracks = allPlayableTracks.slice(currentIdx + 1);
+      for (const t of remainingTracks) {
+        addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl));
+      }
+    }
+  }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, handleOpenUrl, allPlayableTracks, addToQueue, clearQueue, createTrackObject]);
 
-  const handleAddToQueue = useCallback(async (rawTrack: any, era: Era) => {
+  const handlePlayNext = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
     let playableUrl = resolvedUrls.get(url);
@@ -774,23 +822,26 @@ function TrackerViewContent() {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
     }
-    const eraImage = getEraImage(era);
-    const track: Track = {
-      id: generateTrackId(url),
-      name: rawTrack.name || "Unknown",
-      extra: rawTrack.extra || "",
-      url,
-      playableUrl,
-      source: getTrackSource(url),
-      eraImage,
-      eraName: era.name,
-      artistName: artistDisplayName,
-    };
-    addToQueue(track);
-    toast({ title: "Added to queue", description: track.name });
-  }, [resolvedUrls, addToQueue, toast, artistDisplayName, getEraImage]);
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
+    addToQueue(track, true);
+    toast({ title: "Playing next", description: track.name });
+  }, [resolvedUrls, addToQueue, toast, createTrackObject]);
 
-  const handleDownload = useCallback(async (rawTrack: any) => {
+  const handleAddToQueue = useCallback(async (rawTrack: TALeak, era: Era) => {
+    const url = getTrackUrl(rawTrack);
+    if (!url) return;
+    let playableUrl = resolvedUrls.get(url);
+    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    if (!playableUrl) {
+      toast({ title: "Cannot queue", description: "Track is not playable" });
+      return;
+    }
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
+    addToQueue(track, false);
+    toast({ title: "Added to queue", description: track.name });
+  }, [resolvedUrls, addToQueue, toast, createTrackObject]);
+
+  const handleDownload = useCallback(async (rawTrack: TALeak) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
     let playableUrl = resolvedUrls.get(url);
@@ -809,7 +860,7 @@ function TrackerViewContent() {
     document.body.removeChild(link);
   }, [resolvedUrls, toast]);
 
-  const handleOpenOriginal = useCallback((rawTrack: any) => {
+  const handleOpenOriginal = useCallback((rawTrack: TALeak) => {
     const url = getTrackUrl(rawTrack);
     if (url) handleOpenUrl(url);
   }, [handleOpenUrl]);
@@ -827,133 +878,66 @@ function TrackerViewContent() {
       if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return u;
       return null;
     };
-
     const directUrl = getDirectImageUrl(url);
-    if (directUrl) {
-      setLightboxImage({ src: directUrl, alt: name, originalUrl: url });
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (directUrl) setLightboxImage({ src: directUrl, alt: name, originalUrl: url });
+    else window.open(url, "_blank", "noopener,noreferrer");
   }, []);
-
-  const isArtTab = ART_TABS.includes(currentTab);
-
-  const erasWithImages = useMemo(() => {
-    if (!data?.eras) return null;
-    const result: Record<string, Era> = {};
-    Object.entries(data.eras).forEach(([key, era]) => {
-      result[key] = {
-        ...era,
-        image: getEraImage(era),
-      };
-    });
-    return result;
-  }, [data?.eras, getEraImage]);
-
-  const filteredData = useMemo(() => {
-    if (!erasWithImages) return null;
-    if (isArtTab) return erasWithImages;
-
-    const result: Record<string, Era> = {};
-    const query = searchQuery.toLowerCase();
-    Object.entries(erasWithImages).forEach(([key, era]) => {
-      if (!era.data) return;
-      const filteredCategories: Record<string, any[]> = {};
-      Object.entries(era.data).forEach(([cat, tracks]) => {
-        if (!Array.isArray(tracks)) return;
-        const filtered = tracks.filter((t) => {
-          const url = getTrackUrl(t);
-          if (!url) return false;
-          if (filters.showPlayableOnly && !resolvedUrls.get(url)) return false;
-          if (filters.qualityFilter !== "all" && !(t.quality?.toLowerCase() || "").includes(filters.qualityFilter.toLowerCase())) return false;
-          if (query) {
-            const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
-            if (!searchable.includes(query)) return false;
-          }
-          return true;
-        });
-        if (filtered.length > 0) filteredCategories[cat] = filtered;
-      });
-      if (Object.keys(filteredCategories).length > 0) result[key] = { ...era, data: filteredCategories };
-    });
-    return result;
-  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab]);
 
   const qualities = useMemo(() => {
     if (!data?.eras) return [];
     const set = new Set<string>();
-    Object.values(data.eras).forEach((era) => {
-      if (!era.data) return;
-      Object.values(era.data).forEach((tracks) => {
-        if (!Array.isArray(tracks)) return;
-        tracks.forEach((t) => {
+    for (const era of Object.values(data.eras)) {
+      if (!era.data) continue;
+      for (const tracks of Object.values(era.data)) {
+        if (!Array.isArray(tracks)) continue;
+        for (const t of tracks) {
           if (t.quality && !isUrl(t.quality)) set.add(t.quality);
-        });
-      });
-    });
+        }
+      }
+    }
     return Array.from(set);
   }, [data]);
 
   const stats = useMemo(() => {
-    let total = 0,
-      playable = 0;
+    let total = 0, playable = 0;
     if (data?.eras) {
-      Object.values(data.eras).forEach((era) => {
-        if (!era.data) return;
-        Object.values(era.data).forEach((tracks) => {
+      for (const era of Object.values(data.eras)) {
+        if (!era.data) continue;
+        for (const tracks of Object.values(era.data)) {
           if (Array.isArray(tracks)) {
             total += tracks.length;
-            tracks.forEach((t) => {
+            for (const t of tracks) {
               const url = getTrackUrl(t);
               if (url && resolvedUrls.get(url)) playable++;
-            });
+            }
           }
-        });
-      });
+        }
+      }
     }
     return { total, playable };
   }, [data, resolvedUrls]);
+
+  if (status === "fallback") {
+    return <FallbackView trackerId={trackerId} sheetsUrl={getGoogleSheetsUrl(trackerId)} />;
+  }
 
   return (
     <div className="min-h-screen bg-black pb-24">
       <header className="sticky top-0 z-30 py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
         <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">
-            ArtistGrid
-          </Link>
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent hidden sm:block">ArtistGrid</Link>
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
             <Input type="text" placeholder="Paste tracker ID (44 characters)..." value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLoad()} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 rounded-xl w-full pl-12 pr-10 h-12" />
-            {inputValue && (
-              <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-neutral-500 hover:text-white" onClick={() => setInputValue("")}>
-                <X className="w-4 h-4" />
-              </Button>
-            )}
+            {inputValue && <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-neutral-500 hover:text-white" onClick={() => setInputValue("")}><X className="w-4 h-4" /></Button>}
           </div>
-          {trackerId && (
-            <Button variant="outline" size="icon" onClick={handleShare} className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white">
-              <Share2 className="w-4 h-4" />
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setLastfmModalOpen(true)}
-            aria-label="Last.fm"
-            className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 ${lastfm.isAuthenticated ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}
-          >
-            <Radio className="w-5 h-5" />
-          </Button>
-          <Button onClick={handleLoad} className="bg-white text-black hover:bg-neutral-200">
-            Load
-          </Button>
+          {trackerId && <Button variant="outline" size="icon" onClick={handleShare} className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"><Share2 className="w-4 h-4" /></Button>}
+          <Button variant="outline" size="icon" onClick={() => setLastfmModalOpen(true)} aria-label="Last.fm" className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 ${lastfm.isAuthenticated ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}><Radio className="w-5 h-5" /></Button>
+          <Button onClick={handleLoad} className="bg-white text-black hover:bg-neutral-200">Load</Button>
         </div>
       </header>
-
       <LastFMModal isOpen={lastfmModalOpen} onClose={() => setLastfmModalOpen(false)} lastfm={lastfm} token={lastfmToken} setToken={setLastfmToken} />
-
       {lightboxImage && <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} originalUrl={lightboxImage.originalUrl} onClose={() => setLightboxImage(null)} />}
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {status === "idle" && (
           <div className="text-center py-20">
@@ -961,34 +945,22 @@ function TrackerViewContent() {
             <p className="text-neutral-500">Tracker IDs are exactly 44 characters long</p>
           </div>
         )}
-
         {status === "loading" && (
           <div className="space-y-6">
             <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 text-neutral-400">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Loading tracker data...</span>
-              </div>
+              <div className="inline-flex items-center gap-2 text-neutral-400"><Loader2 className="w-5 h-5 animate-spin" /><span>Loading tracker data...</span></div>
             </div>
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
                 <div className="flex items-center gap-4 mb-4">
                   <Skeleton className="w-16 h-16 rounded-xl bg-neutral-800" />
-                  <div className="flex-1">
-                    <Skeleton className="h-5 w-1/3 bg-neutral-800 mb-2" />
-                    <Skeleton className="h-4 w-1/4 bg-neutral-800" />
-                  </div>
+                  <div className="flex-1"><Skeleton className="h-5 w-1/3 bg-neutral-800 mb-2" /><Skeleton className="h-4 w-1/4 bg-neutral-800" /></div>
                 </div>
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, j) => (
-                    <Skeleton key={j} className="h-16 bg-neutral-800 rounded-xl" />
-                  ))}
-                </div>
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, j) => <Skeleton key={j} className="h-16 bg-neutral-800 rounded-xl" />)}</div>
               </div>
             ))}
           </div>
         )}
-
         {status === "error" && (
           <div className="flex items-center justify-center py-20">
             <div className="text-center bg-neutral-900 border border-red-500/30 p-8 rounded-xl max-w-md">
@@ -997,27 +969,16 @@ function TrackerViewContent() {
             </div>
           </div>
         )}
-
         {status === "success" && data && (
           <>
             <h1 className="text-2xl font-bold text-white mb-4">{artistDisplayName}</h1>
-
             {data.tabs && data.tabs.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-neutral-800 overflow-x-auto">
                 {data.tabs.map((tab) => (
-                  <Button
-                    key={tab}
-                    variant={currentTab === tab ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTabChange(tab)}
-                    className={`flex-shrink-0 ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}
-                  >
-                    {tab}
-                  </Button>
+                  <Button key={tab} variant={currentTab === tab ? "default" : "outline"} size="sm" onClick={() => handleTabChange(tab)} className={`flex-shrink-0 ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}>{tab}</Button>
                 ))}
               </div>
             )}
-
             {!isArtTab && (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
                 <div className="relative flex-1 w-full">
@@ -1025,52 +986,28 @@ function TrackerViewContent() {
                   <Input type="text" placeholder="Search tracks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-neutral-900 border-neutral-800 text-white pl-10 h-10 rounded-lg" />
                 </div>
                 <div className="flex items-center gap-3">
-                  {isPreloading ? (
-                    <div className="flex items-center gap-2 text-sm text-neutral-400">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>
-                        {resolveProgress.current}/{resolveProgress.total}
-                      </span>
-                    </div>
-                  ) : resolvedUrls.size > 0 ? (
-                    <span className="text-sm text-neutral-500">
-                      {stats.playable}/{stats.total} playable
-                    </span>
-                  ) : null}
+                  {isPreloading ? <div className="flex items-center gap-2 text-sm text-neutral-400"><Loader2 className="w-4 h-4 animate-spin" /><span>{resolveProgress.current}/{resolveProgress.total}</span></div> : resolvedUrls.size > 0 ? <span className="text-sm text-neutral-500">{stats.playable}/{stats.total} playable</span> : null}
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white">
-                        <Filter className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"><Filter className="w-4 h-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-neutral-950 border-neutral-800 text-neutral-200">
                       <DropdownMenuLabel>Filters</DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-neutral-800" />
-                      <DropdownMenuCheckboxItem checked={filters.showPlayableOnly} onCheckedChange={(c) => setFilters((f) => ({ ...f, showPlayableOnly: !!c }))}>
-                        Show playable only
-                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={filters.showPlayableOnly} onCheckedChange={(c) => setFilters((f) => ({ ...f, showPlayableOnly: !!c }))}>Show playable only</DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator className="bg-neutral-800" />
                       <DropdownMenuLabel>Quality</DropdownMenuLabel>
-                      <DropdownMenuCheckboxItem checked={filters.qualityFilter === "all"} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: "all" }))}>
-                        All qualities
-                      </DropdownMenuCheckboxItem>
-                      {qualities.map((q) => (
-                        <DropdownMenuCheckboxItem key={q} checked={filters.qualityFilter === q} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: q }))}>
-                          {q}
-                        </DropdownMenuCheckboxItem>
-                      ))}
+                      <DropdownMenuCheckboxItem checked={filters.qualityFilter === "all"} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: "all" }))}>All qualities</DropdownMenuCheckboxItem>
+                      {qualities.map((q) => <DropdownMenuCheckboxItem key={q} checked={filters.qualityFilter === q} onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: q }))}>{q}</DropdownMenuCheckboxItem>)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
             )}
-
             {isArtTab && filteredData ? (
               <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-6">
                 {Object.entries(filteredData).map(([key, era]) => (
-                  <div key={key} style={{background: era.backgroundColor ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)"}} className={`border border-neutral-800 rounded-xl overflow-hidden`}>
+                  <div key={key} style={{ background: era.backgroundColor ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)" }} className="border border-neutral-800 rounded-xl overflow-hidden">
                     <button style={{ color: "black" }} className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors" onClick={() => toggleEra(key)}>
                       {era.image ? <img src={era.image} alt={era.name} className="w-16 h-16 rounded-xl object-cover bg-neutral-800" /> : <div className="w-16 h-16 rounded-xl bg-neutral-800" />}
                       <div className="flex-1 min-w-0">
@@ -1082,87 +1019,58 @@ function TrackerViewContent() {
                     {expandedEras.has(key) && (
                       <div className="px-5 pb-5">
                         {era.description && <p className="text-sm text-neutral-400 p-4 bg-black/30 rounded-xl mb-5">{era.description}</p>}
-                        {era.data &&
-                          Object.entries(era.data).map(([cat, tracks]) => (
-                            <div key={cat} className="mb-6 last:mb-0">
-                              <h4 className="text-sm font-semibold text-neutral-300 pb-3 mb-3 border-b border-neutral-800">{cat}</h4>
-                              <div className="space-y-2">
-                                {(tracks as any[]).map((track, i) => {
-                                  const url = getTrackUrl(track);
-                                  const playableUrl = url ? resolvedUrls.get(url) : null;
-                                  const isPlayable = !!playableUrl;
-                                  const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
-                                  const isCurrentTrack = playerState.currentTrack?.url === url;
-                                  const isHighlighted = url === highlightedTrackUrl;
-                                  const description = getTrackDescription(track);
-                                  return (
-                                    <div
-                                      key={i}
-                                      ref={isHighlighted ? highlightedTrackRef : null}
-                                      className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}
-                                    >
-                                      <div className="flex items-center gap-3 p-3">
-                                        {isPlayable ? (
-                                          <button onClick={() => handlePlayTrack(track, era)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-                                            {isCurrentlyPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                                          </button>
-                                        ) : (
-                                          <button onClick={() => url && handleOpenUrl(url)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-                                            <LinkIcon className="w-4 h-4" />
-                                          </button>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="font-semibold text-white text-sm truncate">{track.name || "Unknown"}</div>
-                                          {track.extra && <div className="text-xs text-neutral-500 truncate">{track.extra}</div>}
-                                        </div>
-                                        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-                                          {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.type}</span>}
-                                          {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
-                                          {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
-                                        </div>
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 rounded-lg">
-                                              <MoreHorizontal className="w-4 h-4" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
-                                            {url && (
-                                              <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
-                                                <Share className="w-4 h-4 mr-2" />
-                                                Share Track
-                                              </DropdownMenuItem>
-                                            )}
-                                            {isPlayable && (
-                                              <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer">
-                                                <ListPlus className="w-4 h-4 mr-2" />
-                                                Add to Queue
-                                              </DropdownMenuItem>
-                                            )}
-                                            {isPlayable && (
-                                              <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer">
-                                                <Download className="w-4 h-4 mr-2" />
-                                                Download
-                                              </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer">
-                                              <ExternalLink className="w-4 h-4 mr-2" />
-                                              Open Original URL
-                                            </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      </div>
-                                      {description && (
-                                        <div className="px-3 pb-3">
-                                          <p className="text-xs text-neutral-500 pl-[52px]">{description}</p>
-                                        </div>
+                        {era.data && Object.entries(era.data).map(([cat, tracks]) => (
+                          <div key={cat} className="mb-6 last:mb-0">
+                            <h4 className="text-sm font-semibold text-neutral-300 pb-3 mb-3 border-b border-neutral-800">{cat}</h4>
+                            <div className="space-y-2">
+                              {(tracks as TALeak[]).map((track, i) => {
+                                const url = getTrackUrl(track);
+                                const playableUrl = url ? resolvedUrls.get(url) : null;
+                                const isPlayable = !!playableUrl;
+                                const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
+                                const isCurrentTrack = playerState.currentTrack?.url === url;
+                                const isHighlighted = url === highlightedTrackUrl;
+                                const description = getTrackDescription(track);
+                                return (
+                                  <div key={i} ref={isHighlighted ? highlightedTrackRef : null} className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
+                                    <div className="flex items-center gap-3 p-3">
+                                      {isPlayable ? (
+                                        <button onClick={() => handlePlayTrack(track, era)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">{isCurrentlyPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}</button>
+                                      ) : (
+                                        <button onClick={() => url && handleOpenUrl(url)} className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform"><LinkIcon className="w-4 h-4" /></button>
                                       )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-white text-sm truncate">{track.name || "Unknown"}</div>
+                                        {track.extra && <div className="text-xs text-neutral-500 truncate">{track.extra}</div>}
+                                      </div>
+                                      <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                                        {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.type}</span>}
+                                        {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
+                                        {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
+                                      </div>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 rounded-lg"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
+                                          {url && <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer"><Share className="w-4 h-4 mr-2" />Share Track</DropdownMenuItem>}
+                                          {isPlayable && (
+                                            <>
+                                              <DropdownMenuItem onClick={() => handlePlayNext(track, era)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
+                                              <DropdownMenuSeparator className="bg-neutral-800" />
+                                              <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                                            </>
+                                          )}
+                                          <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                    {description && <div className="px-3 pb-3"><p className="text-xs text-neutral-500 pl-[52px]">{description}</p></div>}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -1177,11 +1085,15 @@ function TrackerViewContent() {
             )}
           </>
         )}
-
         <div className="mt-12 pt-6 border-t border-neutral-800">
-          <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-4 py-2 rounded-lg max-w-xl mx-auto">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
+          <div className="flex flex-col items-center gap-4 max-w-xl mx-auto">
+            <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-4 py-2 rounded-lg w-full">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
+            </div>
+            <p className="text-xs text-neutral-600 text-center leading-relaxed">
+              ArtistGrid is not affiliated with, endorsed by, or associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not host, store, or distribute any copyrighted content.
+            </p>
           </div>
         </div>
       </main>
