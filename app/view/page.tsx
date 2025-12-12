@@ -162,19 +162,19 @@ function extractPixeldrainId(url: string): string | null {
 }
 
 function extractSoundcloudPath(url: string): string | null {
-  const match = url.match(/soundcloud\.com\/([^\/]+\/[^\/\?]+)/);
+  const match = url.match(/soundcloud\.com\/([^/]+\/[^/?]+)/);
   return match ? match[1] : null;
 }
 
 function getTrackSource(url: string): Track["source"] {
   const normalized = normalizePillowsUrl(url);
-  if (normalized.includes("pillows.su/f/")) return "pillows";
-  if (normalized.includes("music.froste.lol/song/")) return "froste";
-  if (normalized.includes("krakenfiles.com/view/")) return "krakenfiles";
-  if (normalized.includes("juicewrldapi.com/juicewrld")) return "juicewrldapi";
-  if (normalized.includes("imgur.gg/")) return "imgur";
-  if (normalized.includes("pixeldrain.com/u/")) return "pixeldrain";
-  if (normalized.includes("soundcloud.com/")) return "soundcloud";
+  if (/http(s|):\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
+  if (/http(s|):\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
+  if (/http(s|):\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
+  if (/http(s|):\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
+  if (/http(s|):\/\/imgur\.gg\//.test(normalized)) return "imgur";
+  if (/http(s|):\/\/pixeldrain\.com\/u\//.test(normalized)) return "pixeldrain";
+  if (/http(s|):\/\/soundcloud\//.test(normalized)) return "soundcloud";
   return "unknown";
 }
 
