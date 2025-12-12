@@ -218,7 +218,7 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
     }
     case "soundcloud": {
       const path = extractSoundcloudPath(normalized);
-      return path ? `https://sc.bloat.cat/_/restream/${path}?metadata=true` : null;
+      return path ? `https://sc.maid.zone/_/restream/${path}?metadata=true` : null;
     }
     case "juicewrldapi":
       return url;
@@ -260,7 +260,9 @@ function decodeTrackFromUrl(encoded: string): string | null {
 function transformUrlForOpening(url: string): string {
   if (url.includes("soundcloud.com/")) {
     const path = extractSoundcloudPath(url);
-    if (path) return `https://sc.bloat.cat/${path}`;
+    if (path) {
+      return `https://sc.maid.zone/${path}`;
+    }
   }
   return url;
 }
