@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, AlertTriangle } from "lucide-react";
 import { API_BASE } from "./view/page";
+import { TripleBool } from "@/lib/utils";
 
 declare global {
   interface Window {
@@ -32,11 +33,9 @@ const LOCAL_STORAGE_KEYS = {
   TRENDS_CACHE: "artistGridTrendsCache",
   MESSAGE_HASH: "artistGridMessageHash"
 };
-const DATA_SOURCES = {
-  BACKUP: "/backup.csv",
-  LIVE: "https://sheets.artistgrid.cx/artists.csv",
-  REMOTE_BACKUP: "https://artistgrid.cx/backup.csv"
-};
+
+const DATA_SOURCE = "https://sheets.artistgrid.cx/artists.ndjson" // All sophie-hosted services have 99% SLA. No need for backups.
+
 const TRENDS_API = "https://trends.artistgrid.cx/";
 const CACHE_EXPIRY = 1000 * 60 * 30;
 const DONATION_OPTIONS = {
@@ -156,32 +155,6 @@ const extractTrackerId = (url: string): string | null => {
   return match ? match[1] : null;
 };
 
-const parseCSV = (csvText: string): Artist[] => {
-  const lines = csvText.trim().split("\n");
-  const items: Artist[] = [];
-  const nameCount: Record<string, number> = {};
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]?.trim();
-    if (!line) continue;
-    const matches = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, "").trim()) || [];
-    if (matches.length < 6) continue;
-    const [name, url, , isLinkWorkingStr, isUpdatedStr, isStarredStr] = matches;
-    if (name && url) {
-      const count = nameCount[name] || 0;
-      nameCount[name] = count + 1;
-      const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
-      items.push({
-        name: newName,
-        url,
-        imageFilename: getImageFilename(newName),
-        isLinkWorking: isLinkWorkingStr?.toLowerCase() === "yes",
-        isUpdated: isUpdatedStr?.toLowerCase() === "yes",
-        isStarred: isStarredStr?.toLowerCase() === "yes"
-      });
-    }
-  }
-  return items;
-};
 
 const artistsEqual = (a: Artist[], b: Artist[]): boolean => {
   if (a.length !== b.length) return false;
@@ -759,27 +732,84 @@ export default function ArtistGallery() {
       }
 
       if (isCacheExpired(cached) || !cached?.data) {
-        const urlsToTry = useSheet
-          ? [DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP, DATA_SOURCES.BACKUP]
-          : [DATA_SOURCES.BACKUP, DATA_SOURCES.LIVE, DATA_SOURCES.REMOTE_BACKUP];
+        try {
+          const response = await fetch(DATA_SOURCE, { signal: controller.signal, cache: "no-store" });
+          if (!response.ok) throw new Error(`Status ${response.status}`);
 
-        for (const url of urlsToTry) {
-          try {
-            const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
-            if (!response.ok) throw new Error(`Status ${response.status}`);
-            const parsed = parseCSV(await response.text());
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("ReadableStream not supported");
 
-            if (!cached?.data || !artistsEqual(parsed, cached.data)) {
-              setCachedData(cacheKey, parsed);
-              originalOrder.current = parsed;
-              setAllArtists(parsed);
+          const decoder = new TextDecoder("utf-8");
+          let buffer = "";
+          const parsed: Artist[] = [];
+          const nameCount: Record<string, number> = {};
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              let obj: any;
+              try {
+                obj = JSON.parse(line);
+              } catch {
+                continue;
+              }
+
+              const { name, url, links_work, updated, best } = obj;
+              if (!name || !url) continue;
+
+              const count = nameCount[name] || 0;
+              nameCount[name] = count + 1;
+              const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
+
+              parsed.push({
+                name: newName,
+                url,
+                imageFilename: getImageFilename(newName),
+                isLinkWorking: links_work === TripleBool.YES,
+                isUpdated: updated === TripleBool.YES,
+                isStarred: best === TripleBool.YES
+              });
             }
-            setStatus("success");
-            return;
-          } catch (e) {
-            if (e instanceof Error && e.name === "AbortError") return;
-            console.warn(`Failed to fetch from ${url}:`, e);
           }
+
+          if (buffer.trim()) {
+            try {
+              const obj = JSON.parse(buffer);
+              const { name, url, links_work, updated, best } = obj;
+              if (name && url) {
+                const count = nameCount[name] || 0;
+                nameCount[name] = count + 1;
+                const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
+
+                parsed.push({
+                  name: newName,
+                  url,
+                  imageFilename: getImageFilename(newName),
+                  isLinkWorking: links_work === TripleBool.YES,
+                  isUpdated: updated === TripleBool.YES,
+                  isStarred: best === TripleBool.YES
+                });
+              }
+            } catch {
+            }
+          }
+
+          if (!cached?.data || !artistsEqual(parsed, cached.data)) {
+            setCachedData(cacheKey, parsed);
+            originalOrder.current = parsed;
+            setAllArtists(parsed);
+          }
+          setStatus("success");
+          return;
+        } catch (e) {
+          if (e instanceof Error && e.name === "AbortError") return;
+          console.warn(`Failed to fetch from ${DATA_SOURCE}:`, e);
         }
 
         if (!hasCachedData.current) {
@@ -787,7 +817,7 @@ export default function ArtistGallery() {
           setStatus("error");
         }
       }
-    };
+
 
     const loadVisitorCount = async () => {
       try {
