@@ -817,7 +817,7 @@ export default function ArtistGallery() {
           setStatus("error");
         }
       }
-
+    };
 
     const loadVisitorCount = async () => {
       try {
