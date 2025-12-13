@@ -33,8 +33,8 @@ const LOCAL_STORAGE_KEYS = {
   MESSAGE_HASH: "artistGridMessageHash"
 };
 const DATA_SOURCES = {
-  LIVE: "/backup.csv",
-  BACKUP: "https://sheets.artistgrid.cx/artists.csv",
+  BACKUP: "/backup.csv",
+  LIVE: "https://sheets.artistgrid.cx/artists.csv",
   REMOTE_BACKUP: "https://artistgrid.cx/backup.csv"
 };
 const TRENDS_API = "https://trends.artistgrid.cx/";
