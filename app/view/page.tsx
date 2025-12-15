@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, useRef, createContext, useContext } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePlayer } from "@/app/providers";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive } from "lucide-react";
+import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2 } from "lucide-react";
 
 export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
@@ -21,6 +21,7 @@ const CACHE_EXPIRY = 1000 * 60 * 60 * 24;
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 const PRELOAD_COUNT = 3;
+const CONCURRENT_DOWNLOADS = 5;
 
 interface Track {
   id: string;
@@ -103,12 +104,347 @@ interface PlayableTrackData {
   playableUrl: string;
 }
 
-interface DownloadProgress {
-  isDownloading: boolean;
-  current: number;
-  total: number;
-  currentFile: string;
+interface DownloadItem {
+  id: string;
+  trackName: string;
+  eraName: string;
+  playableUrl: string;
+  status: "pending" | "downloading" | "completed" | "failed";
+  progress: number;
+}
+
+interface DownloadJob {
+  id: string;
+  name: string;
+  artistName: string;
   eraName?: string;
+  items: DownloadItem[];
+  status: "active" | "completed" | "failed";
+  completedCount: number;
+  failedCount: number;
+  zipBlob?: Blob;
+}
+
+interface DownloadContextType {
+  jobs: DownloadJob[];
+  isMinimized: boolean;
+  setIsMinimized: (v: boolean) => void;
+  startDownload: (params: {
+    artistName: string;
+    eraName?: string;
+    items: Array<{ track: TALeak; era: Era; playableUrl: string }>;
+  }) => void;
+  clearCompleted: () => void;
+  dismissJob: (jobId: string) => void;
+}
+
+const DownloadContext = createContext<DownloadContextType | null>(null);
+
+export function useDownloadManager() {
+  const ctx = useContext(DownloadContext);
+  if (!ctx) throw new Error("useDownloadManager must be used within DownloadProvider");
+  return ctx;
+}
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, " ").trim() || "unknown";
+}
+
+function getFileExtension(url: string, contentType?: string): string {
+  if (contentType) {
+    if (contentType.includes("audio/mpeg") || contentType.includes("audio/mp3")) return "mp3";
+    if (contentType.includes("audio/mp4") || contentType.includes("audio/m4a")) return "m4a";
+    if (contentType.includes("audio/ogg")) return "ogg";
+    if (contentType.includes("audio/wav")) return "wav";
+    if (contentType.includes("audio/flac")) return "flac";
+  }
+  const urlLower = url.toLowerCase();
+  if (urlLower.includes(".mp3") || urlLower.includes("mp3")) return "mp3";
+  if (urlLower.includes(".m4a") || urlLower.includes("m4a")) return "m4a";
+  if (urlLower.includes(".ogg")) return "ogg";
+  if (urlLower.includes(".wav")) return "wav";
+  if (urlLower.includes(".flac")) return "flac";
+  return "mp3";
+}
+
+async function downloadFileAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const contentType = response.headers.get("content-type") || "";
+    return { blob, contentType };
+  } catch {
+    return null;
+  }
+}
+
+export function DownloadProvider({ children }: { children: React.ReactNode }) {
+  const [jobs, setJobs] = useState<DownloadJob[]>([]);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const activeDownloadsRef = useRef(0);
+  const downloadQueueRef = useRef<Array<{ jobId: string; itemId: string; playableUrl: string; trackName: string; eraName: string }>>([]);
+  const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>>>(new Map());
+
+  const processQueue = useCallback(async () => {
+    while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
+      const item = downloadQueueRef.current.shift();
+      if (!item) break;
+
+      activeDownloadsRef.current++;
+
+      setJobs(prev => prev.map(job => {
+        if (job.id !== item.jobId) return job;
+        return {
+          ...job,
+          items: job.items.map(i => i.id === item.itemId ? { ...i, status: "downloading" as const } : i)
+        };
+      }));
+
+      try {
+        const result = await downloadFileAsBlob(item.playableUrl);
+        if (result) {
+          const ext = getFileExtension(item.playableUrl, result.contentType);
+          if (!zipDataRef.current.has(item.jobId)) {
+            zipDataRef.current.set(item.jobId, new Map());
+          }
+          zipDataRef.current.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
+
+          setJobs(prev => prev.map(job => {
+            if (job.id !== item.jobId) return job;
+            const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "completed" as const, progress: 100 } : i);
+            const newCompletedCount = newItems.filter(i => i.status === "completed").length;
+            return { ...job, items: newItems, completedCount: newCompletedCount };
+          }));
+        } else {
+          setJobs(prev => prev.map(job => {
+            if (job.id !== item.jobId) return job;
+            const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
+            const newFailedCount = newItems.filter(i => i.status === "failed").length;
+            return { ...job, items: newItems, failedCount: newFailedCount };
+          }));
+        }
+      } catch {
+        setJobs(prev => prev.map(job => {
+          if (job.id !== item.jobId) return job;
+          const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
+          const newFailedCount = newItems.filter(i => i.status === "failed").length;
+          return { ...job, items: newItems, failedCount: newFailedCount };
+        }));
+      }
+
+      activeDownloadsRef.current--;
+      processQueue();
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkAndCreateZips = async () => {
+      for (const job of jobs) {
+        if (job.status === "active") {
+          const allDone = job.items.every(i => i.status === "completed" || i.status === "failed");
+          if (allDone && !job.zipBlob) {
+            const jobData = zipDataRef.current.get(job.id);
+            if (jobData && jobData.size > 0) {
+              try {
+                const JSZip = (await import("jszip")).default;
+                const zip = new JSZip();
+
+                for (const item of job.items) {
+                  if (item.status === "completed") {
+                    const fileData = jobData.get(item.id);
+                    if (fileData) {
+                      const folderPath = sanitizeFilename(item.eraName);
+                      const fileName = `${sanitizeFilename(item.trackName)}.${fileData.ext}`;
+                      zip.file(`${folderPath}/${fileName}`, fileData.blob);
+                    }
+                  }
+                }
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const zipName = job.eraName
+                  ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}.zip`
+                  : `${sanitizeFilename(job.artistName)} Tracker.zip`;
+
+                setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "completed" as const, zipBlob: content } : j));
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(content);
+                link.download = zipName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                zipDataRef.current.delete(job.id);
+              } catch {
+                setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "failed" as const } : j));
+              }
+            } else {
+              setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "failed" as const } : j));
+            }
+          }
+        }
+      }
+    };
+
+    checkAndCreateZips();
+  }, [jobs]);
+
+  const startDownload = useCallback((params: {
+    artistName: string;
+    eraName?: string;
+    items: Array<{ track: TALeak; era: Era; playableUrl: string }>;
+  }) => {
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const downloadItems: DownloadItem[] = params.items.map((item, idx) => ({
+      id: `${jobId}_item_${idx}`,
+      trackName: item.track.name || "Unknown",
+      eraName: item.era.name || "Unknown Era",
+      playableUrl: item.playableUrl,
+      status: "pending" as const,
+      progress: 0
+    }));
+
+    const newJob: DownloadJob = {
+      id: jobId,
+      name: params.eraName ? `${params.artistName} - ${params.eraName}` : `${params.artistName} Tracker`,
+      artistName: params.artistName,
+      eraName: params.eraName,
+      items: downloadItems,
+      status: "active",
+      completedCount: 0,
+      failedCount: 0
+    };
+
+    setJobs(prev => [...prev, newJob]);
+
+    for (const item of downloadItems) {
+      downloadQueueRef.current.push({
+        jobId,
+        itemId: item.id,
+        playableUrl: item.playableUrl,
+        trackName: item.trackName,
+        eraName: item.eraName
+      });
+    }
+
+    processQueue();
+  }, [processQueue]);
+
+  const clearCompleted = useCallback(() => {
+    setJobs(prev => prev.filter(j => j.status === "active"));
+  }, []);
+
+  const dismissJob = useCallback((jobId: string) => {
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+    zipDataRef.current.delete(jobId);
+  }, []);
+
+  return (
+    <DownloadContext.Provider value={{ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }}>
+      {children}
+      <DownloadFloatingUI />
+    </DownloadContext.Provider>
+  );
+}
+
+function DownloadFloatingUI() {
+  const { jobs, isMinimized, setIsMinimized, clearCompleted, dismissJob } = useDownloadManager();
+
+  const activeJobs = jobs.filter(j => j.status === "active");
+  const completedJobs = jobs.filter(j => j.status === "completed" || j.status === "failed");
+
+  if (jobs.length === 0) return null;
+
+  const totalItems = jobs.reduce((acc, j) => acc + j.items.length, 0);
+  const completedItems = jobs.reduce((acc, j) => acc + j.completedCount + j.failedCount, 0);
+  const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+  const activeCount = activeJobs.reduce((acc, j) => acc + j.items.filter(i => i.status === "downloading").length, 0);
+
+  return (
+    <div className="fixed bottom-20 sm:bottom-4 right-4 z-50 w-80 max-h-96 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
+      <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
+        <div className="flex items-center gap-2">
+          <Archive className={`w-4 h-4 ${activeJobs.length > 0 ? "text-blue-400 animate-pulse" : "text-green-400"}`} />
+          <span className="text-sm font-medium text-white">
+            {activeJobs.length > 0 ? `Downloading (${activeCount} active)` : "Downloads Complete"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          {completedJobs.length > 0 && (
+            <Button variant="ghost" size="icon" onClick={clearCompleted} className="h-6 w-6 text-neutral-500 hover:text-white">
+              <X className="w-3 h-3" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setIsMinimized(!isMinimized)} className="h-6 w-6 text-neutral-500 hover:text-white">
+            {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+          </Button>
+        </div>
+      </div>
+
+      {!isMinimized && (
+        <div className="max-h-72 overflow-y-auto">
+          {jobs.map(job => {
+            const jobProgress = job.items.length > 0 ? Math.round(((job.completedCount + job.failedCount) / job.items.length) * 100) : 0;
+            const isActive = job.status === "active";
+
+            return (
+              <div key={job.id} className="p-3 border-b border-neutral-800 last:border-b-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {job.status === "completed" ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    ) : job.status === "failed" ? (
+                      <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />
+                    )}
+                    <span className="text-xs text-white truncate">{job.name}</span>
+                  </div>
+                  {!isActive && (
+                    <Button variant="ghost" size="icon" onClick={() => dismissJob(job.id)} className="h-5 w-5 text-neutral-500 hover:text-white flex-shrink-0">
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+                <Progress value={jobProgress} className="h-1.5 mb-1" />
+                <div className="flex items-center justify-between text-[10px] text-neutral-500">
+                  <span>{job.completedCount}/{job.items.length} files</span>
+                  {job.failedCount > 0 && <span className="text-red-400">{job.failedCount} failed</span>}
+                  <span>{jobProgress}%</span>
+                </div>
+                {isActive && job.items.filter(i => i.status === "downloading").length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {job.items.filter(i => i.status === "downloading").slice(0, 3).map(item => (
+                      <div key={item.id} className="text-[10px] text-neutral-400 truncate flex items-center gap-1">
+                        <Loader2 className="w-2 h-2 animate-spin flex-shrink-0" />
+                        {item.trackName}
+                      </div>
+                    ))}
+                    {job.items.filter(i => i.status === "downloading").length > 3 && (
+                      <div className="text-[10px] text-neutral-500">
+                        +{job.items.filter(i => i.status === "downloading").length - 3} more...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isMinimized && activeJobs.length > 0 && (
+        <div className="p-2">
+          <Progress value={overallProgress} className="h-1" />
+          <p className="text-[10px] text-neutral-500 mt-1 text-center">{completedItems}/{totalItems} ({overallProgress}%)</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getCache(trackerId: string, tab?: string): CacheEntry | null {
@@ -173,27 +509,6 @@ function extractPixeldrainId(url: string): string | null {
 function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, " ").trim() || "unknown";
-}
-
-function getFileExtension(url: string, contentType?: string): string {
-  if (contentType) {
-    if (contentType.includes("audio/mpeg") || contentType.includes("audio/mp3")) return "mp3";
-    if (contentType.includes("audio/mp4") || contentType.includes("audio/m4a")) return "m4a";
-    if (contentType.includes("audio/ogg")) return "ogg";
-    if (contentType.includes("audio/wav")) return "wav";
-    if (contentType.includes("audio/flac")) return "flac";
-  }
-  const urlLower = url.toLowerCase();
-  if (urlLower.includes(".mp3") || urlLower.includes("mp3")) return "mp3";
-  if (urlLower.includes(".m4a") || urlLower.includes("m4a")) return "m4a";
-  if (urlLower.includes(".ogg")) return "ogg";
-  if (urlLower.includes(".wav")) return "wav";
-  if (urlLower.includes(".flac")) return "flac";
-  return "mp3";
 }
 
 function getTrackSource(url: string): Track["source"] {
@@ -301,18 +616,6 @@ function getGoogleSheetsUrl(trackerId: string): string {
   return `https://docs.google.com/spreadsheets/d/${trackerId}/htmlview`;
 }
 
-async function downloadFileAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    const contentType = response.headers.get("content-type") || "";
-    return { blob, contentType };
-  } catch {
-    return null;
-  }
-}
-
 const Modal = ({ isOpen, onClose, children, ariaLabel }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; ariaLabel: string }) => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -383,26 +686,6 @@ const LastFMModal = ({ isOpen, onClose, lastfm, token, setToken }: LastFMModalPr
             <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">{isLoading ? "Loading..." : "Connect Last.fm"}</Button>
           </div>
         )}
-      </div>
-    </Modal>
-  );
-};
-
-const DownloadModal = ({ isOpen, onClose, progress }: { isOpen: boolean; onClose: () => void; progress: DownloadProgress }) => {
-  const percentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
-  
-  return (
-    <Modal isOpen={isOpen} onClose={() => {}} ariaLabel="Download Progress">
-      <div className="p-6 pt-12 text-center">
-        <Archive className="w-12 h-12 mx-auto mb-4 text-neutral-400 animate-pulse" />
-        <h2 className="text-xl font-bold text-white mb-2">
-          {progress.eraName ? `Downloading ${progress.eraName}` : "Downloading Tracker"}
-        </h2>
-        <p className="text-neutral-400 mb-4 text-sm truncate max-w-xs mx-auto">{progress.currentFile || "Preparing..."}</p>
-        <div className="mb-2">
-          <Progress value={percentage} className="h-2" />
-        </div>
-        <p className="text-neutral-500 text-sm">{progress.current} / {progress.total} files ({percentage}%)</p>
       </div>
     </Modal>
   );
@@ -532,6 +815,7 @@ function TrackerViewContent() {
   const router = useRouter();
   const { toast } = useToast();
   const { state: playerState, playTrack, addToQueue, clearQueue, togglePlayPause, lastfm } = usePlayer();
+  const downloadManager = useDownloadManager();
   const [trackerId, setTrackerId] = useState(searchParams.get("id") || "");
   const [inputValue, setInputValue] = useState(searchParams.get("id") || "");
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(searchParams.get("artist"));
@@ -550,8 +834,6 @@ function TrackerViewContent() {
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string; originalUrl: string } | null>(null);
   const [highlightedTrackUrl, setHighlightedTrackUrl] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>({ isDownloading: false, current: 0, total: 0, currentFile: "" });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const highlightedTrackRef = useRef<HTMLDivElement | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
   const preloadedAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -949,22 +1231,12 @@ function TrackerViewContent() {
     else window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
-  const downloadTracker = useCallback(async (eraKey?: string) => {
-    if (!data?.eras || downloadProgress.isDownloading) return;
-    
-    const JSZip = (await import("jszip")).default;
-    const zip = new JSZip();
+  const downloadTracker = useCallback((eraKey?: string) => {
+    if (!data?.eras) return;
     
     const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
     
-    interface DownloadItem {
-      track: TALeak;
-      era: Era;
-      url: string;
-      playableUrl: string;
-    }
-    
-    const downloadItems: DownloadItem[] = [];
+    const downloadItems: Array<{ track: TALeak; era: Era; playableUrl: string }> = [];
     
     for (const era of Object.values(erasToDownload)) {
       if (!era.data) continue;
@@ -974,7 +1246,7 @@ function TrackerViewContent() {
           const url = getTrackUrl(track);
           const playableUrl = url ? resolvedUrls.get(url) : null;
           if (url && playableUrl) {
-            downloadItems.push({ track, era, url, playableUrl });
+            downloadItems.push({ track, era, playableUrl });
           }
         }
       }
@@ -985,69 +1257,14 @@ function TrackerViewContent() {
       return;
     }
     
-    setDownloadProgress({
-      isDownloading: true,
-      current: 0,
-      total: downloadItems.length,
-      currentFile: "Starting...",
-      eraName: eraKey ? data.eras[eraKey]?.name : undefined
+    downloadManager.startDownload({
+      artistName: artistDisplayName,
+      eraName: eraKey ? data.eras[eraKey]?.name : undefined,
+      items: downloadItems
     });
     
-    let successCount = 0;
-    
-    for (let i = 0; i < downloadItems.length; i++) {
-      const { track, era, playableUrl } = downloadItems[i];
-      const trackName = sanitizeFilename(track.name || "Unknown");
-      const eraName = sanitizeFilename(era.name || "Unknown Era");
-      
-      setDownloadProgress(prev => ({
-        ...prev,
-        current: i,
-        currentFile: trackName
-      }));
-      
-      try {
-        const result = await downloadFileAsBlob(playableUrl);
-        if (result) {
-          const ext = getFileExtension(playableUrl, result.contentType);
-          const folderPath = `${eraName}/${trackName}`;
-          const fileName = `${trackName}.${ext}`;
-          zip.file(`${folderPath}/${fileName}`, result.blob);
-          successCount++;
-        }
-      } catch {}
-    }
-    
-    setDownloadProgress(prev => ({
-      ...prev,
-      current: downloadItems.length,
-      currentFile: "Creating ZIP..."
-    }));
-    
-    try {
-      const content = await zip.generateAsync({ type: "blob" });
-      const zipName = eraKey 
-        ? `${sanitizeFilename(artistDisplayName)} - ${sanitizeFilename(data.eras[eraKey]?.name || eraKey)}.zip`
-        : `${sanitizeFilename(artistDisplayName)} Tracker.zip`;
-      
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(content);
-      link.download = zipName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-      
-      toast({ 
-        title: "Download complete", 
-        description: `Downloaded ${successCount} of ${downloadItems.length} tracks` 
-      });
-    } catch {
-      toast({ title: "Download failed", description: "Failed to create ZIP file" });
-    }
-    
-    setDownloadProgress({ isDownloading: false, current: 0, total: 0, currentFile: "" });
-  }, [data, resolvedUrls, artistDisplayName, downloadProgress.isDownloading, toast]);
+    toast({ title: "Download started", description: `Downloading ${downloadItems.length} tracks in background` });
+  }, [data, resolvedUrls, artistDisplayName, downloadManager, toast]);
 
   const qualities = useMemo(() => {
     if (!data?.eras) return [];
@@ -1111,7 +1328,6 @@ function TrackerViewContent() {
         </div>
       </header>
       <LastFMModal isOpen={lastfmModalOpen} onClose={() => setLastfmModalOpen(false)} lastfm={lastfm} token={lastfmToken} setToken={setLastfmToken} />
-      <DownloadModal isOpen={downloadProgress.isDownloading} onClose={() => {}} progress={downloadProgress} />
       {lightboxImage && <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} originalUrl={lightboxImage.originalUrl} onClose={() => setLightboxImage(null)} />}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {status === "idle" && (
@@ -1153,7 +1369,7 @@ function TrackerViewContent() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => downloadTracker()}
-                  disabled={downloadProgress.isDownloading || isPreloading}
+                  disabled={isPreloading}
                   className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white self-start sm:self-auto"
                 >
                   <FolderDown className="w-4 h-4 mr-2" />
@@ -1333,10 +1549,18 @@ function TrackerViewContent() {
   );
 }
 
+function TrackerViewWithProvider() {
+  return (
+    <DownloadProvider>
+      <TrackerViewContent />
+    </DownloadProvider>
+  );
+}
+
 export default function TrackerViewPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-neutral-700 border-t-white rounded-full animate-spin" /></div>}>
-      <TrackerViewContent />
+      <TrackerViewWithProvider />
     </Suspense>
   );
 }
