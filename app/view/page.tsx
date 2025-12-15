@@ -125,6 +125,14 @@ interface DownloadJob {
   zipBlob?: Blob;
 }
 
+interface DownloadQueueItem {
+  jobId: string;
+  itemId: string;
+  playableUrl: string;
+  trackName: string;
+  eraName: string;
+}
+
 interface DownloadContextType {
   jobs: DownloadJob[];
   isMinimized: boolean;
@@ -183,48 +191,35 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [isMinimized, setIsMinimized] = useState(false);
   const activeDownloadsRef = useRef(0);
-  const downloadQueueRef = useRef<Array<{ jobId: string; itemId: string; playableUrl: string; trackName: string; eraName: string }>>([]);
+  const downloadQueueRef = useRef<DownloadQueueItem[]>([]);
   const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>>>(new Map());
+  const processQueueRef = useRef<() => void>(() => {});
 
-  const processQueue = useCallback(async () => {
-    while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
-      const item = downloadQueueRef.current.shift();
-      if (!item) break;
+  const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
+    setJobs(prev => prev.map(job => {
+      if (job.id !== item.jobId) return job;
+      return {
+        ...job,
+        items: job.items.map(i => i.id === item.itemId ? { ...i, status: "downloading" as const } : i)
+      };
+    }));
 
-      activeDownloadsRef.current++;
-
-      setJobs(prev => prev.map(job => {
-        if (job.id !== item.jobId) return job;
-        return {
-          ...job,
-          items: job.items.map(i => i.id === item.itemId ? { ...i, status: "downloading" as const } : i)
-        };
-      }));
-
-      try {
-        const result = await downloadFileAsBlob(item.playableUrl);
-        if (result) {
-          const ext = getFileExtension(item.playableUrl, result.contentType);
-          if (!zipDataRef.current.has(item.jobId)) {
-            zipDataRef.current.set(item.jobId, new Map());
-          }
-          zipDataRef.current.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
-
-          setJobs(prev => prev.map(job => {
-            if (job.id !== item.jobId) return job;
-            const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "completed" as const, progress: 100 } : i);
-            const newCompletedCount = newItems.filter(i => i.status === "completed").length;
-            return { ...job, items: newItems, completedCount: newCompletedCount };
-          }));
-        } else {
-          setJobs(prev => prev.map(job => {
-            if (job.id !== item.jobId) return job;
-            const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
-            const newFailedCount = newItems.filter(i => i.status === "failed").length;
-            return { ...job, items: newItems, failedCount: newFailedCount };
-          }));
+    try {
+      const result = await downloadFileAsBlob(item.playableUrl);
+      if (result) {
+        const ext = getFileExtension(item.playableUrl, result.contentType);
+        if (!zipDataRef.current.has(item.jobId)) {
+          zipDataRef.current.set(item.jobId, new Map());
         }
-      } catch {
+        zipDataRef.current.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
+
+        setJobs(prev => prev.map(job => {
+          if (job.id !== item.jobId) return job;
+          const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "completed" as const, progress: 100 } : i);
+          const newCompletedCount = newItems.filter(i => i.status === "completed").length;
+          return { ...job, items: newItems, completedCount: newCompletedCount };
+        }));
+      } else {
         setJobs(prev => prev.map(job => {
           if (job.id !== item.jobId) return job;
           const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
@@ -232,11 +227,29 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
           return { ...job, items: newItems, failedCount: newFailedCount };
         }));
       }
-
-      activeDownloadsRef.current--;
-      processQueue();
+    } catch {
+      setJobs(prev => prev.map(job => {
+        if (job.id !== item.jobId) return job;
+        const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
+        const newFailedCount = newItems.filter(i => i.status === "failed").length;
+        return { ...job, items: newItems, failedCount: newFailedCount };
+      }));
     }
+
+    activeDownloadsRef.current--;
+    processQueueRef.current();
   }, []);
+
+  const processQueue = useCallback(() => {
+    while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
+      const item = downloadQueueRef.current.shift();
+      if (!item) break;
+      activeDownloadsRef.current++;
+      downloadSingleItem(item);
+    }
+  }, [downloadSingleItem]);
+
+  processQueueRef.current = processQueue;
 
   useEffect(() => {
     const checkAndCreateZips = async () => {
@@ -390,6 +403,7 @@ function DownloadFloatingUI() {
           {jobs.map(job => {
             const jobProgress = job.items.length > 0 ? Math.round(((job.completedCount + job.failedCount) / job.items.length) * 100) : 0;
             const isActive = job.status === "active";
+            const downloadingItems = job.items.filter(i => i.status === "downloading");
 
             return (
               <div key={job.id} className="p-3 border-b border-neutral-800 last:border-b-0">
@@ -416,17 +430,17 @@ function DownloadFloatingUI() {
                   {job.failedCount > 0 && <span className="text-red-400">{job.failedCount} failed</span>}
                   <span>{jobProgress}%</span>
                 </div>
-                {isActive && job.items.filter(i => i.status === "downloading").length > 0 && (
+                {isActive && downloadingItems.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    {job.items.filter(i => i.status === "downloading").slice(0, 3).map(item => (
+                    {downloadingItems.slice(0, 5).map(item => (
                       <div key={item.id} className="text-[10px] text-neutral-400 truncate flex items-center gap-1">
                         <Loader2 className="w-2 h-2 animate-spin flex-shrink-0" />
                         {item.trackName}
                       </div>
                     ))}
-                    {job.items.filter(i => i.status === "downloading").length > 3 && (
+                    {downloadingItems.length > 5 && (
                       <div className="text-[10px] text-neutral-500">
-                        +{job.items.filter(i => i.status === "downloading").length - 3} more...
+                        +{downloadingItems.length - 5} more...
                       </div>
                     )}
                   </div>
@@ -1308,7 +1322,7 @@ function TrackerViewContent() {
     <div className="min-h-screen bg-black pb-32 sm:pb-24">
       <header className="sticky top-0 z-30 py-3 sm:py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
         <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4 px-3 sm:px-6">
-          <Link href="/" className="text-xl sm:text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent flex-shrink-0">AG</Link>
+          <Link href="/" className="text-xl sm:text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent flex-shrink-0">ArtistGrid</Link>
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-neutral-500 pointer-events-none" />
             <Input type="text" placeholder="Tracker ID..." value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLoad()} className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 rounded-lg sm:rounded-xl w-full pl-9 sm:pl-12 pr-8 sm:pr-10 h-10 sm:h-12 text-sm sm:text-base" />
@@ -1378,7 +1392,7 @@ function TrackerViewContent() {
               )}
             </div>
             {data.tabs && data.tabs.length > 0 && (
-              <div className="flex gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800 overflow-x-auto scrollbar-hide">
+              <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800">
                 {data.tabs.map((tab) => (
                   <Button key={tab} variant={currentTab === tab ? "default" : "outline"} size="sm" onClick={() => handleTabChange(tab)} className={`flex-shrink-0 text-xs sm:text-sm ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}>{tab}</Button>
                 ))}
