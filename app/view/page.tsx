@@ -1185,7 +1185,7 @@ function TrackerViewContent() {
       return;
     }
     const track = createTrackObject(rawTrack, era, url, playableUrl);
-    addToQueue(track, true);
+    addToQueue(track);
     toast({ title: "Playing next", description: track.name });
   }, [resolvedUrls, addToQueue, toast, createTrackObject]);
 
@@ -1199,7 +1199,7 @@ function TrackerViewContent() {
       return;
     }
     const track = createTrackObject(rawTrack, era, url, playableUrl);
-    addToQueue(track, false);
+    addToQueue(track);
     toast({ title: "Added to queue", description: track.name });
   }, [resolvedUrls, addToQueue, toast, createTrackObject]);
 
