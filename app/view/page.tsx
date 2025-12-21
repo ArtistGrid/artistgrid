@@ -511,7 +511,7 @@ function extractKrakenId(url: string): string | null {
 }
 
 function extractImgurId(url: string): string | null {
-  const match = url.match(/imgur\.gg\/([a-zA-Z0-9]+)/);
+  const match = url.match(/imgur\.gg\/f\/([a-zA-Z0-9]+)/);
   return match ? match[1] : null;
 }
 
