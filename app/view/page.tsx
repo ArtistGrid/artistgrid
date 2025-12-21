@@ -1537,6 +1537,7 @@ function TrackerViewContent() {
                                   const isHighlighted = url === highlightedTrackUrl;
                                   const description = getTrackDescription(track);
                                   const source = url ? getTrackSource(url) : "unknown";
+                                  const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
                                   return (
                                     <div key={i} ref={isHighlighted ? highlightedTrackRef : null} className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
                                       <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
@@ -1549,7 +1550,6 @@ function TrackerViewContent() {
                                           <div className="font-semibold text-white text-xs sm:text-sm truncate">{track.name || "Unknown"}</div>
                                           <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
                                             {track.extra && <span className="text-xs text-neutral-500 truncate max-w-[120px] sm:max-w-none">{track.extra}</span>}
-                                            <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{getSourceDisplayName(source)}</span>
                                             <div className="flex items-center gap-1 sm:hidden">
                                               {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.type}</span>}
                                               {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
@@ -1557,6 +1557,7 @@ function TrackerViewContent() {
                                           </div>
                                         </div>
                                         <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                                          {shouldShowSource && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{getSourceDisplayName(source)}</span>}
                                           {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.type}</span>}
                                           {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
                                           {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
