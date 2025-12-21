@@ -23,13 +23,25 @@ const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 const PRELOAD_COUNT = 3;
 const CONCURRENT_DOWNLOADS = 5;
 
+const TIDAL_APIS = [
+  { name: 'squid-api', baseUrl: 'https://triton.squid.wtf', weight: 30 },
+  { name: 'kinoplus', baseUrl: 'https://tidal.kinoplus.online', weight: 20 },
+  { name: 'binimum', baseUrl: 'https://tidal-api.binimum.org', weight: 10 },
+  { name: 'binimum-2', baseUrl: 'https://tidal-api-2.binimum.org', weight: 10 },
+  { name: 'hund', baseUrl: 'https://hund.qqdl.site', weight: 15 },
+  { name: 'katze', baseUrl: 'https://katze.qqdl.site', weight: 15 },
+  { name: 'maus', baseUrl: 'https://maus.qqdl.site', weight: 15 },
+  { name: 'vogel', baseUrl: 'https://vogel.qqdl.site', weight: 15 },
+  { name: 'wolf', baseUrl: 'https://wolf.qqdl.site', weight: 15 }
+];
+
 interface Track {
   id: string;
   name: string;
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -515,14 +527,24 @@ function extractImgurId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-function extractPixeldrainId(url: string): string | null {
-  const match = url.match(/pixeldrain\.com\/u\/([a-zA-Z0-9]+)/);
-  return match ? match[1] : null;
-}
-
 function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
+}
+
+function extractTidalId(url: string): string | null {
+  const match = url.match(/tidal\.com\/(?:browse\/)?track\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+function selectTidalApi(): string {
+  const totalWeight = TIDAL_APIS.reduce((sum, api) => sum + api.weight, 0);
+  let random = Math.random() * totalWeight;
+  for (const api of TIDAL_APIS) {
+    random -= api.weight;
+    if (random <= 0) return api.baseUrl;
+  }
+  return TIDAL_APIS[0].baseUrl;
 }
 
 function getTrackSource(url: string): Track["source"] {
@@ -532,8 +554,8 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
-  if (/https?:\/\/pixeldrain\.com\/u\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
+  if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
   return "unknown";
 }
 
@@ -571,13 +593,27 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         return null;
       }
     }
-    case "pixeldrain": {
-      const id = extractPixeldrainId(normalized);
-      return id ? `https://pixeldrain.com/api/file/${id}` : null;
-    }
     case "soundcloud": {
       const path = extractSoundcloudPath(normalized);
       return path ? `https://sc.maid.zone/_/restream/${path}` : null;
+    }
+    case "tidal": {
+      const id = extractTidalId(normalized);
+      if (!id) return null;
+      try {
+        const apiBase = selectTidalApi();
+        const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`);
+        const data = await res.json();
+        if (data?.data?.manifest) {
+          const manifestJson = JSON.parse(atob(data.data.manifest));
+          if (manifestJson?.urls?.[0]) {
+            return manifestJson.urls[0];
+          }
+        }
+        return null;
+      } catch {
+        return null;
+      }
     }
     case "juicewrldapi":
       return url;
@@ -628,6 +664,20 @@ function transformUrlForOpening(url: string): string {
 
 function getGoogleSheetsUrl(trackerId: string): string {
   return `https://docs.google.com/spreadsheets/d/${trackerId}/htmlview`;
+}
+
+function getSourceDisplayName(source: Track["source"]): string {
+  const names: Record<Track["source"], string> = {
+    pillows: "Pillows",
+    froste: "Froste",
+    krakenfiles: "KrakenFiles",
+    juicewrldapi: "JuiceWrldAPI",
+    imgur: "Imgur",
+    soundcloud: "SoundCloud",
+    tidal: "Tidal",
+    unknown: "Unknown"
+  };
+  return names[source];
 }
 
 const Modal = ({ isOpen, onClose, children, ariaLabel }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; ariaLabel: string }) => {
@@ -1486,6 +1536,7 @@ function TrackerViewContent() {
                                   const isCurrentTrack = playerState.currentTrack?.url === url;
                                   const isHighlighted = url === highlightedTrackUrl;
                                   const description = getTrackDescription(track);
+                                  const source = url ? getTrackSource(url) : "unknown";
                                   return (
                                     <div key={i} ref={isHighlighted ? highlightedTrackRef : null} className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
                                       <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
@@ -1498,6 +1549,7 @@ function TrackerViewContent() {
                                           <div className="font-semibold text-white text-xs sm:text-sm truncate">{track.name || "Unknown"}</div>
                                           <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
                                             {track.extra && <span className="text-xs text-neutral-500 truncate max-w-[120px] sm:max-w-none">{track.extra}</span>}
+                                            <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{getSourceDisplayName(source)}</span>
                                             <div className="flex items-center gap-1 sm:hidden">
                                               {track.type && track.type !== "Unknown" && track.type !== "N/A" && <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.type}</span>}
                                               {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
@@ -1509,6 +1561,11 @@ function TrackerViewContent() {
                                           {track.quality && !isUrl(track.quality) && track.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.quality}</span>}
                                           {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{track.track_length}</span>}
                                         </div>
+                                        {url && (
+                                          <Button variant="ghost" size="icon" onClick={() => handleOpenUrl(url)} className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0">
+                                            <ExternalLink className="w-4 h-4" />
+                                          </Button>
+                                        )}
                                         <DropdownMenu>
                                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                           <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
