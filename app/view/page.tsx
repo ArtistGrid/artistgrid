@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2 } from "lucide-react";
 
 export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
@@ -41,7 +41,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "direct" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -49,7 +49,6 @@ interface Track {
   eraImage?: string;
   eraName?: string;
   artistName?: string;
-  isImage?: boolean;
 }
 
 export interface Era {
@@ -195,19 +194,6 @@ async function downloadFileAsBlob(url: string): Promise<{ blob: Blob; contentTyp
     const blob = await response.blob();
     const contentType = response.headers.get("content-type") || "";
     return { blob, contentType };
-  } catch {
-    return null;
-  }
-}
-
-async function checkUrlContentType(url: string): Promise<{ contentType: string; isImage: boolean; isAudio: boolean } | null> {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    if (!response.ok) return null;
-    const contentType = response.headers.get("content-type") || "";
-    const isImage = contentType.includes("image/");
-    const isAudio = contentType.includes("audio/");
-    return { contentType, isImage, isAudio };
   } catch {
     return null;
   }
@@ -570,51 +556,50 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
   if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
-  if (/\.(mp3|m4a|wav|flac|ogg)($|\?)/i.test(normalized)) return "direct";
   return "unknown";
 }
 
-async function resolvePlayableUrl(url: string): Promise<{ url: string | null; isImage: boolean }> {
+async function resolvePlayableUrl(url: string): Promise<string | null> {
   const normalized = normalizePillowsUrl(url);
   const source = getTrackSource(normalized);
   switch (source) {
     case "pillows": {
       const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
-      return { url: match ? `https://api.pillows.su/api/download/${match[1]}` : null, isImage: false };
+      return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
     }
     case "froste": {
       const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
-      return { url: match ? `https://music.froste.lol/song/${match[1]}/download` : null, isImage: false };
+      return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
     }
     case "krakenfiles": {
       const id = extractKrakenId(normalized);
-      if (!id) return { url: null, isImage: false };
+      if (!id) return null;
       try {
         const res = await fetch(`${KRAKENFILES_API}${id}`);
         const data = await res.json();
-        return { url: data.success ? data.m4a : null, isImage: false };
+        return data.success ? data.m4a : null;
       } catch {
-        return { url: null, isImage: false };
+        return null;
       }
     }
     case "imgur": {
       const id = extractImgurId(normalized);
-      if (!id) return { url: null, isImage: false };
+      if (!id) return null;
       try {
         const res = await fetch(`${IMGUR_API}${id}`);
         const data = await res.json();
-        return { url: data.success ? data.mp3 : null, isImage: false };
+        return data.success ? data.mp3 : null;
       } catch {
-        return { url: null, isImage: false };
+        return null;
       }
     }
     case "soundcloud": {
       const path = extractSoundcloudPath(normalized);
-      return { url: path ? `https://sc.maid.zone/_/restream/${path}` : null, isImage: false };
+      return path ? `https://sc.maid.zone/_/restream/${path}` : null;
     }
     case "tidal": {
       const id = extractTidalId(normalized);
-      if (!id) return { url: null, isImage: false };
+      if (!id) return null;
       try {
         const apiBase = selectTidalApi();
         const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`);
@@ -622,28 +607,18 @@ async function resolvePlayableUrl(url: string): Promise<{ url: string | null; is
         if (data?.data?.manifest) {
           const manifestJson = JSON.parse(atob(data.data.manifest));
           if (manifestJson?.urls?.[0]) {
-            return { url: manifestJson.urls[0], isImage: false };
+            return manifestJson.urls[0];
           }
         }
-        return { url: null, isImage: false };
+        return null;
       } catch {
-        return { url: null, isImage: false };
+        return null;
       }
     }
-    case "direct":
-      return { url: normalized, isImage: false };
     case "juicewrldapi":
-      return { url: url, isImage: false };
-    default: {
-      const contentCheck = await checkUrlContentType(normalized);
-      if (contentCheck?.isImage) {
-        return { url: normalized, isImage: true };
-      }
-      if (contentCheck?.isAudio) {
-        return { url: normalized, isImage: false };
-      }
-      return { url: normalized, isImage: false };
-    }
+      return url;
+    default:
+      return null;
   }
 }
 
@@ -700,7 +675,6 @@ function getSourceDisplayName(source: Track["source"]): string {
     imgur: "Imgur",
     soundcloud: "SoundCloud",
     tidal: "Tidal",
-    direct: "Direct",
     unknown: "Unknown"
   };
   return names[source];
@@ -910,15 +884,13 @@ function TrackerViewContent() {
   const [inputValue, setInputValue] = useState(searchParams.get("id") || "");
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(searchParams.get("artist"));
   const [data, setData] = useState<TrackerResponse | null>(null);
-  const [availableTabs, setAvailableTabs] = useState<string[]>([]);
   const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "fallback">("idle");
-  const [tabError, setTabError] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterOptions>({ showPlayableOnly: false, qualityFilter: "all" });
-  const [resolvedUrls, setResolvedUrls] = useState<Map<string, { url: string | null; isImage: boolean }>>(new Map());
+  const [resolvedUrls, setResolvedUrls] = useState<Map<string, string | null>>(new Map());
   const [resolveProgress, setResolveProgress] = useState({ current: 0, total: 0 });
   const [isPreloading, setIsPreloading] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>("");
@@ -963,8 +935,7 @@ function TrackerViewContent() {
         const filtered = tracks.filter((t) => {
           const url = getTrackUrl(t);
           if (!url) return false;
-          const resolved = resolvedUrls.get(url);
-          if (filters.showPlayableOnly && !resolved?.url) return false;
+          if (filters.showPlayableOnly && !resolvedUrls.get(url)) return false;
           if (filters.qualityFilter !== "all" && !(t.quality?.toLowerCase() || "").includes(filters.qualityFilter.toLowerCase())) return false;
           if (query) {
             const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
@@ -988,15 +959,15 @@ function TrackerViewContent() {
         if (!Array.isArray(trackList)) continue;
         for (const track of trackList) {
           const url = getTrackUrl(track);
-          const resolved = url ? resolvedUrls.get(url) : null;
-          if (url && resolved?.url && !resolved.isImage) tracks.push({ track, era, url, playableUrl: resolved.url });
+          const playableUrl = url ? resolvedUrls.get(url) : null;
+          if (url && playableUrl) tracks.push({ track, era, url, playableUrl });
         }
       }
     }
     return tracks;
   }, [filteredData, resolvedUrls]);
 
-  const createTrackObject = useCallback((rawTrack: TALeak, era: Era, url: string, playableUrl: string, isImage: boolean = false): Track => ({
+  const createTrackObject = useCallback((rawTrack: TALeak, era: Era, url: string, playableUrl: string): Track => ({
     id: generateTrackId(url),
     name: rawTrack.name || "Unknown",
     extra: rawTrack.extra || "",
@@ -1010,12 +981,11 @@ function TrackerViewContent() {
     eraImage: getEraImage(era),
     eraName: era.name,
     artistName: artistDisplayName,
-    isImage,
   }), [artistDisplayName, getEraImage]);
 
   const preloadNextTracks = useCallback((queue: Track[]) => {
     const currentPreloaded = preloadedAudioRef.current;
-    const urlsToPreload = queue.slice(0, PRELOAD_COUNT).map(t => t.playableUrl).filter((url): url is string => !!url && !t.isImage);
+    const urlsToPreload = queue.slice(0, PRELOAD_COUNT).map(t => t.playableUrl).filter((url): url is string => !!url);
     for (const [url, audio] of currentPreloaded.entries()) {
       if (!urlsToPreload.includes(url)) {
         audio.src = "";
@@ -1080,13 +1050,9 @@ function TrackerViewContent() {
           for (const track of tracks) {
             const url = getTrackUrl(track);
             if (url === trackUrl) {
-              const resolved = resolvedUrls.get(url);
-              if (resolved?.url) {
-                if (resolved.isImage) {
-                  setLightboxImage({ src: resolved.url, alt: track.name, originalUrl: url });
-                } else {
-                  playTrack(createTrackObject(track, era, url, resolved.url, false));
-                }
+              const playableUrl = resolvedUrls.get(url);
+              if (playableUrl) {
+                playTrack(createTrackObject(track, era, url, playableUrl));
               }
               return;
             }
@@ -1140,14 +1106,9 @@ function TrackerViewContent() {
     const batchSize = 10;
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(async (url) => {
-        const result = await resolvePlayableUrl(url);
-        return { url, playable: result.url, isImage: result.isImage };
-      }));
-      for (const { url, playable, isImage } of results) {
-        resolved[url] = playable;
-        setResolvedUrls(prev => new Map(prev).set(url, { url: playable, isImage }));
-      }
+      const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
+      for (const { url, playable } of results) resolved[url] = playable;
+      setResolvedUrls(new Map(Object.entries(resolved)));
       setResolveProgress({ current: Math.min(i + batchSize, urls.length), total: urls.length });
     }
     setCache(id, trackerData, resolved, tab);
@@ -1156,20 +1117,12 @@ function TrackerViewContent() {
 
   const loadTrackerData = useCallback(async (id: string, tab?: string) => {
     setStatus("loading");
-    setTabError("");
     if (tab) fetchBaseEraImages(id);
     const cached = getCache(id, tab);
     if (cached) {
       setData(cached.data);
-      const resolvedMap = new Map<string, { url: string | null; isImage: boolean }>();
-      for (const [url, playableUrl] of Object.entries(cached.resolvedUrls)) {
-        resolvedMap.set(url, { url: playableUrl, isImage: false });
-      }
-      setResolvedUrls(resolvedMap);
+      setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
       setCurrentTab(cached.data.current_tab);
-      if (cached.data.tabs && cached.data.tabs.length > 0) {
-        setAvailableTabs(cached.data.tabs);
-      }
       setStatus("success");
       return;
     }
@@ -1181,51 +1134,22 @@ function TrackerViewContent() {
         return;
       }
       if (!res.ok) {
-        if (availableTabs.length > 0) {
-          setTabError(`Failed to load tab "${tab || 'default'}": HTTP ${res.status}`);
-          setStatus("error");
-        } else {
-          setStatus("fallback");
-        }
+        setStatus("fallback");
         return;
       }
       const json: TrackerResponse = await res.json();
-      if (!json || typeof json !== "object") {
-        if (availableTabs.length > 0) {
-          setTabError(`Failed to parse data for tab "${tab || 'default'}": Invalid response format`);
-          setStatus("error");
-        } else {
-          setStatus("fallback");
-        }
-        return;
-      }
-      if (json.tabs && json.tabs.length > 0) {
-        setAvailableTabs(json.tabs);
-      }
-      if (!json.eras || Object.keys(json.eras).length === 0) {
-        if (availableTabs.length > 0 || (json.tabs && json.tabs.length > 0)) {
-          setTabError(`Tab "${tab || json.current_tab || 'default'}" has no data or is malformed`);
-          setStatus("error");
-          setData(json);
-          setCurrentTab(json.current_tab);
-        } else {
-          setStatus("fallback");
-        }
+      if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) {
+        setStatus("fallback");
         return;
       }
       setData(json);
       setCurrentTab(json.current_tab);
       setStatus("success");
       if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
-    } catch (err: any) {
-      if (availableTabs.length > 0) {
-        setTabError(`Error loading tab "${tab || 'default'}": ${err.message || 'Unknown error'}`);
-        setStatus("error");
-      } else {
-        setStatus("fallback");
-      }
+    } catch {
+      setStatus("fallback");
     }
-  }, [fetchBaseEraImages, availableTabs]);
+  }, [fetchBaseEraImages]);
 
   useEffect(() => {
     if (!trackerId || !isValidTrackerId(trackerId)) return;
@@ -1283,27 +1207,20 @@ function TrackerViewContent() {
       togglePlayPause();
       return;
     }
-    let resolved = resolvedUrls.get(url);
-    if (resolved === undefined) {
-      const result = await resolvePlayableUrl(url);
-      resolved = { url: result.url, isImage: result.isImage };
-    }
-    if (!resolved?.url) {
+    let playableUrl = resolvedUrls.get(url);
+    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    if (!playableUrl) {
       handleOpenUrl(url);
       return;
     }
-    if (resolved.isImage) {
-      setLightboxImage({ src: resolved.url, alt: rawTrack.name, originalUrl: url });
-      return;
-    }
-    const track = createTrackObject(rawTrack, era, url, resolved.url, false);
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
     clearQueue();
     playTrack(track);
     const currentIdx = allPlayableTracks.findIndex(t => t.url === url);
     if (currentIdx !== -1) {
       const remainingTracks = allPlayableTracks.slice(currentIdx + 1);
       for (const t of remainingTracks) {
-        addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl, false));
+        addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl));
       }
     }
   }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, handleOpenUrl, allPlayableTracks, addToQueue, clearQueue, createTrackObject]);
@@ -1311,16 +1228,13 @@ function TrackerViewContent() {
   const handlePlayNext = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
-    let resolved = resolvedUrls.get(url);
-    if (resolved === undefined) {
-      const result = await resolvePlayableUrl(url);
-      resolved = { url: result.url, isImage: result.isImage };
-    }
-    if (!resolved?.url || resolved.isImage) {
+    let playableUrl = resolvedUrls.get(url);
+    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    if (!playableUrl) {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
     }
-    const track = createTrackObject(rawTrack, era, url, resolved.url, false);
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
     addToQueue(track);
     toast({ title: "Playing next", description: track.name });
   }, [resolvedUrls, addToQueue, toast, createTrackObject]);
@@ -1328,16 +1242,13 @@ function TrackerViewContent() {
   const handleAddToQueue = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
-    let resolved = resolvedUrls.get(url);
-    if (resolved === undefined) {
-      const result = await resolvePlayableUrl(url);
-      resolved = { url: result.url, isImage: result.isImage };
-    }
-    if (!resolved?.url || resolved.isImage) {
+    let playableUrl = resolvedUrls.get(url);
+    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    if (!playableUrl) {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
     }
-    const track = createTrackObject(rawTrack, era, url, resolved.url, false);
+    const track = createTrackObject(rawTrack, era, url, playableUrl);
     addToQueue(track);
     toast({ title: "Added to queue", description: track.name });
   }, [resolvedUrls, addToQueue, toast, createTrackObject]);
@@ -1345,17 +1256,14 @@ function TrackerViewContent() {
   const handleDownload = useCallback(async (rawTrack: TALeak) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
-    let resolved = resolvedUrls.get(url);
-    if (resolved === undefined) {
-      const result = await resolvePlayableUrl(url);
-      resolved = { url: result.url, isImage: result.isImage };
-    }
-    if (!resolved?.url) {
+    let playableUrl = resolvedUrls.get(url);
+    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    if (!playableUrl) {
       toast({ title: "Cannot download", description: "No playable URL available" });
       return;
     }
     const link = document.createElement("a");
-    link.href = resolved.url;
+    link.href = playableUrl;
     link.download = `${rawTrack.name || "track"}.mp3`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -1400,9 +1308,9 @@ function TrackerViewContent() {
         if (!Array.isArray(tracks)) continue;
         for (const track of tracks) {
           const url = getTrackUrl(track);
-          const resolved = url ? resolvedUrls.get(url) : null;
-          if (url && resolved?.url && !resolved.isImage) {
-            downloadItems.push({ track, era, playableUrl: resolved.url });
+          const playableUrl = url ? resolvedUrls.get(url) : null;
+          if (url && playableUrl) {
+            downloadItems.push({ track, era, playableUrl });
           }
         }
       }
@@ -1447,8 +1355,7 @@ function TrackerViewContent() {
             total += tracks.length;
             for (const t of tracks) {
               const url = getTrackUrl(t);
-              const resolved = url ? resolvedUrls.get(url) : null;
-              if (resolved?.url && !resolved.isImage) playable++;
+              if (url && resolvedUrls.get(url)) playable++;
             }
           }
         }
@@ -1510,24 +1417,10 @@ function TrackerViewContent() {
           </div>
         )}
         {status === "error" && (
-          <div className="space-y-4">
-            {availableTabs.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800">
-                {availableTabs.map((tab) => (
-                  <Button key={tab} variant={currentTab === tab ? "default" : "outline"} size="sm" onClick={() => handleTabChange(tab)} className={`flex-shrink-0 text-xs sm:text-sm ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}>{tab}</Button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center justify-center py-12 sm:py-20">
-              <div className="text-center bg-neutral-900 border border-red-500/30 p-6 sm:p-8 rounded-xl max-w-md">
-                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Error Loading Tab</h2>
-                <p className="text-sm sm:text-base text-neutral-400 mb-4">{tabError || errorMessage}</p>
-                <Button onClick={() => loadTrackerData(trackerId, currentTab)} className="bg-white text-black hover:bg-neutral-200">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Retry
-                </Button>
-              </div>
+          <div className="flex items-center justify-center py-12 sm:py-20">
+            <div className="text-center bg-neutral-900 border border-red-500/30 p-6 sm:p-8 rounded-xl max-w-md">
+              <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Error Loading Data</h2>
+              <p className="text-sm sm:text-base text-neutral-400">{errorMessage}</p>
             </div>
           </div>
         )}
@@ -1548,9 +1441,9 @@ function TrackerViewContent() {
                 </Button>
               )}
             </div>
-            {availableTabs.length > 0 && (
+            {data.tabs && data.tabs.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800">
-                {availableTabs.map((tab) => (
+                {data.tabs.map((tab) => (
                   <Button key={tab} variant={currentTab === tab ? "default" : "outline"} size="sm" onClick={() => handleTabChange(tab)} className={`flex-shrink-0 text-xs sm:text-sm ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}>{tab}</Button>
                 ))}
               </div>
@@ -1598,8 +1491,7 @@ function TrackerViewContent() {
                 {Object.entries(filteredData).map(([key, era]) => {
                   const eraPlayableCount = era.data ? Object.values(era.data).flat().filter((t: any) => {
                     const url = getTrackUrl(t);
-                    const resolved = url ? resolvedUrls.get(url) : null;
-                    return resolved?.url && !resolved.isImage;
+                    return url && resolvedUrls.get(url);
                   }).length : 0;
                   
                   return (
@@ -1638,9 +1530,8 @@ function TrackerViewContent() {
                               <div className="space-y-1.5 sm:space-y-2">
                                 {(tracks as TALeak[]).map((track, i) => {
                                   const url = getTrackUrl(track);
-                                  const resolved = url ? resolvedUrls.get(url) : null;
-                                  const isPlayable = !!resolved?.url;
-                                  const isImage = resolved?.isImage || false;
+                                  const playableUrl = url ? resolvedUrls.get(url) : null;
+                                  const isPlayable = !!playableUrl;
                                   const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
                                   const isCurrentTrack = playerState.currentTrack?.url === url;
                                   const isHighlighted = url === highlightedTrackUrl;
@@ -1651,9 +1542,7 @@ function TrackerViewContent() {
                                     <div key={i} ref={isHighlighted ? highlightedTrackRef : null} className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
                                       <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
                                         {isPlayable ? (
-                                          <button onClick={() => handlePlayTrack(track, era)} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-                                            {isImage ? <ImageIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" /> : isCurrentlyPlaying ? <Pause className="w-3.5 sm:w-4 h-3.5 sm:h-4" /> : <Play className="w-3.5 sm:w-4 h-3.5 sm:h-4 ml-0.5" />}
-                                          </button>
+                                          <button onClick={() => handlePlayTrack(track, era)} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">{isCurrentlyPlaying ? <Pause className="w-3.5 sm:w-4 h-3.5 sm:h-4" /> : <Play className="w-3.5 sm:w-4 h-3.5 sm:h-4 ml-0.5" />}</button>
                                         ) : (
                                           <button onClick={() => url && handleOpenUrl(url)} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform"><LinkIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" /></button>
                                         )}
@@ -1682,7 +1571,7 @@ function TrackerViewContent() {
                                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                           <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
                                             {url && <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer"><Share className="w-4 h-4 mr-2" />Share Track</DropdownMenuItem>}
-                                            {isPlayable && !isImage && (
+                                            {isPlayable && (
                                               <>
                                                 <DropdownMenuItem onClick={() => handlePlayNext(track, era)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
