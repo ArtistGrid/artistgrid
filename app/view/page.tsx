@@ -15,6 +15,7 @@ import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListP
 export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
+const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
 const TRACKER_ID_LENGTH = 44;
 const CACHE_KEY_PREFIX = "artistgrid_tracker_";
 const CACHE_EXPIRY = 1000 * 60 * 60 * 24;
@@ -24,16 +25,18 @@ const PRELOAD_COUNT = 3;
 const CONCURRENT_DOWNLOADS = 5;
 
 const TIDAL_APIS = [
-  { name: 'squid-api', baseUrl: 'https://triton.squid.wtf', weight: 30 },
-  { name: 'kinoplus', baseUrl: 'https://tidal.kinoplus.online', weight: 20 },
-  { name: 'binimum', baseUrl: 'https://tidal-api.binimum.org', weight: 10 },
-  { name: 'binimum-2', baseUrl: 'https://tidal-api-2.binimum.org', weight: 10 },
-  { name: 'hund', baseUrl: 'https://hund.qqdl.site', weight: 15 },
-  { name: 'katze', baseUrl: 'https://katze.qqdl.site', weight: 15 },
-  { name: 'maus', baseUrl: 'https://maus.qqdl.site', weight: 15 },
-  { name: 'vogel', baseUrl: 'https://vogel.qqdl.site', weight: 15 },
-  { name: 'wolf', baseUrl: 'https://wolf.qqdl.site', weight: 15 }
+  { baseUrl: 'https://triton.squid.wtf' },
+  { baseUrl: 'https://tidal.kinoplus.online' },
+  { baseUrl: 'https://tidal-api.binimum.org' },
+  { baseUrl: 'https://tidal-api-2.binimum.org' },
+  { baseUrl: 'https://hund.qqdl.site' },
+  { baseUrl: 'https://katze.qqdl.site' },
+  { baseUrl: 'https://maus.qqdl.site' },
+  { baseUrl: 'https://vogel.qqdl.site' },
+  { baseUrl: 'https://wolf.qqdl.site' }
 ];
+
+let tidalApiIndex = 0;
 
 interface Track {
   id: string;
@@ -41,7 +44,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "qobuz" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -537,14 +540,15 @@ function extractTidalId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+function extractQobuzId(url: string): string | null {
+  const match = url.match(/(?:open\.)?qobuz\.com\/track\/(\d+)/);
+  return match ? match[1] : null;
+}
+
 function selectTidalApi(): string {
-  const totalWeight = TIDAL_APIS.reduce((sum, api) => sum + api.weight, 0);
-  let random = Math.random() * totalWeight;
-  for (const api of TIDAL_APIS) {
-    random -= api.weight;
-    if (random <= 0) return api.baseUrl;
-  }
-  return TIDAL_APIS[0].baseUrl;
+  const api = TIDAL_APIS[tidalApiIndex];
+  tidalApiIndex = (tidalApiIndex + 1) % TIDAL_APIS.length;
+  return api.baseUrl;
 }
 
 function getTrackSource(url: string): Track["source"] {
@@ -556,6 +560,7 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
   if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
+  if (/https?:\/\/(open\.)?qobuz\.com\/track\//.test(normalized)) return "qobuz";
   return "unknown";
 }
 
@@ -611,6 +616,17 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
           }
         }
         return null;
+      } catch {
+        return null;
+      }
+    }
+    case "qobuz": {
+      const id = extractQobuzId(normalized);
+      if (!id) return null;
+      try {
+        const res = await fetch(`${QOBUZ_API}?track_id=${id}&quality=27`);
+        const data = await res.json();
+        return data?.data?.url || null;
       } catch {
         return null;
       }
@@ -675,6 +691,7 @@ function getSourceDisplayName(source: Track["source"]): string {
     imgur: "Imgur",
     soundcloud: "SoundCloud",
     tidal: "Tidal",
+    qobuz: "Qobuz",
     unknown: "Unknown"
   };
   return names[source];
