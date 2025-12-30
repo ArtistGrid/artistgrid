@@ -14,15 +14,16 @@ import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListP
 
 export const API_BASE = "https://tracker.israeli.ovh";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
-const IMGUR_API = "https://info.artistgrid.cx/imgur/?id=";
+const IMGUR_API = "https://imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
 const TRACKER_ID_LENGTH = 44;
 const CACHE_KEY_PREFIX = "artistgrid_tracker_";
 const CACHE_EXPIRY = 1000 * 60 * 60 * 24;
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
-const PRELOAD_COUNT = 3;
-const CONCURRENT_DOWNLOADS = 5;
+const CONCURRENT_DOWNLOADS = 3;
+const MAX_ZIP_SIZE = 500 * 1024 * 1024;
+const MAX_RETRY_ATTEMPTS = 2;
 
 const TIDAL_APIS = [
   { baseUrl: 'https://triton.squid.wtf' },
@@ -126,6 +127,7 @@ interface DownloadItem {
   playableUrl: string;
   status: "pending" | "downloading" | "completed" | "failed";
   progress: number;
+  retryCount: number;
 }
 
 interface DownloadJob {
@@ -138,6 +140,8 @@ interface DownloadJob {
   completedCount: number;
   failedCount: number;
   zipBlob?: Blob;
+  isCreatingZip?: boolean;
+  downloadUrl?: string;
 }
 
 interface DownloadQueueItem {
@@ -190,14 +194,41 @@ function getFileExtension(url: string, contentType?: string): string {
   return "mp3";
 }
 
-async function downloadFileAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
+async function downloadFileAsBlob(url: string, onProgress?: (loaded: number, total: number) => void): Promise<{ blob: Blob; contentType: string } | null> {
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
-    const blob = await response.blob();
+    
+    const contentLength = response.headers.get("content-length");
+    const total = contentLength ? parseInt(contentLength, 10) : 0;
+    
+    if (!response.body) {
+      const blob = await response.blob();
+      const contentType = response.headers.get("content-type") || "";
+      return { blob, contentType };
+    }
+    
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      chunks.push(value);
+      loaded += value.length;
+      
+      if (onProgress && total) {
+        onProgress(loaded, total);
+      }
+    }
+    
+    const blob = new Blob(chunks);
     const contentType = response.headers.get("content-type") || "";
     return { blob, contentType };
-  } catch {
+  } catch (error) {
+    console.error("Download error:", error);
     return null;
   }
 }
@@ -209,18 +240,30 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const downloadQueueRef = useRef<DownloadQueueItem[]>([]);
   const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>>>(new Map());
   const processQueueRef = useRef<() => void>(() => {});
+  const creatingZipsRef = useRef<Set<string>>(new Set());
+  const downloadUrlsRef = useRef<Map<string, string>>(new Map());
 
   const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
     setJobs(prev => prev.map(job => {
       if (job.id !== item.jobId) return job;
       return {
         ...job,
-        items: job.items.map(i => i.id === item.itemId ? { ...i, status: "downloading" as const } : i)
+        items: job.items.map(i => i.id === item.itemId ? { ...i, status: "downloading" as const, progress: 0 } : i)
       };
     }));
 
     try {
-      const result = await downloadFileAsBlob(item.playableUrl);
+      const result = await downloadFileAsBlob(item.playableUrl, (loaded, total) => {
+        const progress = Math.round((loaded / total) * 100);
+        setJobs(prev => prev.map(job => {
+          if (job.id !== item.jobId) return job;
+          return {
+            ...job,
+            items: job.items.map(i => i.id === item.itemId ? { ...i, progress } : i)
+          };
+        }));
+      });
+      
       if (result) {
         const ext = getFileExtension(item.playableUrl, result.contentType);
         if (!zipDataRef.current.has(item.jobId)) {
@@ -237,15 +280,34 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
       } else {
         setJobs(prev => prev.map(job => {
           if (job.id !== item.jobId) return job;
-          const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
+          const newItems = job.items.map(i => {
+            if (i.id === item.itemId) {
+              if (i.retryCount < MAX_RETRY_ATTEMPTS) {
+                downloadQueueRef.current.push(item);
+                return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
+              }
+              return { ...i, status: "failed" as const };
+            }
+            return i;
+          });
           const newFailedCount = newItems.filter(i => i.status === "failed").length;
           return { ...job, items: newItems, failedCount: newFailedCount };
         }));
       }
-    } catch {
+    } catch (error) {
+      console.error("Download failed:", error);
       setJobs(prev => prev.map(job => {
         if (job.id !== item.jobId) return job;
-        const newItems = job.items.map(i => i.id === item.itemId ? { ...i, status: "failed" as const } : i);
+        const newItems = job.items.map(i => {
+          if (i.id === item.itemId) {
+            if (i.retryCount < MAX_RETRY_ATTEMPTS) {
+              downloadQueueRef.current.push(item);
+              return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
+            }
+            return { ...i, status: "failed" as const };
+          }
+          return i;
+        });
         const newFailedCount = newItems.filter(i => i.status === "failed").length;
         return { ...job, items: newItems, failedCount: newFailedCount };
       }));
@@ -269,19 +331,27 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAndCreateZips = async () => {
       for (const job of jobs) {
-        if (job.status === "active") {
+        if (job.status === "active" && !creatingZipsRef.current.has(job.id)) {
           const allDone = job.items.every(i => i.status === "completed" || i.status === "failed");
-          if (allDone && !job.zipBlob) {
+          if (allDone && !job.zipBlob && !job.isCreatingZip) {
             const jobData = zipDataRef.current.get(job.id);
             if (jobData && jobData.size > 0) {
+              creatingZipsRef.current.add(job.id);
+              setJobs(prev => prev.map(j => j.id === job.id ? { ...j, isCreatingZip: true } : j));
+
               try {
                 const JSZip = (await import("jszip")).default;
                 const zip = new JSZip();
+                let totalSize = 0;
 
                 for (const item of job.items) {
                   if (item.status === "completed") {
                     const fileData = jobData.get(item.id);
                     if (fileData) {
+                      totalSize += fileData.blob.size;
+                      if (totalSize > MAX_ZIP_SIZE) {
+                        throw new Error("ZIP size exceeds maximum limit");
+                      }
                       const folderPath = sanitizeFilename(item.eraName);
                       const fileName = `${sanitizeFilename(item.trackName)}.${fileData.ext}`;
                       zip.file(`${folderPath}/${fileName}`, fileData.blob);
@@ -289,24 +359,50 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                   }
                 }
 
-                const content = await zip.generateAsync({ type: "blob" });
+                const content = await zip.generateAsync({ 
+                  type: "blob",
+                  compression: "DEFLATE",
+                  compressionOptions: { level: 6 }
+                });
+
                 const zipName = job.eraName
                   ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}.zip`
                   : `${sanitizeFilename(job.artistName)} Tracker.zip`;
 
-                setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "completed" as const, zipBlob: content } : j));
+                const downloadUrl = URL.createObjectURL(content);
+                downloadUrlsRef.current.set(job.id, downloadUrl);
+
+                setJobs(prev => prev.map(j => j.id === job.id ? { 
+                  ...j, 
+                  status: "completed" as const, 
+                  zipBlob: content,
+                  isCreatingZip: false,
+                  downloadUrl
+                } : j));
 
                 const link = document.createElement("a");
-                link.href = URL.createObjectURL(content);
+                link.href = downloadUrl;
                 link.download = zipName;
+                link.style.display = "none";
                 document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
+                
+                setTimeout(() => {
+                  link.click();
+                  setTimeout(() => {
+                    document.body.removeChild(link);
+                  }, 100);
+                }, 100);
 
                 zipDataRef.current.delete(job.id);
-              } catch {
-                setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "failed" as const } : j));
+                creatingZipsRef.current.delete(job.id);
+              } catch (error) {
+                console.error("ZIP creation failed:", error);
+                setJobs(prev => prev.map(j => j.id === job.id ? { 
+                  ...j, 
+                  status: "failed" as const,
+                  isCreatingZip: false 
+                } : j));
+                creatingZipsRef.current.delete(job.id);
               }
             } else {
               setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "failed" as const } : j));
@@ -318,6 +414,15 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 
     checkAndCreateZips();
   }, [jobs]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of downloadUrlsRef.current.values()) {
+        URL.revokeObjectURL(url);
+      }
+      downloadUrlsRef.current.clear();
+    };
+  }, []);
 
   const startDownload = useCallback((params: {
     artistName: string;
@@ -332,7 +437,8 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
       eraName: item.era.name || "Unknown Era",
       playableUrl: item.playableUrl,
       status: "pending" as const,
-      progress: 0
+      progress: 0,
+      retryCount: 0
     }));
 
     const newJob: DownloadJob = {
@@ -362,12 +468,26 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   }, [processQueue]);
 
   const clearCompleted = useCallback(() => {
+    const completedJobs = jobs.filter(j => j.status === "completed" || j.status === "failed");
+    for (const job of completedJobs) {
+      const url = downloadUrlsRef.current.get(job.id);
+      if (url) {
+        URL.revokeObjectURL(url);
+        downloadUrlsRef.current.delete(job.id);
+      }
+    }
     setJobs(prev => prev.filter(j => j.status === "active"));
-  }, []);
+  }, [jobs]);
 
   const dismissJob = useCallback((jobId: string) => {
+    const url = downloadUrlsRef.current.get(jobId);
+    if (url) {
+      URL.revokeObjectURL(url);
+      downloadUrlsRef.current.delete(jobId);
+    }
     setJobs(prev => prev.filter(j => j.id !== jobId));
     zipDataRef.current.delete(jobId);
+    creatingZipsRef.current.delete(jobId);
   }, []);
 
   return (
@@ -424,7 +544,9 @@ function DownloadFloatingUI() {
               <div key={job.id} className="p-3 border-b border-neutral-800 last:border-b-0">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {job.status === "completed" ? (
+                    {job.isCreatingZip ? (
+                      <Loader2 className="w-4 h-4 text-yellow-400 animate-spin flex-shrink-0" />
+                    ) : job.status === "completed" ? (
                       <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                     ) : job.status === "failed" ? (
                       <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -441,7 +563,9 @@ function DownloadFloatingUI() {
                 </div>
                 <Progress value={jobProgress} className="h-1.5 mb-1" />
                 <div className="flex items-center justify-between text-[10px] text-neutral-500">
-                  <span>{job.completedCount}/{job.items.length} files</span>
+                  <span>
+                    {job.isCreatingZip ? "Creating ZIP..." : `${job.completedCount}/${job.items.length} files`}
+                  </span>
                   {job.failedCount > 0 && <span className="text-red-400">{job.failedCount} failed</span>}
                   <span>{jobProgress}%</span>
                 </div>
@@ -450,7 +574,8 @@ function DownloadFloatingUI() {
                     {downloadingItems.slice(0, 5).map(item => (
                       <div key={item.id} className="text-[10px] text-neutral-400 truncate flex items-center gap-1">
                         <Loader2 className="w-2 h-2 animate-spin flex-shrink-0" />
-                        {item.trackName}
+                        <span className="flex-1 truncate">{item.trackName}</span>
+                        {item.progress > 0 && <span className="text-neutral-600">{item.progress}%</span>}
                       </div>
                     ))}
                     {downloadingItems.length > 5 && (
@@ -526,7 +651,7 @@ function extractKrakenId(url: string): string | null {
 }
 
 function extractImgurId(url: string): string | null {
-  const match = url.match(/imgur\.gg\/f\/([a-zA-Z0-9]+)/);
+  const match = url.match(/imgur\.gg\/(?:f\/)?([a-zA-Z0-9]+)/);
   return match ? match[1] : null;
 }
 
@@ -567,47 +692,44 @@ function getTrackSource(url: string): Track["source"] {
 async function resolvePlayableUrl(url: string): Promise<string | null> {
   const normalized = normalizePillowsUrl(url);
   const source = getTrackSource(normalized);
-  switch (source) {
-    case "pillows": {
-      const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
-      return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
-    }
-    case "froste": {
-      const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
-      return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
-    }
-    case "krakenfiles": {
-      const id = extractKrakenId(normalized);
-      if (!id) return null;
-      try {
+  
+  try {
+    switch (source) {
+      case "pillows": {
+        const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
+        return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
+      }
+      case "froste": {
+        const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
+        return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
+      }
+      case "krakenfiles": {
+        const id = extractKrakenId(normalized);
+        if (!id) return null;
         const res = await fetch(`${KRAKENFILES_API}${id}`);
         const data = await res.json();
         return data.success ? data.m4a : null;
-      } catch {
-        return null;
       }
-    }
-    case "imgur": {
-      const id = extractImgurId(normalized);
-      if (!id) return null;
-      try {
+      case "imgur": {
+        const id = extractImgurId(normalized);
+        if (!id) return null;
         const res = await fetch(`${IMGUR_API}${id}`);
+        if (!res.ok) return null;
         const data = await res.json();
-        return data.success ? data.mp3 : null;
-      } catch {
-        return null;
+        return data.cdnUrl || null;
       }
-    }
-    case "soundcloud": {
-      const path = extractSoundcloudPath(normalized);
-      return path ? `https://sc.maid.zone/_/restream/${path}` : null;
-    }
-    case "tidal": {
-      const id = extractTidalId(normalized);
-      if (!id) return null;
-      try {
+      case "soundcloud": {
+        const path = extractSoundcloudPath(normalized);
+        return path ? `https://sc.maid.zone/_/restream/${path}` : null;
+      }
+      case "tidal": {
+        const id = extractTidalId(normalized);
+        if (!id) return null;
         const apiBase = selectTidalApi();
-        const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`);
+        const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`, {
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!res.ok) return null;
         const data = await res.json();
         if (data?.data?.manifest) {
           const manifestJson = JSON.parse(atob(data.data.manifest));
@@ -616,25 +738,23 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
           }
         }
         return null;
-      } catch {
-        return null;
       }
-    }
-    case "qobuz": {
-      const id = extractQobuzId(normalized);
-      if (!id) return null;
-      try {
+      case "qobuz": {
+        const id = extractQobuzId(normalized);
+        if (!id) return null;
         const res = await fetch(`${QOBUZ_API}?track_id=${id}&quality=27`);
+        if (!res.ok) return null;
         const data = await res.json();
         return data?.data?.url || null;
-      } catch {
-        return null;
       }
+      case "juicewrldapi":
+        return url;
+      default:
+        return null;
     }
-    case "juicewrldapi":
-      return url;
-    default:
-      return null;
+  } catch (error) {
+    console.error(`Error resolving ${source} URL:`, error);
+    return null;
   }
 }
 
@@ -917,7 +1037,6 @@ function TrackerViewContent() {
   const [highlightedTrackUrl, setHighlightedTrackUrl] = useState<string | null>(null);
   const highlightedTrackRef = useRef<HTMLDivElement | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
-  const preloadedAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
 
@@ -999,38 +1118,6 @@ function TrackerViewContent() {
     eraName: era.name,
     artistName: artistDisplayName,
   }), [artistDisplayName, getEraImage]);
-
-  const preloadNextTracks = useCallback((queue: Track[]) => {
-    const currentPreloaded = preloadedAudioRef.current;
-    const urlsToPreload = queue.slice(0, PRELOAD_COUNT).map(t => t.playableUrl).filter((url): url is string => !!url);
-    for (const [url, audio] of currentPreloaded.entries()) {
-      if (!urlsToPreload.includes(url)) {
-        audio.src = "";
-        currentPreloaded.delete(url);
-      }
-    }
-    for (const url of urlsToPreload) {
-      if (!currentPreloaded.has(url)) {
-        const audio = new Audio();
-        audio.preload = "auto";
-        audio.src = url;
-        currentPreloaded.set(url, audio);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    preloadNextTracks(playerState.queue);
-  }, [playerState.queue, preloadNextTracks]);
-
-  useEffect(() => {
-    return () => {
-      for (const audio of preloadedAudioRef.current.values()) {
-        audio.src = "";
-      }
-      preloadedAudioRef.current.clear();
-    };
-  }, []);
 
   useEffect(() => {
     const id = searchParams.get("id");
@@ -1314,11 +1401,8 @@ function TrackerViewContent() {
 
   const downloadTracker = useCallback((eraKey?: string) => {
     if (!data?.eras) return;
-    
     const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
-    
     const downloadItems: Array<{ track: TALeak; era: Era; playableUrl: string }> = [];
-    
     for (const era of Object.values(erasToDownload)) {
       if (!era.data) continue;
       for (const tracks of Object.values(era.data)) {
@@ -1332,18 +1416,15 @@ function TrackerViewContent() {
         }
       }
     }
-    
     if (downloadItems.length === 0) {
       toast({ title: "No tracks to download", description: "No playable tracks found" });
       return;
     }
-    
     downloadManager.startDownload({
       artistName: artistDisplayName,
       eraName: eraKey ? data.eras[eraKey]?.name : undefined,
       items: downloadItems
     });
-    
     toast({ title: "Download started", description: `Downloading ${downloadItems.length} tracks in background` });
   }, [data, resolvedUrls, artistDisplayName, downloadManager, toast]);
 
@@ -1446,13 +1527,7 @@ function TrackerViewContent() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white">{artistDisplayName}</h1>
               {!isArtTab && stats.playable > 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => downloadTracker()}
-                  disabled={isPreloading}
-                  className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white self-start sm:self-auto"
-                >
+                <Button variant="outline" size="sm" onClick={() => downloadTracker()} disabled={isPreloading} className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white self-start sm:self-auto">
                   <FolderDown className="w-4 h-4 mr-2" />
                   Download All ({stats.playable})
                 </Button>
@@ -1510,7 +1585,6 @@ function TrackerViewContent() {
                     const url = getTrackUrl(t);
                     return url && resolvedUrls.get(url);
                   }).length : 0;
-                  
                   return (
                     <div key={key} style={{ background: era.backgroundColor ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 80%)` : "oklch(14.5% 0 0)" }} className="border border-neutral-800 rounded-xl overflow-hidden">
                       <div className="flex items-center">
@@ -1622,7 +1696,7 @@ function TrackerViewContent() {
             )}
           </>
         )}
-        <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-t border-neutral-800">
+        <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-b border-neutral-800">
           <div className="flex flex-col items-center gap-3 sm:gap-4 max-w-xl mx-auto">
             <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-3 sm:px-4 py-2 rounded-lg w-full">
               <AlertTriangle className="w-3 sm:w-4 h-3 sm:h-4 flex-shrink-0" />

@@ -1,4 +1,3 @@
-// app/providers.tsx
 "use client";
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from "react";
@@ -9,7 +8,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "tidal" | "qobuz" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -26,6 +25,7 @@ interface PlayerState {
   currentTime: number;
   duration: number;
   volume: number;
+  isBuffering: boolean;
 }
 
 interface LastFMSession {
@@ -40,10 +40,12 @@ interface PlayerContextType {
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
   addToQueue: (track: Track) => void;
-  removeFromQueue: (trackId: string) => void;
+  removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  reorderQueue: (fromIndex: number, toIndex: number) => void;
+  playFromQueue: (index: number) => void;
   history: Track[];
   closePlayer: () => void;
   lastfm: {
@@ -187,6 +189,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     currentTime: 0,
     duration: 0,
     volume: 1,
+    isBuffering: false,
   });
   const [history, setHistory] = useState<Track[]>([]);
   const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(null);
@@ -337,7 +340,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
       navigator.mediaSession.setActionHandler("seekto", (details) => {
         if (audioRef.current && details.seekTime !== undefined) {
-          audioRef.current.currentTime = details.seekTime;
+          const audio = audioRef.current;
+          if (audio.readyState >= 1 && audio.seekable.length > 0) {
+            const seekableEnd = audio.seekable.end(audio.seekable.length - 1);
+            const seekableStart = audio.seekable.start(0);
+            const clampedTime = Math.max(seekableStart, Math.min(details.seekTime, seekableEnd));
+            audio.currentTime = clampedTime;
+          }
         }
       });
     }
@@ -347,6 +356,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined" && !audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.volume = state.volume;
+      audioRef.current.preload = "metadata";
+      
       audioRef.current.addEventListener("timeupdate", () => {
         setState(s => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
         if ("mediaSession" in navigator && audioRef.current) {
@@ -357,13 +368,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }
       });
+      
       audioRef.current.addEventListener("loadedmetadata", () => {
         const duration = audioRef.current?.duration || 0;
-        setState(s => ({ ...s, duration }));
+        setState(s => ({ ...s, duration, isBuffering: false }));
         if (currentTrackRef.current && lastfmSession?.key && duration > 30) {
           scheduleScrobble(currentTrackRef.current, duration);
         }
       });
+      
+      audioRef.current.addEventListener("waiting", () => {
+        setState(s => ({ ...s, isBuffering: true }));
+      });
+      
+      audioRef.current.addEventListener("canplay", () => {
+        setState(s => ({ ...s, isBuffering: false }));
+      });
+      
+      audioRef.current.addEventListener("error", (e) => {
+        console.error("Audio error:", e);
+        setState(s => ({ ...s, isBuffering: false }));
+      });
+      
       audioRef.current.addEventListener("ended", () => {
         clearScrobbleTimer();
         setState(s => {
@@ -385,12 +411,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return { ...s, isPlaying: false };
         });
       });
+      
       audioRef.current.addEventListener("play", () => {
         setState(s => {
           if (s.currentTrack) updateMediaSession(s.currentTrack, true);
           return { ...s, isPlaying: true };
         });
       });
+      
       audioRef.current.addEventListener("pause", () => {
         setState(s => {
           if (s.currentTrack) updateMediaSession(s.currentTrack, false);
@@ -421,7 +449,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const seekTo = useCallback((time: number) => {
-    if (audioRef.current) audioRef.current.currentTime = time;
+    if (!audioRef.current) return;
+    
+    const audio = audioRef.current;
+    
+    // Check if audio has loaded enough data
+    if (audio.readyState < 1) {
+      console.warn("Audio not ready for seeking");
+      return;
+    }
+    
+    // Check if the audio is seekable
+    if (audio.seekable.length === 0) {
+      console.warn("Audio stream is not seekable");
+      return;
+    }
+    
+    try {
+      // Get the seekable range
+      const seekableEnd = audio.seekable.end(audio.seekable.length - 1);
+      const seekableStart = audio.seekable.start(0);
+      
+      // Clamp the time to the valid seekable range
+      const clampedTime = Math.max(seekableStart, Math.min(time, seekableEnd));
+      
+      // Only seek if we're actually changing position
+      if (Math.abs(audio.currentTime - clampedTime) > 0.1) {
+        audio.currentTime = clampedTime;
+      }
+    } catch (error) {
+      console.error("Seek failed:", error);
+    }
   }, []);
 
   const setVolume = useCallback((volume: number) => {
@@ -433,9 +491,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, queue: [...s.queue, track] }));
   }, []);
 
-  const removeFromQueue = useCallback((trackId: string) => {
-    setState(s => ({ ...s, queue: s.queue.filter(t => t.id !== trackId) }));
+  const removeFromQueue = useCallback((index: number) => {
+    setState(s => ({
+      ...s,
+      queue: s.queue.filter((_, i) => i !== index)
+    }));
   }, []);
+
+  const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
+    setState(s => {
+      const newQueue = [...s.queue];
+      const [removed] = newQueue.splice(fromIndex, 1);
+      newQueue.splice(toIndex, 0, removed);
+      return { ...s, queue: newQueue };
+    });
+  }, []);
+
+  const playFromQueue = useCallback((index: number) => {
+    setState(s => {
+      if (index >= s.queue.length) return s;
+      
+      const track = s.queue[index];
+      const newQueue = s.queue.slice(index + 1);
+      
+      if (audioRef.current && track.playableUrl) {
+        clearScrobbleTimer();
+        hasScrobbledRef.current = false;
+        currentTrackRef.current = track;
+        audioRef.current.src = track.playableUrl;
+        audioRef.current.play().catch(console.error);
+        setHistory(h => [...h, track]);
+        if (lastfmSession?.key) updateNowPlaying(track);
+        updateMediaSession(track, true);
+        return { ...s, currentTrack: track, queue: newQueue, isPlaying: true };
+      }
+      
+      return s;
+    });
+  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
 
   const clearQueue = useCallback(() => {
     setState(s => ({ ...s, queue: [] }));
@@ -480,8 +573,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{
-      state, playTrack, togglePlayPause, seekTo, setVolume, addToQueue, removeFromQueue, clearQueue, playNext, playPrevious, history, closePlayer,
-      lastfm: { isAuthenticated: !!lastfmSession?.key, username: lastfmSession?.name || null, getAuthUrl, completeAuth, disconnect: disconnectLastFM }
+      state,
+      playTrack,
+      togglePlayPause,
+      seekTo,
+      setVolume,
+      addToQueue,
+      removeFromQueue,
+      clearQueue,
+      playNext,
+      playPrevious,
+      reorderQueue,
+      playFromQueue,
+      history,
+      closePlayer,
+      lastfm: {
+        isAuthenticated: !!lastfmSession?.key,
+        username: lastfmSession?.name || null,
+        getAuthUrl,
+        completeAuth,
+        disconnect: disconnectLastFM
+      }
     }}>
       {children}
     </PlayerContext.Provider>
