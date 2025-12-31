@@ -34,7 +34,10 @@ const LOCAL_STORAGE_KEYS = {
   MESSAGE_HASH: "artistGridMessageHash"
 };
 
-const DATA_SOURCE = "https://sheets.artistgrid.cx/artists.ndjson" // All sophie-hosted services have 99% SLA. No need for backups.
+const DATA_SOURCES = [
+  "https://sheets.artistgrid.cx/artists.ndjson",
+  "https://git.sad.ovh/sophie/sheets/raw/branch/main/artists.ndjson"
+]
 
 const TRENDS_API = "https://trends.artistgrid.cx/";
 const CACHE_EXPIRY = 1000 * 60 * 30;
@@ -607,6 +610,7 @@ function getCleanArtistName(name: string): string {
 export default function ArtistGallery() {
   const router = useRouter();
   const { state: playerState } = usePlayer();
+  const { toast } = useToast();
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
@@ -722,7 +726,7 @@ export default function ArtistGallery() {
       const cacheKey = useSheet ? LOCAL_STORAGE_KEYS.CSV_CACHE_REMOTE : LOCAL_STORAGE_KEYS.CSV_CACHE_LOCAL;
       const cached = getCachedData<Artist[]>(cacheKey);
 
-      if (cached?.data && cached.data.length > 0) {
+      if (cached?.data?.length) {
         originalOrder.current = cached.data;
         setAllArtists(cached.data);
         setStatus("success");
@@ -731,9 +735,11 @@ export default function ArtistGallery() {
         setStatus("loading");
       }
 
-      if (isCacheExpired(cached) || !cached?.data) {
+      if (!isCacheExpired(cached) && cached?.data?.length) return;
+
+      for (const source of DATA_SOURCES) {
         try {
-          const response = await fetch(DATA_SOURCE, { signal: controller.signal, cache: "no-store" });
+          const response = await fetch(source, { signal: controller.signal, cache: "no-store" });
           if (!response.ok) throw new Error(`Status ${response.status}`);
 
           const reader = response.body?.getReader();
@@ -751,30 +757,27 @@ export default function ArtistGallery() {
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
+
             for (const line of lines) {
               if (!line.trim()) continue;
-              let obj: any;
               try {
-                obj = JSON.parse(line);
-              } catch {
-                continue;
-              }
+                const obj = JSON.parse(line);
+                const { name, url, links_work, updated, best } = obj;
+                if (!name || !url) continue;
 
-              const { name, url, links_work, updated, best } = obj;
-              if (!name || !url) continue;
+                const count = nameCount[name] || 0;
+                nameCount[name] = count + 1;
+                const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
 
-              const count = nameCount[name] || 0;
-              nameCount[name] = count + 1;
-              const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
-
-              parsed.push({
-                name: newName,
-                url,
-                imageFilename: getImageFilename(newName),
-                isLinkWorking: links_work === TripleBool.YES,
-                isUpdated: updated === TripleBool.YES,
-                isStarred: best === TripleBool.YES
-              });
+                parsed.push({
+                  name: newName,
+                  url,
+                  imageFilename: getImageFilename(newName),
+                  isLinkWorking: links_work === TripleBool.YES,
+                  isUpdated: updated === TripleBool.YES,
+                  isStarred: best === TripleBool.YES
+                });
+              } catch {}
             }
           }
 
@@ -796,8 +799,7 @@ export default function ArtistGallery() {
                   isStarred: best === TripleBool.YES
                 });
               }
-            } catch {
-            }
+            } catch {}
           }
 
           if (!cached?.data || !artistsEqual(parsed, cached.data)) {
@@ -805,17 +807,23 @@ export default function ArtistGallery() {
             originalOrder.current = parsed;
             setAllArtists(parsed);
           }
+
           setStatus("success");
-          return;
+          return; // success, stop trying next sources
         } catch (e) {
           if (e instanceof Error && e.name === "AbortError") return;
-          console.warn(`Failed to fetch from ${DATA_SOURCE}:`, e);
-        }
 
-        if (!hasCachedData.current) {
-          setErrorMessage("Could not load artist data.");
-          setStatus("error");
+          toast({
+            title: "Failed to load data",
+            description: `Could not fetch from ${source}. Trying next source...`
+          });
+          console.warn(`Failed to fetch from ${source}:`, e);
         }
+      }
+
+      if (!hasCachedData.current) {
+        setErrorMessage("Could not load artist data.");
+        setStatus("error");
       }
     };
 
@@ -830,7 +838,7 @@ export default function ArtistGallery() {
     loadVisitorCount();
 
     return () => controller.abort();
-  }, [useSheet]);
+  }, [useSheet, toast]);
 
   useEffect(() => {
     if (status === "success" && trendsLoaded && !initialSortApplied.current && filterOptions.sortByTrends && allArtists.length > 0) {
