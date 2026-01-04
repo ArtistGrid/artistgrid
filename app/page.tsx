@@ -43,7 +43,7 @@ const TRENDS_API = "https://trends.artistgrid.cx/";
 const CACHE_EXPIRY = 1000 * 60 * 30;
 const DONATION_OPTIONS = {
   URL: [
-    { name: "PayPal", value: "https://paypal.me/aristgrid" },
+    { name: "PayPal", value: "https://paypal.me/artistgrid" },
     { name: "Patreon", value: "https://www.patreon.com/c/ArtistGrid" },
     { name: "Liberapay", value: "https://liberapay.com/ArtistGrid/" },
     { name: "Ko-fi", value: "https://ko-fi.com/artistgrid" }
