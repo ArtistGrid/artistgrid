@@ -457,8 +457,8 @@ const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: b
       <div className="text-neutral-300 space-y-4 text-sm sm:text-base">
         <p>
           Maintained by{" "}
-          <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">edideaur</a>,{" "}
-          <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">JustAMZ</a>, and{" "}
+          <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">justAMZ</a>,{" "}
+          <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">edideaur</a>, and{" "}
           <a href="https://sad.ovh" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">fucksophie</a>.
         </p>
         <p>
