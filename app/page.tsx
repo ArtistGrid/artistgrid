@@ -465,7 +465,7 @@ const InfoModal = memo(({ isOpen, onClose, visitorCount, onDonate }: { isOpen: b
           Original trackers are in{" "}
           <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">this Google Sheet</a>.
         </p>
-        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p>
+        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or any of the artists mentioned.</p>
         <div className="flex items-center justify-center gap-4 text-base pt-2">
           <a href="https://github.com/ArtistGrid" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">GitHub</a>
           <a href="https://discord.gg/RdBeMZ2m8S" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Discord</a>
@@ -585,7 +585,7 @@ const Footer = memo(({ displayedCount, totalCount, onDonateClick, visitorCount }
           Original trackers are in{" "}
           <a href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">this Google Sheet</a>.
         </p>
-        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or the artists.</p>
+        <p className="text-xs text-neutral-500">We are not affiliated with TrackerHub or any of the artists mentioned.</p>
         {visitorCount !== null && (
           <p className="text-sm text-neutral-500 pt-2">You are visitor #{visitorCount.toLocaleString()}</p>
         )}
