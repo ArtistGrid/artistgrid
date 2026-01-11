@@ -28,8 +28,6 @@ const MAX_RETRY_ATTEMPTS = 2;
 const TIDAL_APIS = [
   { baseUrl: 'https://triton.squid.wtf' },
   { baseUrl: 'https://tidal.kinoplus.online' },
-  { baseUrl: 'https://tidal-api.binimum.org' },
-  { baseUrl: 'https://tidal-api-2.binimum.org' },
   { baseUrl: 'https://hund.qqdl.site' },
   { baseUrl: 'https://katze.qqdl.site' },
   { baseUrl: 'https://maus.qqdl.site' },
