@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2 } from "lucide-react";
 
-export const API_BASE = "https://tracker.israeli.ovh";
+export const API_BASE = "https://tracker.thug.surf";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
@@ -43,7 +43,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "qobuz" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "pixeldrain" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "qobuz" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -196,32 +196,32 @@ async function downloadFileAsBlob(url: string, onProgress?: (loaded: number, tot
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
-    
+
     const contentLength = response.headers.get("content-length");
     const total = contentLength ? parseInt(contentLength, 10) : 0;
-    
+
     if (!response.body) {
       const blob = await response.blob();
       const contentType = response.headers.get("content-type") || "";
       return { blob, contentType };
     }
-    
+
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let loaded = 0;
-    
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       chunks.push(value);
       loaded += value.length;
-      
+
       if (onProgress && total) {
         onProgress(loaded, total);
       }
     }
-    
+
     const blob = new Blob(chunks);
     const contentType = response.headers.get("content-type") || "";
     return { blob, contentType };
@@ -261,7 +261,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
           };
         }));
       });
-      
+
       if (result) {
         const ext = getFileExtension(item.playableUrl, result.contentType);
         if (!zipDataRef.current.has(item.jobId)) {
@@ -357,7 +357,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                   }
                 }
 
-                const content = await zip.generateAsync({ 
+                const content = await zip.generateAsync({
                   type: "blob",
                   compression: "DEFLATE",
                   compressionOptions: { level: 6 }
@@ -370,9 +370,9 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                 const downloadUrl = URL.createObjectURL(content);
                 downloadUrlsRef.current.set(job.id, downloadUrl);
 
-                setJobs(prev => prev.map(j => j.id === job.id ? { 
-                  ...j, 
-                  status: "completed" as const, 
+                setJobs(prev => prev.map(j => j.id === job.id ? {
+                  ...j,
+                  status: "completed" as const,
                   zipBlob: content,
                   isCreatingZip: false,
                   downloadUrl
@@ -383,7 +383,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                 link.download = zipName;
                 link.style.display = "none";
                 document.body.appendChild(link);
-                
+
                 setTimeout(() => {
                   link.click();
                   setTimeout(() => {
@@ -395,10 +395,10 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                 creatingZipsRef.current.delete(job.id);
               } catch (error) {
                 console.error("ZIP creation failed:", error);
-                setJobs(prev => prev.map(j => j.id === job.id ? { 
-                  ...j, 
+                setJobs(prev => prev.map(j => j.id === job.id ? {
+                  ...j,
                   status: "failed" as const,
-                  isCreatingZip: false 
+                  isCreatingZip: false
                 } : j));
                 creatingZipsRef.current.delete(job.id);
               }
@@ -679,6 +679,7 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
   if (/https?:\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
+  if (/https:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
@@ -690,12 +691,16 @@ function getTrackSource(url: string): Track["source"] {
 async function resolvePlayableUrl(url: string): Promise<string | null> {
   const normalized = normalizePillowsUrl(url);
   const source = getTrackSource(normalized);
-  
+
   try {
     switch (source) {
       case "pillows": {
         const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
         return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
+      }
+      case "pixeldrain": {
+        const match = normalized.match(/pixeldrain\.com\/d\/([a-f0-9]+)/);
+        return match ? `https://tracker.thug.surf/goy/dl/${match[1]}` : null;
       }
       case "froste": {
         const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
@@ -807,6 +812,7 @@ function getSourceDisplayName(source: Track["source"]): string {
     krakenfiles: "KrakenFiles",
     juicewrldapi: "JuiceWrldAPI",
     imgur: "Imgur",
+    pixeldrain: "Pixeldrain",
     soundcloud: "SoundCloud",
     tidal: "Tidal",
     qobuz: "Qobuz",
