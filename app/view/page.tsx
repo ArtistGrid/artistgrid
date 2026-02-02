@@ -679,7 +679,7 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
   if (/https?:\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
-  if (/https:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
+  if (/https?:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
@@ -699,7 +699,7 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
       }
       case "pixeldrain": {
-        const match = normalized.match(/pixeldrain\.com\/d\/([a-f0-9]+)/);
+        const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
         return match ? `https://tracker.thug.surf/goy/dl/${match[1]}` : null;
       }
       case "froste": {
