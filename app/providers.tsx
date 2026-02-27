@@ -8,7 +8,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "tidal" | "qobuz" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "krakenfiles" | "imgur" | "pixeldrain" | "soundcloud" | "tidal" | "qobuz" | "yetracker" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;

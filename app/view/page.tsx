@@ -14,7 +14,7 @@ import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListP
 
 export const API_BASE = "https://tracker.thug.surf";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
-const IMGUR_API = "https://imgur.gg/api/file/";
+const IMGUR_API = "https://temp.imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
 const TRACKER_ID_LENGTH = 44;
 const CACHE_KEY_PREFIX = "artistgrid_tracker_";
@@ -43,7 +43,7 @@ interface Track {
   extra: string;
   url: string;
   playableUrl: string | null;
-  source: "pillows" | "froste" | "juicewrldapi" | "pixeldrain" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "qobuz" | "unknown";
+  source: "pillows" | "froste" | "juicewrldapi" | "pixeldrain" | "krakenfiles" | "imgur" | "soundcloud" | "tidal" | "qobuz" | "yetracker" | "unknown";
   quality?: string;
   trackLength?: string;
   type?: string;
@@ -649,7 +649,9 @@ function extractKrakenId(url: string): string | null {
 }
 
 function extractImgurId(url: string): string | null {
-  const match = url.match(/imgur\.gg\/(?:f\/)?([a-zA-Z0-9]+)/);
+  let match = url.match(/\/f\/([a-zA-Z0-9]+)/);
+  if (match) return match[1];
+  match = url.match(/\/([a-zA-Z0-9]+)(?:\?|$)/);
   return match ? match[1] : null;
 }
 
@@ -681,7 +683,8 @@ function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
   if (/https?:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
-  if (/https?:\/\/imgur\.gg\//.test(normalized)) return "imgur";
+  if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
+  if (/https?:\/\/files\.yetracker\.org\/f\//.test(normalized)) return "yetracker";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
   if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
   if (/https?:\/\/(open\.)?qobuz\.com\/track\//.test(normalized)) return "qobuz";
@@ -691,23 +694,28 @@ function getTrackSource(url: string): Track["source"] {
 async function resolvePlayableUrl(url: string): Promise<string | null> {
   const normalized = normalizePillowsUrl(url);
   const source = getTrackSource(normalized);
+  console.log(`[resolvePlayableUrl] Input: ${url}, Normalized: ${normalized}, Source: ${source}`);
 
   try {
     switch (source) {
       case "pillows": {
         const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
+        console.log(`[resolvePlayableUrl] pillows match: ${match?.[1]}`);
         return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
       }
       case "pixeldrain": {
         const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
+        console.log(`[resolvePlayableUrl] pixeldrain match: ${match?.[1]}`);
         return match ? `https://tracker.thug.surf/goy/dl/${match[1]}` : null;
       }
       case "froste": {
         const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
+        console.log(`[resolvePlayableUrl] froste match: ${match?.[1]}`);
         return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
       }
       case "krakenfiles": {
         const id = extractKrakenId(normalized);
+        console.log(`[resolvePlayableUrl] krakenfiles id: ${id}`);
         if (!id) return null;
         const res = await fetch(`${KRAKENFILES_API}${id}`);
         const data = await res.json();
@@ -715,11 +723,19 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
       }
       case "imgur": {
         const id = extractImgurId(normalized);
+        console.log(`[resolvePlayableUrl] imgur id: ${id}, API: ${IMGUR_API}${id}`);
         if (!id) return null;
         const res = await fetch(`${IMGUR_API}${id}`);
+        console.log(`[resolvePlayableUrl] imgur response status: ${res.status}`);
         if (!res.ok) return null;
         const data = await res.json();
+        console.log(`[resolvePlayableUrl] imgur data:`, data);
         return data.cdnUrl || null;
+      }
+      case "yetracker": {
+        const match = normalized.match(/files\.yetracker\.org\/f\/([a-zA-Z0-9]+)/);
+        console.log(`[resolvePlayableUrl] yetracker id: ${match?.[1]}`);
+        return match ? `https://files.yetracker.org/raw/${match[1]}` : null;
       }
       case "soundcloud": {
         const path = extractSoundcloudPath(normalized);
@@ -749,6 +765,10 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
         if (!res.ok) return null;
         const data = await res.json();
         return data?.data?.url || null;
+      }
+      case "yetracker": {
+        const match = normalized.match(/files\.yetracker\.org\/f\/([a-zA-Z0-9]+)/);
+        return match ? `https://files.yetracker.org/raw/${match[1]}` : null;
       }
       case "juicewrldapi":
         return url;
@@ -816,6 +836,7 @@ function getSourceDisplayName(source: Track["source"]): string {
     soundcloud: "SoundCloud",
     tidal: "Tidal",
     qobuz: "Qobuz",
+    yetracker: "YetTracker",
     unknown: "Unknown"
   };
   return names[source];
@@ -1075,7 +1096,10 @@ function TrackerViewContent() {
         const filtered = tracks.filter((t) => {
           const url = getTrackUrl(t);
           if (!url) return false;
-          if (filters.showPlayableOnly && !resolvedUrls.get(url)) return false;
+          const source = getTrackSource(url);
+          const supportedSources = ["pillows", "froste", "krakenfiles", "pixeldrain", "imgur", "yetracker", "soundcloud", "tidal", "qobuz"];
+          const isSupported = supportedSources.includes(source);
+          if (filters.showPlayableOnly && !resolvedUrls.get(url) && !isSupported) return false;
           if (filters.qualityFilter !== "all" && !(t.quality?.toLowerCase() || "").includes(filters.qualityFilter.toLowerCase())) return false;
           if (query) {
             const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
@@ -1315,8 +1339,7 @@ function TrackerViewContent() {
       togglePlayPause();
       return;
     }
-    let playableUrl = resolvedUrls.get(url);
-    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    const playableUrl = await resolvePlayableUrl(url);
     if (!playableUrl) {
       handleOpenUrl(url);
       return;
@@ -1331,13 +1354,12 @@ function TrackerViewContent() {
         addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl));
       }
     }
-  }, [resolvedUrls, playTrack, playerState.currentTrack, togglePlayPause, handleOpenUrl, allPlayableTracks, addToQueue, clearQueue, createTrackObject]);
+  }, [playTrack, playerState.currentTrack, togglePlayPause, handleOpenUrl, allPlayableTracks, addToQueue, clearQueue, createTrackObject]);
 
   const handlePlayNext = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
-    let playableUrl = resolvedUrls.get(url);
-    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    const playableUrl = await resolvePlayableUrl(url);
     if (!playableUrl) {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
@@ -1345,13 +1367,12 @@ function TrackerViewContent() {
     const track = createTrackObject(rawTrack, era, url, playableUrl);
     addToQueue(track);
     toast({ title: "Playing next", description: track.name });
-  }, [resolvedUrls, addToQueue, toast, createTrackObject]);
+  }, [addToQueue, toast, createTrackObject]);
 
   const handleAddToQueue = useCallback(async (rawTrack: TALeak, era: Era) => {
     const url = getTrackUrl(rawTrack);
     if (!url) return;
-    let playableUrl = resolvedUrls.get(url);
-    if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+    const playableUrl = await resolvePlayableUrl(url);
     if (!playableUrl) {
       toast({ title: "Cannot queue", description: "Track is not playable" });
       return;
@@ -1359,7 +1380,7 @@ function TrackerViewContent() {
     const track = createTrackObject(rawTrack, era, url, playableUrl);
     addToQueue(track);
     toast({ title: "Added to queue", description: track.name });
-  }, [resolvedUrls, addToQueue, toast, createTrackObject]);
+  }, [addToQueue, toast, createTrackObject]);
 
   const handleDownload = useCallback(async (rawTrack: TALeak) => {
     const url = getTrackUrl(rawTrack);
@@ -1625,13 +1646,15 @@ function TrackerViewContent() {
                               <div className="space-y-1.5 sm:space-y-2">
                                 {(tracks as TALeak[]).map((track, i) => {
                                   const url = getTrackUrl(track);
+                                  const source = url ? getTrackSource(url) : "unknown";
+                                  const supportedSources = ["pillows", "froste", "krakenfiles", "pixeldrain", "imgur", "yetracker", "soundcloud", "tidal", "qobuz"];
+                                  const isSupported = supportedSources.includes(source);
                                   const playableUrl = url ? resolvedUrls.get(url) : null;
-                                  const isPlayable = !!playableUrl;
+                                  const isPlayable = !!playableUrl || isSupported;
                                   const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
                                   const isCurrentTrack = playerState.currentTrack?.url === url;
                                   const isHighlighted = url === highlightedTrackUrl;
                                   const description = getTrackDescription(track);
-                                  const source = url ? getTrackSource(url) : "unknown";
                                   const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
                                   return (
                                     <div key={i} ref={isHighlighted ? highlightedTrackRef : null} className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}>
