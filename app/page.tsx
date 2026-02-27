@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileSpreadsheet, X, QrCode, Search, Filter, Info, CircleSlash, Copy as CopyIcon, HandCoins, Github, BarChart3, AlertTriangle } from "lucide-react";
-import { API_BASE } from "./view/page";
+import { API_BASE, fetchWithFallback } from "./view/page";
 import { TripleBool } from "@/lib/utils";
 
 declare global {
@@ -652,7 +652,7 @@ export default function ArtistGallery() {
 
   useEffect(() => {
     const load = async () => {
-      const working = await fetch(API_BASE + "/tested");
+      const working = await fetchWithFallback("/tested");
       if (!working.ok) return;
       setTestedTrackers(await working.json())
     }

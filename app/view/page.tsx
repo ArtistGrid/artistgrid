@@ -12,7 +12,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2 } from "lucide-react";
 
-export const API_BASE = "https://tracker.thug.surf";
+export const API_BASE = "https://trackerapi-2.artistgrid.cx";
+const API_FALLBACK = "https://tracker.thug.surf";
+
+export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, options);
+    if (res.ok || res.type === 'opaqueredirect') return res;
+    throw new Error('Primary failed');
+  } catch {
+    return fetch(`${API_FALLBACK}${endpoint}`, options);
+  }
+}
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://temp.imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
@@ -1205,7 +1216,7 @@ function TrackerViewContent() {
         setBaseEraImages(images);
         return;
       }
-      const res = await fetch(`${API_BASE}/get/${id}`);
+      const res = await fetchWithFallback(`/get/${id}`);
       if (res.ok) {
         const json: TrackerResponse = await res.json();
         if (json?.eras) {
@@ -1259,8 +1270,8 @@ function TrackerViewContent() {
       return;
     }
     try {
-      const url = tab ? `${API_BASE}/get/${id}?tab=${encodeURIComponent(tab)}` : `${API_BASE}/get/${id}`;
-      const res = await fetch(url, { redirect: "manual" });
+      const endpoint = tab ? `/get/${id}?tab=${encodeURIComponent(tab)}` : `/get/${id}`;
+      const res = await fetchWithFallback(endpoint, { redirect: "manual" });
       if (res.type === "opaqueredirect") {
         setStatus("fallback");
         return;
