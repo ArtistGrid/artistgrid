@@ -836,7 +836,7 @@ function getSourceDisplayName(source: Track["source"]): string {
     soundcloud: "SoundCloud",
     tidal: "Tidal",
     qobuz: "Qobuz",
-    yetracker: "YetTracker",
+    yetracker: "YeTracker",
     unknown: "Unknown"
   };
   return names[source];
