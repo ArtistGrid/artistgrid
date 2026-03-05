@@ -35,6 +35,7 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 const DATA_SOURCES = [
+  "https://assets.artistgrid.cx/artists.ndjson",
   "https://sheets.artistgrid.cx/artists.ndjson",
   "https://git.sad.ovh/sophie/sheets/raw/branch/main/artists.ndjson"
 ]
