@@ -12,8 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Search, X, Play, Pause, Filter, Share2, ChevronDown, CircleSlash, ListPlus, MoreHorizontal, Download, ExternalLink, Loader2, Radio, Link as LinkIcon, AlertTriangle, Share, SkipForward, FolderDown, Archive, CheckCircle2, XCircle, Minimize2, Maximize2 } from "lucide-react";
 
-export const API_BASE = "https://trackerapi-2.artistgrid.cx";
-const API_FALLBACK = "https://tracker.thug.surf";
+export const API_BASE = "https://trackerapi-1.artistgrid.cx";
+const API_FALLBACK = "https://trackerapi-2.artistgrid.cx";
 
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
   try {
@@ -717,7 +717,7 @@ async function resolvePlayableUrl(url: string): Promise<string | null> {
       case "pixeldrain": {
         const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
         console.log(`[resolvePlayableUrl] pixeldrain match: ${match?.[1]}`);
-        return match ? `https://tracker.thug.surf/goy/dl/${match[1]}` : null;
+        return match ? `https://trackerapi-1.artistgrid.cx/goy/dl/${match[1]}` : null;
       }
       case "froste": {
         const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
