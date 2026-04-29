@@ -1,0 +1,140 @@
+import type { Track } from "@/src/types";
+const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
+const IMGUR_API = "https://imgur.gg/api/file/";
+const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
+const TIDAL_APIS = [
+  { baseUrl: "https://triton.squid.wtf" },
+  { baseUrl: "https://tidal.kinoplus.online" },
+  { baseUrl: "https://hund.qqdl.site" },
+  { baseUrl: "https://katze.qqdl.site" },
+  { baseUrl: "https://maus.qqdl.site" },
+  { baseUrl: "https://vogel.qqdl.site" },
+  { baseUrl: "https://wolf.qqdl.site" },
+];
+const selectTidalApi = (() => {
+  let i = 0;
+  return (): string => {
+    const { baseUrl } = TIDAL_APIS[i];
+    i = (i + 1) % TIDAL_APIS.length;
+    return baseUrl;
+  };
+})();
+export function normalizePillowsUrl(url: string): string {
+  return url.replace(/pillowcase\.su/g, "pillows.su");
+}
+function extractKrakenId(url: string): string | null {
+  const match = url.match(/krakenfiles\.com\/view\/([a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+function extractImgurId(url: string): string | null {
+  let match = url.match(/\/f\/([a-zA-Z0-9]+)/);
+  if (match) return match[1];
+  match = url.match(/\/([a-zA-Z0-9]+)(?:\?|$)/);
+  return match ? match[1] : null;
+}
+function extractSoundcloudPath(url: string): string | null {
+  const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
+  return match ? match[1] : null;
+}
+function extractTidalId(url: string): string | null {
+  const match = url.match(/tidal\.com\/(?:browse\/)?track\/(\d+)/);
+  return match ? match[1] : null;
+}
+function extractQobuzId(url: string): string | null {
+  const match = url.match(/(?:open\.)?qobuz\.com\/track\/(\d+)/);
+  return match ? match[1] : null;
+}
+export function getTrackSource(url: string): Track["source"] {
+  const normalized = normalizePillowsUrl(url);
+  if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
+  if (/https?:\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
+  if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
+  if (/https?:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
+  if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
+  if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
+  if (/https?:\/\/files\.yetracker\.org\/f\//.test(normalized)) return "yetracker";
+  if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
+  if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
+  if (/https?:\/\/(open\.)?qobuz\.com\/track\//.test(normalized)) return "qobuz";
+  return "unknown";
+}
+export async function resolvePlayableUrl(url: string): Promise<string | null> {
+  const normalized = normalizePillowsUrl(url);
+  const source = getTrackSource(normalized);
+  try {
+    switch (source) {
+      case "pillows": {
+        const match = normalized.match(/pillows\.su\/f\/([a-f0-9]+)/);
+        return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
+      }
+      case "pixeldrain": {
+        const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
+        return match ? `https://trackerapi-1.artistgrid.cx/goy/dl/${match[1]}` : null;
+      }
+      case "froste": {
+        const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
+        return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
+      }
+      case "krakenfiles": {
+        const id = extractKrakenId(normalized);
+        if (!id) return null;
+        const res = await fetch(`${KRAKENFILES_API}${id}`);
+        const data = await res.json();
+        return data.success ? data.m4a : null;
+      }
+      case "imgur": {
+        const id = extractImgurId(normalized);
+        if (!id) return null;
+        const res = await fetch(`${IMGUR_API}${id}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.cdnUrl || null;
+      }
+      case "yetracker": {
+        const match = normalized.match(/files\.yetracker\.org\/f\/([a-zA-Z0-9]+)/);
+        return match ? `https://files.yetracker.org/raw/${match[1]}` : null;
+      }
+      case "soundcloud": {
+        const path = extractSoundcloudPath(normalized);
+        return path ? `https://sc.maid.zone/_/restream/${path}` : null;
+      }
+      case "tidal": {
+        const id = extractTidalId(normalized);
+        if (!id) return null;
+        const apiBase = selectTidalApi();
+        const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`, {
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data?.data?.manifest) {
+          const manifestJson = JSON.parse(atob(data.data.manifest));
+          if (manifestJson?.urls?.[0]) return manifestJson.urls[0];
+        }
+        return null;
+      }
+      case "qobuz": {
+        const id = extractQobuzId(normalized);
+        if (!id) return null;
+        const res = await fetch(`${QOBUZ_API}?track_id=${id}&quality=27`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data?.data?.url || null;
+      }
+      case "juicewrldapi":
+        return url;
+      default:
+        return null;
+    }
+  } catch (error) {
+    console.error(`Error resolving ${source} URL:`, error);
+    return null;
+  }
+}
+export function transformUrlForOpening(url: string): string {
+  if (url.includes("soundcloud.com/")) {
+    const path = extractSoundcloudPath(url);
+    if (path) return `https://sc.maid.zone/${path}`;
+  }
+  return url;
+}

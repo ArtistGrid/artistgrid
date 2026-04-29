@@ -2,11 +2,12 @@
   "name": "artistgrid",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "next build",
-    "dev": "next dev",
-    "lint": "next lint",
-    "start": "next start"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "bun run scripts/format.ts"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -43,13 +44,14 @@
     "input-otp": "^1.4.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.556.0",
-    "next": "^16.0.7",
     "next-themes": "^0.4.6",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.1",
     "react-day-picker": "^9.12.0",
+    "react-dom": "^19.2.1",
     "react-hook-form": "^7.68.0",
     "react-resizable-panels": "^3.0.6",
+    "react-router-dom": "^6.30.0",
     "recharts": "^3.5.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
@@ -60,8 +62,11 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.5.2",
     "postcss": "^8.5",
+    "prettier": "^3.8.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^5.4.19"
   }
 }

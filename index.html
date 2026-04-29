@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Discover and track unreleased music from your favorite artists." />
+    <meta name="application-name" content="ArtistGrid" />
+    <meta name="author" content="eduardprigoana" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://www.artistgrid.cx" />
+    <meta property="og:title" content="ArtistGrid" />
+    <meta property="og:description" content="Discover and track unreleased music from your favorite artists." />
+    <meta property="og:site_name" content="ArtistGrid" />
+    <meta property="og:image" content="https://www.artistgrid.cx/favicon.png" />
+    <meta property="og:image:alt" content="ArtistGrid - Unreleased Music" />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <title>ArtistGrid | Unreleased Music</title>
+
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "ArtistGrid",
+      "url": "https://www.artistgrid.cx",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://www.artistgrid.cx/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Plausible Analytics -->
+    <script
+      defer
+      data-domain="artistgrid.cx"
+      src="https://plausible.canine.tools/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js"
+    ></script>
+    <script>
+      window.plausible = window.plausible || function() {
+        (window.plausible.q = window.plausible.q || []).push(arguments)
+      }
+    </script>
+  </head>
+  <body class="bg-black text-white min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
