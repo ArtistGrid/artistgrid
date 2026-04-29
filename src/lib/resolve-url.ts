@@ -11,6 +11,11 @@ const TIDAL_APIS = [
   { baseUrl: "https://vogel.qqdl.site" },
   { baseUrl: "https://wolf.qqdl.site" },
 ];
+const PIXELDRAIN_APIS = [
+  "https://trackerapi-1.artistgrid.cx",
+  "https://trackerapi-2.artistgrid.cx",
+  "https://trackerapi-3.artistgrid.cx",
+];
 const selectTidalApi = (() => {
   let i = 0;
   return (): string => {
@@ -69,7 +74,19 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       }
       case "pixeldrain": {
         const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
-        return match ? `https://trackerapi-1.artistgrid.cx/goy/dl/${match[1]}` : null;
+        if (!match) return null;
+        for (const base of PIXELDRAIN_APIS) {
+          try {
+            const res = await fetch(`${base}/goy/dl/${match[1]}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.url) return data.url;
+            }
+          } catch {
+            continue;
+          }
+        }
+        return null;
       }
       case "froste": {
         const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
