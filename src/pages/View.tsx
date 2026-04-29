@@ -59,7 +59,8 @@ const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 interface FilterOptions {
   showPlayableOnly: boolean;
-  qualityFilter: string;
+  qualityFilter: string[];
+  sourceFilter: string[];
 }
 interface PlayableTrackData {
   track: TALeak;
@@ -110,7 +111,7 @@ function TrackerViewContent() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "fallback">("idle");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState<FilterOptions>({ showPlayableOnly: false, qualityFilter: "all" });
+  const [filters, setFilters] = useState<FilterOptions>({ showPlayableOnly: false, qualityFilter: [], sourceFilter: [] });
   const [resolvedUrls, setResolvedUrls] = useState<Map<string, string | null>>(new Map());
   const [resolveProgress, setResolveProgress] = useState({ current: 0, total: 0 });
   const [isPreloading, setIsPreloading] = useState(false);
@@ -158,10 +159,11 @@ function TrackerViewContent() {
           const isSupported = SUPPORTED_SOURCES.includes(source);
           if (filters.showPlayableOnly && !resolvedUrls.get(url) && !isSupported) return false;
           if (
-            filters.qualityFilter !== "all" &&
-            !(t.quality?.toLowerCase() || "").includes(filters.qualityFilter.toLowerCase())
+            filters.qualityFilter.length > 0 &&
+            !filters.qualityFilter.some((q) => (t.quality?.toLowerCase() || "").includes(q.toLowerCase()))
           )
             return false;
+          if (filters.sourceFilter.length > 0 && !filters.sourceFilter.includes(source)) return false;
           if (query) {
             const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
             if (!searchable.includes(query)) return false;
@@ -547,6 +549,21 @@ function TrackerViewContent() {
     }
     return Array.from(set);
   }, [data]);
+  const sources = useMemo(() => {
+    if (!data?.eras) return [];
+    const set = new Set<string>();
+    for (const era of Object.values(data.eras)) {
+      if (!era.data) continue;
+      for (const tracks of Object.values(era.data)) {
+        if (!Array.isArray(tracks)) continue;
+        for (const t of tracks) {
+          const url = getTrackUrl(t);
+          if (url) set.add(getTrackSource(url));
+        }
+      }
+    }
+    return Array.from(set).sort();
+  }, [data]);
   const stats = useMemo(() => {
     let total = 0,
       playable = 0;
@@ -755,7 +772,7 @@ function TrackerViewContent() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-56 bg-neutral-950 border-neutral-800 text-neutral-200"
+                      className="w-64 max-h-96 overflow-y-auto bg-neutral-950 border-neutral-800 text-neutral-200"
                     >
                       <DropdownMenuLabel>Filters</DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-neutral-800" />
@@ -768,18 +785,49 @@ function TrackerViewContent() {
                       <DropdownMenuSeparator className="bg-neutral-800" />
                       <DropdownMenuLabel>Quality</DropdownMenuLabel>
                       <DropdownMenuCheckboxItem
-                        checked={filters.qualityFilter === "all"}
-                        onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: "all" }))}
+                        checked={filters.qualityFilter.length === 0}
+                        onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: [] }))}
                       >
                         All qualities
                       </DropdownMenuCheckboxItem>
                       {qualities.map((q) => (
                         <DropdownMenuCheckboxItem
                           key={q}
-                          checked={filters.qualityFilter === q}
-                          onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: q }))}
+                          checked={filters.qualityFilter.includes(q)}
+                          onCheckedChange={() =>
+                            setFilters((f) => ({
+                              ...f,
+                              qualityFilter: f.qualityFilter.includes(q)
+                                ? f.qualityFilter.filter((x) => x !== q)
+                                : [...f.qualityFilter, q],
+                            }))
+                          }
                         >
                           {q}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                      <DropdownMenuSeparator className="bg-neutral-800" />
+                      <DropdownMenuLabel>Source</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.sourceFilter.length === 0}
+                        onCheckedChange={() => setFilters((f) => ({ ...f, sourceFilter: [] }))}
+                      >
+                        All sources
+                      </DropdownMenuCheckboxItem>
+                      {sources.map((s) => (
+                        <DropdownMenuCheckboxItem
+                          key={s}
+                          checked={filters.sourceFilter.includes(s)}
+                          onCheckedChange={() =>
+                            setFilters((f) => ({
+                              ...f,
+                              sourceFilter: f.sourceFilter.includes(s)
+                                ? f.sourceFilter.filter((x) => x !== s)
+                                : [...f.sourceFilter, s],
+                            }))
+                          }
+                        >
+                          {getSourceDisplayName(s as any)}
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuContent>
