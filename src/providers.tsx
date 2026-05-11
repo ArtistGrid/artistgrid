@@ -251,14 +251,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (track.artistName) return track.artistName;
     return track.eraName || "Unknown Artist";
   }, []);
+  const artworkBlobUrlRef = useRef<string | null>(null);
   const updateMediaSession = useCallback(
-    (track: Track, isPlaying: boolean) => {
+    async (track: Track, isPlaying: boolean) => {
       if (!("mediaSession" in navigator)) return;
+      const artist = getScrobbleArtist(track);
       const artwork: MediaImage[] = [];
       if (track.eraImage) {
-        artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
+        try {
+          const res = await fetch(track.eraImage, { referrerPolicy: "no-referrer" });
+          const blob = await res.blob();
+          if (artworkBlobUrlRef.current) URL.revokeObjectURL(artworkBlobUrlRef.current);
+          artworkBlobUrlRef.current = URL.createObjectURL(blob);
+          artwork.push({ src: artworkBlobUrlRef.current, sizes: "512x512", type: blob.type || "image/jpeg" });
+        } catch {
+          artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
+        }
       }
-      const artist = getScrobbleArtist(track);
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.name,
         artist,
@@ -402,6 +411,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current = new Audio();
       audioRef.current.volume = state.volume;
       audioRef.current.preload = "metadata";
+      (audioRef.current as any).referrerPolicy = "no-referrer";
+      audioRef.current.crossOrigin = "anonymous";
       audioRef.current.addEventListener("timeupdate", () => {
         setState((s) => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
         if ("mediaSession" in navigator && audioRef.current) {

@@ -84,7 +84,7 @@ const QueueModal = ({
               <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Now Playing</p>
               <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl border border-white/20">
                 {currentTrack.eraImage ? (
-                  <img src={currentTrack.eraImage} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  <img src={currentTrack.eraImage} alt="" className="w-10 h-10 rounded-lg object-cover" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                 ) : (
                   <div className="w-10 h-10 rounded-lg bg-neutral-800" />
                 )}
@@ -115,7 +115,7 @@ const QueueModal = ({
                   <GripVertical className="w-4 h-4 text-neutral-600 flex-shrink-0" />
                   <span className="text-xs text-neutral-600 w-5">{index + 1}</span>
                   {track.eraImage ? (
-                    <img src={track.eraImage} alt="" className="w-8 h-8 rounded object-cover" />
+                    <img src={track.eraImage} alt="" className="w-8 h-8 rounded object-cover" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                   ) : (
                     <div className="w-8 h-8 rounded bg-neutral-800" />
                   )}
@@ -206,6 +206,8 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 src={state.currentTrack.eraImage}
                 alt=""
                 className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
             ) : (
               <div className="w-12 h-12 rounded-lg bg-neutral-800 flex-shrink-0" />
