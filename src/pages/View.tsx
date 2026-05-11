@@ -116,6 +116,8 @@ function TrackerViewContent() {
   const [resolveProgress, setResolveProgress] = useState({ current: 0, total: 0 });
   const [isPreloading, setIsPreloading] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>("");
+  const [tabsList, setTabsList] = useState<string[]>([]);
+  const [tabError, setTabError] = useState(false);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{
@@ -311,37 +313,40 @@ function TrackerViewContent() {
   const loadTrackerData = useCallback(
     async (id: string, tab?: string) => {
       setStatus("loading");
+      setTabError(false);
       if (tab) fetchBaseEraImages(id);
+      const fail = () => {
+        if (tab) {
+          setData(null);
+          setTabError(true);
+          setStatus("success");
+        } else {
+          setStatus("fallback");
+        }
+      };
       const cached = getCache(id, tab);
       if (cached) {
         setData(cached.data);
         setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
         setCurrentTab(cached.data.current_tab);
+        if (cached.data.tabs?.length) setTabsList(cached.data.tabs);
         setStatus("success");
         return;
       }
       try {
         const endpoint = tab ? `/get/${id}?tab=${encodeURIComponent(tab)}` : `/get/${id}`;
         const res = await fetchWithFallback(endpoint, { redirect: "manual" });
-        if (res.type === "opaqueredirect") {
-          setStatus("fallback");
-          return;
-        }
-        if (!res.ok) {
-          setStatus("fallback");
-          return;
-        }
+        if (res.type === "opaqueredirect") { fail(); return; }
+        if (!res.ok) { fail(); return; }
         const json: TrackerResponse = await res.json();
-        if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) {
-          setStatus("fallback");
-          return;
-        }
+        if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) { fail(); return; }
         setData(json);
         setCurrentTab(json.current_tab);
+        if (json.tabs?.length) setTabsList(json.tabs);
         setStatus("success");
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
       } catch {
-        setStatus("fallback");
+        fail();
       }
     },
     [fetchBaseEraImages]
@@ -701,7 +706,7 @@ function TrackerViewContent() {
             </div>
           </div>
         )}
-        {status === "success" && data && (
+        {status === "success" && (data || tabError) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white">{artistDisplayName}</h1>
@@ -718,9 +723,9 @@ function TrackerViewContent() {
                 </Button>
               )}
             </div>
-            {data.tabs && data.tabs.length > 0 && (
+            {tabsList.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800">
-                {data.tabs.map((tab) => (
+                {tabsList.map((tab) => (
                   <Button
                     key={tab}
                     variant={currentTab === tab ? "default" : "outline"}
@@ -835,7 +840,13 @@ function TrackerViewContent() {
                 </div>
               </div>
             )}
-            {isArtTab && filteredData ? (
+            {tabError ? (
+              <div className="text-center py-12 sm:py-20 flex flex-col items-center">
+                <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-neutral-300">Failed to load this tab</h3>
+                <p className="text-sm sm:text-base text-neutral-500 mt-1">Try selecting another tab</p>
+              </div>
+            ) : isArtTab && filteredData ? (
               <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-4 sm:space-y-6">
