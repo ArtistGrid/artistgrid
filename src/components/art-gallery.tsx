@@ -44,6 +44,8 @@ export function ArtGallery({
                 src={era.image}
                 alt={era.name}
                 className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-neutral-800 flex-shrink-0"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
             ) : (
               <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-neutral-800 flex-shrink-0" />
@@ -81,6 +83,8 @@ export function ArtGallery({
                                 src={imgUrl}
                                 alt={item.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-neutral-600">
@@ -136,6 +140,8 @@ export function ImageLightbox({
           className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
           onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")}
           title="Click to open original"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
         />
         <Button
           variant="ghost"

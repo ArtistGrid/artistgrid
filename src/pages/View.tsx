@@ -869,6 +869,8 @@ function TrackerViewContent() {
                               src={era.image}
                               alt={era.name}
                               className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-neutral-800 flex-shrink-0"
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
                             />
                           ) : (
                             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-neutral-800 flex-shrink-0" />
