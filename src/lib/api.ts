@@ -1,5 +1,5 @@
-export const API_BASE = "https://trackerapi-2.artistgrid.cx";
-const API_FALLBACK = "https://trackerapi-1.artistgrid.cx";
+export const API_BASE = "https://trackerapi-1.artistgrid.cx";
+const API_FALLBACK = "https://trackerapi-2.artistgrid.cx";
 const API_FALLBACK_2 = "https://trackerapi-3.artistgrid.cx";
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
   const endpoints = [API_BASE, API_FALLBACK, API_FALLBACK_2];
