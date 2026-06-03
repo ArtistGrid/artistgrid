@@ -89,7 +89,7 @@ export const HeaderActions = memo(
         size="icon"
         onClick={() => {
           trackEvent("Header Click", { button: "Discord" });
-          window.open("https://discord.gg/RdBeMZ2m8S", "_blank", "noopener,noreferrer");
+          window.open("https://discord.gg/n67DkxMt2c", "_blank", "noopener,noreferrer");
         }}
         aria-label="Discord"
         className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white hover:text-white"
