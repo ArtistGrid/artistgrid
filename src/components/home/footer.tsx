@@ -29,7 +29,7 @@ export const Footer = memo(
             <span>GitHub</span>
           </a>
           <a
-            href="https://discord.gg/RdBeMZ2m8S"
+            href="https://discord.gg/n67DkxMt2c"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
