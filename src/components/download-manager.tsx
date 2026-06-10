@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
 const CONCURRENT_DOWNLOADS = 3;
-const MAX_ZIP_SIZE = 500 * 1024 * 1024;
-const MAX_RETRY_ATTEMPTS = 2;
+const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024;  // 2GB
+const MAX_RETRY_ATTEMPTS = 5;
 interface DownloadItem {
   id: string;
   trackName: string;
@@ -89,12 +89,24 @@ async function downloadFileAsBlob(
   contentType: string;
 } | null> {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
     if (!response.ok) return null;
     const contentLength = response.headers.get("content-length");
     const total = contentLength ? parseInt(contentLength, 10) : 0;
+    
+    // Validate file size before downloading
+    if (total > MAX_ZIP_SIZE) {
+      console.error(`File too large: ${(total / 1024 / 1024).toFixed(1)}MB > ${(MAX_ZIP_SIZE / 1024 / 1024).toFixed(1)}MB`);
+      return null;
+    }
+    
     if (!response.body) {
       const blob = await response.blob();
+      // Also validate blob size in case Content-Length was wrong
+      if (blob.size > MAX_ZIP_SIZE) {
+        console.error(`Downloaded file too large: ${(blob.size / 1024 / 1024).toFixed(1)}MB`);
+        return null;
+      }
       const contentType = response.headers.get("content-type") || "";
       return { blob, contentType };
     }
@@ -104,6 +116,13 @@ async function downloadFileAsBlob(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      
+      // Check during download too
+      if (loaded + value.length > MAX_ZIP_SIZE) {
+        console.error("Download exceeded maximum file size");
+        return null;
+      }
+      
       chunks.push(value);
       loaded += value.length;
       if (onProgress && total) onProgress(loaded, total);
@@ -115,7 +134,7 @@ async function downloadFileAsBlob(
     console.error("Download error:", error);
     return null;
   }
-}
+}}
 function DownloadFloatingUI() {
   const { jobs, isMinimized, setIsMinimized, clearCompleted, dismissJob } = useDownloadManager();
   const activeJobs = jobs.filter((j) => j.status === "active");

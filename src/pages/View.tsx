@@ -68,11 +68,16 @@ interface PlayableTrackData {
   url: string;
   playableUrl: string;
 }
-const FallbackView = ({ trackerId, sheetsUrl }: { trackerId: string; sheetsUrl: string }) => (
+const FallbackView = ({ trackerId, sheetsUrl, error }: { trackerId: string; sheetsUrl: string; error?: string | null }) => (
   <div className="min-h-screen bg-black flex items-center justify-center p-4">
     <div className="max-w-lg w-full bg-neutral-950 border border-neutral-800 rounded-xl p-6 sm:p-8 text-center">
       <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4 sm:mb-6" />
       <h1 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Unable to Load Tracker</h1>
+      {error && (
+        <p className="text-sm text-red-400 mb-3 sm:mb-4 p-2 bg-red-500/10 rounded">
+          {error}
+        </p>
+      )}
       <p className="text-sm sm:text-base text-neutral-400 mb-4 sm:mb-6">
         We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google Sheets.
       </p>
@@ -118,6 +123,7 @@ function TrackerViewContent() {
   const [currentTab, setCurrentTab] = useState<string>("");
   const [tabsList, setTabsList] = useState<string[]>([]);
   const [tabError, setTabError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{
@@ -147,9 +153,27 @@ function TrackerViewContent() {
   const filteredData = useMemo(() => {
     if (!erasWithImages) return null;
     if (isArtTab) return erasWithImages;
+    
+    let dataToFilter = erasWithImages;
+    
+    // If "All" tab is selected, merge Unreleased and Released data
+    if (currentTab === "All" && data) {
+      const mergedEras: Record<string, Era> = {};
+      
+      // Collect eras from both Unreleased and Released tabs if they exist
+      const unreleasedData = data.eras || {};
+      
+      // For "All" tab, we'll include all eras but mark this tab specially
+      for (const [key, era] of Object.entries(erasWithImages)) {
+        mergedEras[key] = era;
+      }
+      
+      dataToFilter = mergedEras;
+    }
+    
     const result: Record<string, Era> = {};
     const query = searchQuery.toLowerCase();
-    for (const [key, era] of Object.entries(erasWithImages)) {
+    for (const [key, era] of Object.entries(dataToFilter)) {
       if (!era.data) continue;
       const filteredCategories: Record<string, TALeak[]> = {};
       for (const [cat, tracks] of Object.entries(era.data)) {
@@ -177,7 +201,7 @@ function TrackerViewContent() {
       if (Object.keys(filteredCategories).length > 0) result[key] = { ...era, data: filteredCategories };
     }
     return result;
-  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab]);
+  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab, currentTab, data]);
   const allPlayableTracks = useMemo((): PlayableTrackData[] => {
     if (!filteredData) return [];
     const tracks: PlayableTrackData[] = [];
@@ -314,12 +338,20 @@ function TrackerViewContent() {
     async (id: string, tab?: string) => {
       setStatus("loading");
       setTabError(false);
+      setLoadError(null);
       if (tab) fetchBaseEraImages(id);
-      const fail = () => {
+      const fail = (reason: string) => {
+        console.error(`Tracker load failed (${id}): ${reason}`);
+        setLoadError(reason);
         if (tab) {
           setData(null);
           setTabError(true);
           setStatus("success");
+          toast({
+            title: "Tab not found",
+            description: reason,
+            variant: "destructive"
+          });
         } else {
           setStatus("fallback");
         }
@@ -336,17 +368,28 @@ function TrackerViewContent() {
       try {
         const endpoint = tab ? `/get/${id}?tab=${encodeURIComponent(tab)}` : `/get/${id}`;
         const res = await fetchWithFallback(endpoint, { redirect: "manual" });
-        if (res.type === "opaqueredirect") { fail(); return; }
-        if (!res.ok) { fail(); return; }
+        if (res.type === "opaqueredirect") { fail("Tracker appears to be restricted or moved"); return; }
+        if (!res.ok) { fail(`Server error: ${res.status} ${res.statusText}`); return; }
         const json: TrackerResponse = await res.json();
-        if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) { fail(); return; }
+        if (!json || typeof json !== "object") { fail("Invalid response format from server"); return; }
+        if (!json.eras || Object.keys(json.eras).length === 0) { fail("Tracker contains no era data"); return; }
         setData(json);
         setCurrentTab(json.current_tab);
-        if (json.tabs?.length) setTabsList(json.tabs);
+        
+        // Add "All" tab if both Unreleased and Released exist
+        let tabsToDisplay = json.tabs ? [...json.tabs] : [];
+        if (tabsToDisplay.includes("Unreleased") && tabsToDisplay.includes("Released")) {
+          // Insert "All" after "Unreleased"
+          const unreleasedIndex = tabsToDisplay.indexOf("Unreleased");
+          tabsToDisplay.splice(unreleasedIndex + 1, 0, "All");
+        }
+        if (tabsToDisplay.length) setTabsList(tabsToDisplay);
         setStatus("success");
+        setLoadError(null);
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
-      } catch {
-        fail();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error occurred";
+        fail(`Network error: ${message}`);
       }
     },
     [fetchBaseEraImages]
@@ -382,6 +425,15 @@ function TrackerViewContent() {
   const handleTabChange = useCallback(
     (tab: string) => {
       if (!trackerId || tab === currentTab) return;
+      
+      // For "All" tab, don't load from API, just switch tab locally
+      if (tab === "All") {
+        setCurrentTab(tab);
+        setResolvedUrls(new Map());
+        setHighlightedTrackUrl(null);
+        return;
+      }
+      
       setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
       loadTrackerData(trackerId, tab);
@@ -572,8 +624,9 @@ function TrackerViewContent() {
   const stats = useMemo(() => {
     let total = 0,
       playable = 0;
-    if (data?.eras) {
-      for (const era of Object.values(data.eras)) {
+    if (filteredData) {
+      // Count playable tracks in the current filtered view (tab-aware)
+      for (const era of Object.values(filteredData)) {
         if (!era.data) continue;
         for (const tracks of Object.values(era.data)) {
           if (Array.isArray(tracks)) {
@@ -587,8 +640,8 @@ function TrackerViewContent() {
       }
     }
     return { total, playable };
-  }, [data, resolvedUrls]);
-  if (status === "fallback") return <FallbackView trackerId={trackerId} sheetsUrl={getGoogleSheetsUrl(trackerId)} />;
+  }, [filteredData, resolvedUrls]);
+  if (status === "fallback") return <FallbackView trackerId={trackerId} sheetsUrl={getGoogleSheetsUrl(trackerId)} error={loadError} />;
   return (
     <div className="min-h-screen bg-black pb-32 sm:pb-24">
       <header className="sticky top-0 z-30 py-3 sm:py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
@@ -703,14 +756,15 @@ function TrackerViewContent() {
           <div className="flex items-center justify-center py-12 sm:py-20">
             <div className="text-center bg-neutral-900 border border-red-500/30 p-6 sm:p-8 rounded-xl max-w-md">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Error Loading Data</h2>
+              {loadError && <p className="text-red-400 text-sm">{loadError}</p>}
             </div>
           </div>
-        )}
+        )}}
         {status === "success" && (data || tabError) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white">{artistDisplayName}</h1>
-              {!isArtTab && stats.playable > 0 && (
+              {!isArtTab && stats.total > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -719,7 +773,7 @@ function TrackerViewContent() {
                   className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white self-start sm:self-auto"
                 >
                   <FolderDown className="w-4 h-4 mr-2" />
-                  Download All ({stats.playable})
+                  Download {currentTab === "All" ? "All" : "Tab"} ({stats.playable})
                 </Button>
               )}
             </div>

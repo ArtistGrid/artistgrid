@@ -198,9 +198,19 @@ export default function ArtistGallery() {
             } catch {}
           }
           if (!cached?.data || !artistsEqual(parsed, cached.data)) {
-            setCachedData(cacheKey, parsed);
-            originalOrder.current = parsed;
-            setAllArtists(parsed);
+            // Override isLinkWorking status with real-time tested data
+            const artistsWithVerification = parsed.map(artist => {
+              const trackerId = extractTrackerId(artist.url);
+              const isTestedWorking = trackerId && testedTrackers.includes(trackerId);
+              // If tested endpoint confirms it works, mark as working
+              if (isTestedWorking) {
+                return { ...artist, isLinkWorking: true };
+              }
+              return artist;
+            });
+            setCachedData(cacheKey, artistsWithVerification);
+            originalOrder.current = artistsWithVerification;
+            setAllArtists(artistsWithVerification);
           }
           setStatus("success");
           return;
