@@ -4,7 +4,6 @@ import Fuse from "fuse.js";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
 import type { Artist, ArtistFilterOptions } from "@/src/types";
-import { fetchWithFallback } from "@/src/lib/api";
 import { getCachedData, isCacheExpired, setCachedData } from "@/src/lib/cache";
 import {
   extractTrackerId,
@@ -43,7 +42,6 @@ export default function ArtistGallery() {
   const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(null);
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
-  const [testedTrackers, setTestedTrackers] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useLocalStorage<ArtistFilterOptions>(
     LOCAL_STORAGE_KEYS.FILTER_OPTIONS,
     DEFAULT_FILTER_OPTIONS
@@ -63,14 +61,6 @@ export default function ArtistGallery() {
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
     localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
-  }, []);
-  useEffect(() => {
-    const load = async () => {
-      const working = await fetchWithFallback("/tested");
-      if (!working.ok) return;
-      setTestedTrackers(await working.json());
-    };
-    load();
   }, []);
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) trackEvent("Search", { query: deferredQuery });
@@ -365,7 +355,6 @@ export default function ArtistGallery() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
           {filteredArtists.length > 0 ? (
             <ArtistGridDisplay
-              testedTrackers={testedTrackers}
               artists={filteredArtists}
               onArtistClick={handleArtistClick}
               onSheetClick={handleSheetClick}

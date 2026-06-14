@@ -50,6 +50,7 @@ export interface TALeak {
   urls?: string[];
   notes?: string;
   info?: string;
+  image?: string;
 }
 export interface TrackerResponse {
   name: string | null | undefined;

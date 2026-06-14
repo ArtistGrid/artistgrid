@@ -36,7 +36,7 @@ import {
   SkipForward,
   FolderDown,
 } from "lucide-react";
-import { fetchWithFallback } from "@/src/lib/api";
+import { fetchWithFallback, adaptV3Response, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
 import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/src/lib/resolve-url";
 import {
@@ -156,10 +156,9 @@ function TrackerViewContent() {
         if (!Array.isArray(tracks)) continue;
         const filtered = tracks.filter((t) => {
           const url = getTrackUrl(t);
-          if (!url) return false;
-          const source = getTrackSource(url);
-          const isSupported = SUPPORTED_SOURCES.includes(source);
-          if (filters.showPlayableOnly && !resolvedUrls.get(url) && !isSupported) return false;
+          const source = url ? getTrackSource(url) : "unknown";
+          const isSupported = url ? SUPPORTED_SOURCES.includes(source) : false;
+          if (filters.showPlayableOnly && !(url && resolvedUrls.get(url)) && !isSupported) return false;
           if (
             filters.qualityFilter.length > 0 &&
             !filters.qualityFilter.some((q) => (t.quality?.toLowerCase() || "").includes(q.toLowerCase()))
@@ -265,13 +264,13 @@ function TrackerViewContent() {
         setBaseEraImages(images);
         return;
       }
-      const res = await fetchWithFallback(`/get/${id}`);
+      const res = await fetchWithFallback(`/sh/${id}/`);
       if (res.ok) {
-        const json: TrackerResponse = await res.json();
+        const json: V3Response = await res.json();
         if (json?.eras) {
           const images: Record<string, string> = {};
-          for (const [key, era] of Object.entries(json.eras)) {
-            if (era.image) images[era.name || key] = era.image;
+          for (const era of json.eras) {
+            if (era.cover_art) images[era.name] = era.cover_art;
           }
           setBaseEraImages(images);
         }
@@ -334,18 +333,22 @@ function TrackerViewContent() {
         return;
       }
       try {
-        const endpoint = tab ? `/get/${id}?tab=${encodeURIComponent(tab)}` : `/get/${id}`;
-        const res = await fetchWithFallback(endpoint, { redirect: "manual" });
-        if (res.type === "opaqueredirect") { fail(); return; }
+        const endpoint = tab ? `/sh/${id}/tab/${encodeURIComponent(tab)}` : `/sh/${id}/`;
+        console.log("[tracker] fetching", endpoint);
+        const res = await fetchWithFallback(endpoint);
+        console.log("[tracker] status", res.status, res.ok);
         if (!res.ok) { fail(); return; }
-        const json: TrackerResponse = await res.json();
-        if (!json || typeof json !== "object" || !json.eras || Object.keys(json.eras).length === 0) { fail(); return; }
+        const v3: V3Response = await res.json();
+        console.log("[tracker] eras", v3?.eras?.length);
+        if (!v3 || typeof v3 !== "object" || !v3.eras || v3.eras.length === 0) { fail(); return; }
+        const json = adaptV3Response(v3);
         setData(json);
         setCurrentTab(json.current_tab);
         if (json.tabs?.length) setTabsList(json.tabs);
         setStatus("success");
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
-      } catch {
+      } catch (e) {
+        console.error("[tracker] load failed", e);
         fail();
       }
     },
@@ -501,6 +504,8 @@ function TrackerViewContent() {
         if (match) return `https://i.imgur.com/${match[1]}.jpg`;
       }
       if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return u;
+      // Google Sheets image URLs (v3 cover art / per-row images)
+      if (u.includes("docs.google.com/sheets-images-rt") || u.includes("googleusercontent.com")) return u;
       return null;
     };
     const directUrl = getDirectImageUrl(url);

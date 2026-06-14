@@ -70,12 +70,13 @@ export function ArtGallery({
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                     {(items as TALeak[]).map((item, i) => {
                       const url = item.url || (item.urls && item.urls[0]);
-                      const imgUrl = url ? getImageUrl(url) : null;
+                      const imgUrl = item.image || (url ? getImageUrl(url) : null);
+                      const clickTarget = url || item.image || null;
                       return (
                         <div
                           key={i}
                           className="group cursor-pointer rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition-all"
-                          onClick={() => url && onImageClick(url, item.name)}
+                          onClick={() => clickTarget && onImageClick(clickTarget, item.name)}
                         >
                           <div className="aspect-square relative bg-neutral-800">
                             {imgUrl ? (

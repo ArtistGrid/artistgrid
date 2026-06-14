@@ -4,13 +4,11 @@ import type { Artist } from "@/src/types";
 import { ASSET_BASE } from "@/src/lib/home-constants";
 import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
 export const ArtistCard = memo(function ArtistCard({
-  isTested,
   artist,
   priority,
   onClick,
   onSheetClick,
 }: {
-  isTested: boolean;
   artist: Artist;
   priority: boolean;
   onClick: (artist: Artist) => void;
@@ -21,10 +19,7 @@ export const ArtistCard = memo(function ArtistCard({
     <div
       role="link"
       tabIndex={0}
-      className={
-        (isTested ? "border-yellow-500 hover:border-yellow-200/30" : "border-neutral-800 hover:border-white/30") +
-        " bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
-      }
+      className="border-neutral-800 hover:border-white/30 bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
       onClick={() => onClick(artist)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}
     >
@@ -61,12 +56,10 @@ export const ArtistCard = memo(function ArtistCard({
 });
 export const ArtistGridDisplay = memo(
   ({
-    testedTrackers,
     artists,
     onArtistClick,
     onSheetClick,
   }: {
-    testedTrackers: string[];
     artists: Artist[];
     onArtistClick: (artist: Artist) => void;
     onSheetClick: (url: string) => void;
@@ -79,7 +72,6 @@ export const ArtistGridDisplay = memo(
           style={{ animationDelay: `${Math.min(i, 50) * 20}ms` }}
         >
           <ArtistCard
-            isTested={testedTrackers.includes(extractTrackerId(artist.url || "") || "")}
             artist={artist}
             priority={i < 18}
             onClick={onArtistClick}
