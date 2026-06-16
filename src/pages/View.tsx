@@ -230,7 +230,8 @@ function TrackerViewContent() {
   }, [searchParams]);
   useEffect(() => {
     if (highlightedTrackRef.current && highlightedTrackUrl) {
-      setTimeout(() => highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
+      const id = setTimeout(() => highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
+      return () => clearTimeout(id);
     }
   }, [highlightedTrackUrl, data]);
   useEffect(() => {
@@ -595,7 +596,7 @@ function TrackerViewContent() {
   }, [data, resolvedUrls]);
   if (status === "fallback") return <FallbackView trackerId={trackerId} sheetsUrl={getGoogleSheetsUrl(trackerId)} />;
   return (
-    <div className="min-h-screen bg-black pb-32 sm:pb-24">
+    <div className="min-h-screen bg-black pb-32 sm:pb-28">
       <header className="sticky top-0 z-30 py-3 sm:py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
         <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4 px-3 sm:px-6">
           <Link
@@ -729,17 +730,20 @@ function TrackerViewContent() {
               )}
             </div>
             {tabsList.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800">
+              <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800/60">
                 {tabsList.map((tab) => (
-                  <Button
+                  <button
+                    type="button"
                     key={tab}
-                    variant={currentTab === tab ? "default" : "outline"}
-                    size="sm"
                     onClick={() => handleTabChange(tab)}
-                    className={`flex-shrink-0 text-xs sm:text-sm ${currentTab === tab ? "bg-white text-black hover:bg-neutral-200" : "bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white"}`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                      currentTab === tab
+                        ? "bg-white text-black"
+                        : "border border-neutral-700 text-neutral-400 hover:text-white hover:border-neutral-500 hover:bg-white/10"
+                    }`}
                   >
                     {tab}
-                  </Button>
+                  </button>
                 ))}
               </div>
             )}
@@ -876,6 +880,7 @@ function TrackerViewContent() {
                     >
                       <div className="flex items-center">
                         <button
+                          type="button"
                           style={{ color: "black" }}
                           className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.02] transition-colors"
                           onClick={() => toggleEra(key)}
@@ -966,6 +971,7 @@ function TrackerViewContent() {
                                         <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
                                           {isPlayable ? (
                                             <button
+                                              type="button"
                                               onClick={() => handlePlayTrack(track, era)}
                                               className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform"
                                             >
@@ -977,6 +983,7 @@ function TrackerViewContent() {
                                             </button>
                                           ) : (
                                             <button
+                                              type="button"
                                               onClick={() => url && handleOpenUrl(url)}
                                               className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform"
                                             >

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, Link as LinkIcon, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
 import type { Era, TALeak } from "@/src/types";
+
 function getImageUrl(url: string): string | null {
   if (url.includes("ibb.co")) {
     const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/);
@@ -13,8 +14,10 @@ function getImageUrl(url: string): string | null {
     if (match) return `https://i.imgur.com/${match[1]}.jpg`;
   }
   if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return url;
+  if (url.includes("docs.google.com/sheets-images-rt") || url.includes("googleusercontent.com")) return url;
   return null;
 }
+
 export function ArtGallery({
   eras,
   onImageClick,
@@ -36,6 +39,7 @@ export function ArtGallery({
       {Object.entries(eras).map(([key, era]) => (
         <div key={key} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden">
           <button
+            type="button"
             className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.02] transition-colors"
             onClick={() => toggleEra(key)}
           >
@@ -70,27 +74,35 @@ export function ArtGallery({
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                     {(items as TALeak[]).map((item, i) => {
                       const url = item.url || (item.urls && item.urls[0]);
-                      const imgUrl = item.image || (url ? getImageUrl(url) : null);
-                      const clickTarget = url || item.image || null;
+                      // A URL counts as an image if it resolves to a direct image (not a music link)
+                      const urlAsImage = url ? getImageUrl(url) : null;
+                      // The item's own image: explicit image field, or a URL that IS an image
+                      const ownImageSrc = item.image || urlAsImage;
+                      // Fall back to the era cover art so the grid always has something to show
+                      const displaySrc = ownImageSrc || era.image || null;
+                      // Only open the lightbox when we have an image that belongs to this item
+                      const clickTarget = ownImageSrc || null;
                       return (
                         <div
                           key={i}
-                          className="group cursor-pointer rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition-all"
+                          className={`group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all ${
+                            clickTarget ? "cursor-pointer hover:border-neutral-600" : "cursor-default"
+                          }`}
                           onClick={() => clickTarget && onImageClick(clickTarget, item.name)}
                         >
-                          <div className="aspect-square relative bg-neutral-800">
-                            {imgUrl ? (
+                          <div className="aspect-square relative bg-neutral-800 overflow-hidden">
+                            {displaySrc ? (
                               <img
-                                src={imgUrl}
+                                src={displaySrc}
                                 alt={item.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                className={`w-full h-full object-cover transition-transform duration-300 ${
+                                  clickTarget ? "group-hover:scale-105" : "opacity-40"
+                                }`}
                                 referrerPolicy="no-referrer"
                                 crossOrigin="anonymous"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-neutral-600">
-                                <LinkIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-                              </div>
+                              <div className="w-full h-full bg-neutral-800" />
                             )}
                           </div>
                           <div className="p-2 sm:p-3">
@@ -114,6 +126,7 @@ export function ArtGallery({
     </div>
   );
 }
+
 export function ImageLightbox({
   src,
   alt,
@@ -128,7 +141,7 @@ export function ImageLightbox({
   useKeyPress("Escape", onClose);
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
       onClick={onClose}
     >
       <div
@@ -138,7 +151,7 @@ export function ImageLightbox({
         <img
           src={src}
           alt={alt}
-          className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          className="max-w-full max-h-full object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
           onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")}
           title="Click to open original"
           referrerPolicy="no-referrer"
@@ -148,12 +161,12 @@ export function ImageLightbox({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:bg-white/10"
+          className="absolute top-3 right-3 text-white bg-black/40 hover:bg-black/60 rounded-xl w-9 h-9 backdrop-blur-sm"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </Button>
-        <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-neutral-400">
-          Click image to open original link
+        <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-neutral-400 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+          Click to open original
         </p>
       </div>
     </div>

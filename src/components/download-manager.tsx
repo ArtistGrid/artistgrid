@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
 import { Archive, CheckCircle2, Loader2, Maximize2, Minimize2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -53,7 +53,7 @@ interface DownloadContextType {
 }
 const DownloadContext = createContext<DownloadContextType | null>(null);
 export function useDownloadManager() {
-  const ctx = useContext(DownloadContext);
+  const ctx = use(DownloadContext);
   if (!ctx) throw new Error("useDownloadManager must be used within DownloadProvider");
   return ctx;
 }
@@ -331,75 +331,81 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   }, [downloadSingleItem]);
   processQueueRef.current = processQueue;
   useEffect(() => {
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
     const checkAndCreateZips = async () => {
-      for (const job of jobs) {
-        if (job.status === "active" && !creatingZipsRef.current.has(job.id)) {
-          const allDone = job.items.every((i) => i.status === "completed" || i.status === "failed");
-          if (allDone && !job.zipBlob && !job.isCreatingZip) {
-            const jobData = zipDataRef.current.get(job.id);
-            if (jobData && jobData.size > 0) {
-              creatingZipsRef.current.add(job.id);
-              setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
-              try {
-                const JSZip = (await import("jszip")).default;
-                const zip = new JSZip();
-                let totalSize = 0;
-                for (const item of job.items) {
-                  if (item.status === "completed") {
-                    const fileData = jobData.get(item.id);
-                    if (fileData) {
-                      totalSize += fileData.blob.size;
-                      if (totalSize > MAX_ZIP_SIZE) throw new Error("ZIP size exceeds maximum limit");
-                      zip.file(
-                        `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
-                        fileData.blob
-                      );
-                    }
-                  }
-                }
-                const content = await zip.generateAsync({
-                  type: "blob",
-                  compression: "DEFLATE",
-                  compressionOptions: { level: 6 },
-                });
-                const zipName = job.eraName
-                  ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}.zip`
-                  : `${sanitizeFilename(job.artistName)} Tracker.zip`;
-                const downloadUrl = URL.createObjectURL(content);
-                downloadUrlsRef.current.set(job.id, downloadUrl);
-                setJobs((prev) =>
-                  prev.map((j) =>
-                    j.id === job.id
-                      ? { ...j, status: "completed" as const, zipBlob: content, isCreatingZip: false, downloadUrl }
-                      : j
-                  )
-                );
-                const link = document.createElement("a");
-                link.href = downloadUrl;
-                link.download = zipName;
-                link.style.display = "none";
-                document.body.appendChild(link);
-                setTimeout(() => {
-                  link.click();
-                  setTimeout(() => document.body.removeChild(link), 100);
-                }, 100);
-                zipDataRef.current.delete(job.id);
-                creatingZipsRef.current.delete(job.id);
-              } catch (error) {
-                console.error("ZIP creation failed:", error);
-                setJobs((prev) =>
-                  prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
-                );
-                creatingZipsRef.current.delete(job.id);
-              }
-            } else {
-              setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
-            }
+      const readyJobs = jobs.filter((job) => {
+        if (job.status !== "active" || creatingZipsRef.current.has(job.id)) return false;
+        return job.items.every((i) => i.status === "completed" || i.status === "failed") && !job.zipBlob && !job.isCreatingZip;
+      });
+      if (readyJobs.length === 0) return;
+      const JSZip = (await import("jszip")).default;
+      await Promise.all(
+        readyJobs.map(async (job) => {
+          const jobData = zipDataRef.current.get(job.id);
+          if (!jobData || jobData.size === 0) {
+            setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
+            return;
           }
-        }
-      }
+          creatingZipsRef.current.add(job.id);
+          setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
+          try {
+            const zip = new JSZip();
+            let totalSize = 0;
+            for (const item of job.items) {
+              if (item.status === "completed") {
+                const fileData = jobData.get(item.id);
+                if (fileData) {
+                  totalSize += fileData.blob.size;
+                  if (totalSize > MAX_ZIP_SIZE) throw new Error("ZIP size exceeds maximum limit");
+                  zip.file(
+                    `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
+                    fileData.blob
+                  );
+                }
+              }
+            }
+            const content = await zip.generateAsync({
+              type: "blob",
+              compression: "DEFLATE",
+              compressionOptions: { level: 6 },
+            });
+            const zipName = job.eraName
+              ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}.zip`
+              : `${sanitizeFilename(job.artistName)} Tracker.zip`;
+            const downloadUrl = URL.createObjectURL(content);
+            downloadUrlsRef.current.set(job.id, downloadUrl);
+            setJobs((prev) =>
+              prev.map((j) =>
+                j.id === job.id
+                  ? { ...j, status: "completed" as const, zipBlob: content, isCreatingZip: false, downloadUrl }
+                  : j
+              )
+            );
+            const link = document.createElement("a");
+            link.href = downloadUrl;
+            link.download = zipName;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            const t1 = setTimeout(() => {
+              link.click();
+              const t2 = setTimeout(() => document.body.removeChild(link), 100);
+              timeouts.push(t2);
+            }, 100);
+            timeouts.push(t1);
+            zipDataRef.current.delete(job.id);
+            creatingZipsRef.current.delete(job.id);
+          } catch (error) {
+            console.error("ZIP creation failed:", error);
+            setJobs((prev) =>
+              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+            );
+            creatingZipsRef.current.delete(job.id);
+          }
+        })
+      );
     };
     checkAndCreateZips();
+    return () => timeouts.forEach(clearTimeout);
   }, [jobs]);
   useEffect(() => {
     return () => {
@@ -473,7 +479,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     creatingZipsRef.current.delete(jobId);
   }, []);
   return (
-    <DownloadContext.Provider value={{ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }}>
+    <DownloadContext.Provider value={useMemo(() => ({ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }), [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob])}>
       {children}
       <DownloadFloatingUI />
     </DownloadContext.Provider>

@@ -39,6 +39,7 @@ export const ArtistCard = memo(function ArtistCard({
           <h3 className="font-semibold text-white text-sm leading-tight flex-1 mr-2">{artist.name}</h3>
           {trackerId && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onSheetClick(getSheetViewUrl(artist.url));

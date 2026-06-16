@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "bun run scripts/format.ts"
+    "format": "bun run scripts/format.ts",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -54,6 +55,7 @@
     "react-router-dom": "^6.30.0",
     "recharts": "^3.5.1",
     "sonner": "^2.0.7",
+    "spark-md5": "^3.0.2",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2"
@@ -62,6 +64,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/spark-md5": "^3.0.5",
     "@vitejs/plugin-react": "^4.5.2",
     "postcss": "^8.5",
     "prettier": "^3.8.3",

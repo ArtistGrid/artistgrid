@@ -373,7 +373,7 @@ export default function ArtistGallery() {
     );
   };
   return (
-    <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-24" : "pb-8"}`}>
+    <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-32" : "pb-8"}`}>
       <AnnouncementModal
         isOpen={activeModal === "announcement"}
         onClose={handleDismissAnnouncement}

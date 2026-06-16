@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { memo, useState, useCallback, lazy, Suspense } from "react";
 import { QrCode, Copy as CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,11 @@ export const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCode
 ));
 export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) setActiveQrCode(null);
+  }
   const { toast } = useToast();
   const handleCopy = useCallback(
     (text: string, name: string) => {
@@ -87,9 +92,6 @@ export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClo
     trackEvent("Show QR Code", { crypto: option.name });
     setActiveQrCode({ ...option });
   }, []);
-  useEffect(() => {
-    if (!isOpen) setActiveQrCode(null);
-  }, [isOpen]);
   return (
     <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options">
       <div className="p-6">
@@ -230,6 +232,7 @@ export const InfoModal = memo(
               Analytics
             </a>
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onDonate();

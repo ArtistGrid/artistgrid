@@ -47,6 +47,7 @@ export const Footer = memo(
             <span>Analytics</span>
           </a>
           <button
+            type="button"
             onClick={onDonateClick}
             className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
           >
