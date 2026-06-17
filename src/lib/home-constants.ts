@@ -18,11 +18,7 @@ export const LOCAL_STORAGE_KEYS = {
   TRENDS_CACHE: "artistGridTrendsCache",
   MESSAGE_HASH: "artistGridMessageHash",
 } as const;
-export const DATA_SOURCES = [
-  "https://assets.artistgrid.cx/artists.ndjson",
-  "https://sheets.artistgrid.cx/artists.ndjson",
-  "https://git.sad.ovh/sophie/sheets/raw/branch/main/artists.ndjson",
-];
+export const ARTISTS_CSV = "https://artists.artistgrid.cx/artists.csv";
 export const TRENDS_API = "https://trends.artistgrid.cx/";
 export const HOME_CACHE_EXPIRY = 1000 * 60 * 30;
 export const DONATION_OPTIONS = {

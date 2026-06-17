@@ -14,7 +14,7 @@ import {
 } from "@/src/lib/artist-utils";
 import {
   LOCAL_STORAGE_KEYS,
-  DATA_SOURCES,
+  ARTISTS_CSV,
   TRENDS_API,
   HOME_CACHE_EXPIRY,
   DEFAULT_FILTER_OPTIONS,
@@ -30,6 +30,24 @@ import { Header } from "@/src/components/home/header";
 import { Footer } from "@/src/components/home/footer";
 import { AnnouncementModal, DonationModal, InfoModal } from "@/src/components/home/modals";
 import { TripleBool } from "@/lib/utils";
+function parseCSVRow(line: string): string[] {
+  const fields: string[] = [];
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      fields.push(cur); cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  fields.push(cur);
+  return fields;
+}
 export default function ArtistGallery() {
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
@@ -132,77 +150,54 @@ export default function ArtistGallery() {
         setStatus("loading");
       }
       if (!isCacheExpired(cached, HOME_CACHE_EXPIRY) && cached?.data?.length) return;
-      for (const source of DATA_SOURCES) {
-        try {
-          const response = await fetch(source, { signal: controller.signal, cache: "no-store" });
-          if (!response.ok) throw new Error(`Status ${response.status}`);
-          const reader = response.body?.getReader();
-          if (!reader) throw new Error("ReadableStream not supported");
-          const decoder = new TextDecoder("utf-8");
-          let buffer = "";
-          const parsed: Artist[] = [];
-          const nameCount: Record<string, number> = {};
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              try {
-                const obj = JSON.parse(line);
-                const { name, url, links_work, updated, best } = obj;
-                if (!name || !url) continue;
-                const count = nameCount[name] || 0;
-                nameCount[name] = count + 1;
-                const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
-                parsed.push({
-                  name: newName,
-                  url,
-                  imageFilename: getImageFilename(newName),
-                  isLinkWorking: links_work === TripleBool.YES,
-                  isUpdated: updated === TripleBool.YES,
-                  isStarred: best === TripleBool.YES,
-                });
-              } catch {}
-            }
-          }
-          if (buffer.trim()) {
-            try {
-              const obj = JSON.parse(buffer);
-              const { name, url, links_work, updated, best } = obj;
-              if (name && url) {
-                const count = nameCount[name] || 0;
-                nameCount[name] = count + 1;
-                const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
-                parsed.push({
-                  name: newName,
-                  url,
-                  imageFilename: getImageFilename(newName),
-                  isLinkWorking: links_work === TripleBool.YES,
-                  isUpdated: updated === TripleBool.YES,
-                  isStarred: best === TripleBool.YES,
-                });
-              }
-            } catch {}
-          }
-          if (!cached?.data || !artistsEqual(parsed, cached.data)) {
-            setCachedData(cacheKey, parsed);
-            originalOrder.current = parsed;
-            setAllArtists(parsed);
-          }
-          setStatus("success");
-          return;
-        } catch (e) {
-          if (e instanceof Error && e.name === "AbortError") return;
-          toast({ title: "Failed to load data", description: `Could not fetch from ${source}. Trying next source...` });
-          console.warn(`Failed to fetch from ${source}:`, e);
+      try {
+        const response = await fetch(ARTISTS_CSV, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error(`Status ${response.status}`);
+        const text = await response.text();
+        const rows = text.split("\n");
+        const headers = parseCSVRow(rows[0]);
+        const nameIdx = headers.indexOf("name");
+        const urlIdx = headers.indexOf("url");
+        const linksWorkIdx = headers.indexOf("links_work");
+        const updatedIdx = headers.indexOf("updated");
+        const bestIdx = headers.indexOf("best");
+        const parsed: Artist[] = [];
+        const nameCount: Record<string, number> = {};
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i].trim();
+          if (!row) continue;
+          const fields = parseCSVRow(row);
+          const name = fields[nameIdx];
+          const url = fields[urlIdx];
+          if (!name || !url) continue;
+          const links_work = Number(fields[linksWorkIdx]);
+          const updated = Number(fields[updatedIdx]);
+          const best = fields[bestIdx]?.trim() === "true";
+          const count = nameCount[name] || 0;
+          nameCount[name] = count + 1;
+          const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
+          parsed.push({
+            name: newName,
+            url,
+            imageFilename: getImageFilename(newName),
+            isLinkWorking: links_work === TripleBool.YES,
+            isUpdated: updated === TripleBool.YES,
+            isStarred: best,
+          });
         }
-      }
-      if (!hasCachedData.current) {
-        setErrorMessage("Could not load artist data.");
-        setStatus("error");
+        if (!cached?.data || !artistsEqual(parsed, cached.data)) {
+          setCachedData(cacheKey, parsed);
+          originalOrder.current = parsed;
+          setAllArtists(parsed);
+        }
+        setStatus("success");
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return;
+        console.warn("Failed to fetch artists CSV:", e);
+        if (!hasCachedData.current) {
+          setErrorMessage("Could not load artist data.");
+          setStatus("error");
+        }
       }
     };
     const loadVisitorCount = async () => {
