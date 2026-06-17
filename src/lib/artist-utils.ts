@@ -14,7 +14,12 @@ export function getSheetViewUrl(url: string): string {
   const id = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
   return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : url;
 }
+const SPECIAL_IDS: Record<string, string> = {
+  "yetracker.net": "yetracker.net",
+};
+
 export function extractTrackerId(url: string): string | null {
+  if (SPECIAL_IDS[url]) return SPECIAL_IDS[url];
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{44})/);
   return match ? match[1] : null;
 }
