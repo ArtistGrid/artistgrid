@@ -36,7 +36,7 @@ import {
   SkipForward,
   FolderDown,
 } from "lucide-react";
-import { fetchWithFallback, adaptV3Response, type V3Response } from "@/src/lib/api";
+import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
 import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/src/lib/resolve-url";
 import {
@@ -117,6 +117,7 @@ function TrackerViewContent() {
   const [isPreloading, setIsPreloading] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>("");
   const [tabsList, setTabsList] = useState<string[]>([]);
+  const [tabSlugs, setTabSlugs] = useState<Record<string, string>>({});
   const [tabError, setTabError] = useState(false);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
@@ -149,6 +150,7 @@ function TrackerViewContent() {
     return result;
   }, [data?.eras, getEraImage]);
   const isArtTab = ART_TABS.includes(currentTab);
+  const isFlat = !!data?.isFlat;
   const filteredData = useMemo(() => {
     if (!erasWithImages) return null;
     if (isArtTab) return erasWithImages;
@@ -335,6 +337,7 @@ function TrackerViewContent() {
         setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
         setCurrentTab(cached.data.current_tab);
         if (cached.data.tabs?.length) setTabsList(cached.data.tabs);
+        if (cached.data.tabSlugs) setTabSlugs((prev) => ({ ...prev, ...cached.data.tabSlugs }));
         setStatus("success");
         return;
       }
@@ -345,12 +348,15 @@ function TrackerViewContent() {
         console.log("[tracker] status", res.status, res.ok);
         if (!res.ok) { fail(); return; }
         const v3: V3Response = await res.json();
-        console.log("[tracker] eras", v3?.eras?.length);
-        if (!v3 || typeof v3 !== "object" || !v3.eras || v3.eras.length === 0) { fail(); return; }
-        const json = adaptV3Response(v3);
+        console.log("[tracker] eras", v3?.eras?.length, "tracks", v3?.tracks?.length);
+        const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
+        const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
+        if (!hasFlatTracks && !hasEras) { fail(); return; }
+        const json = hasFlatTracks ? adaptV3FlatResponse(v3) : adaptV3Response(v3);
         setData(json);
         setCurrentTab(json.current_tab);
         if (json.tabs?.length) setTabsList(json.tabs);
+        if (json.tabSlugs) setTabSlugs((prev) => ({ ...prev, ...json.tabSlugs }));
         setStatus("success");
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
       } catch (e) {
@@ -389,13 +395,14 @@ function TrackerViewContent() {
     [trackerId, artistNameFromUrl, currentTab, data?.tabs, toast]
   );
   const handleTabChange = useCallback(
-    (tab: string) => {
-      if (!trackerId || tab === currentTab) return;
+    (tabName: string) => {
+      if (!trackerId || tabName === currentTab) return;
+      const slug = tabSlugs[tabName] ?? tabName;
       setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
-      loadTrackerData(trackerId, tab);
+      loadTrackerData(trackerId, slug);
     },
-    [trackerId, currentTab, loadTrackerData]
+    [trackerId, currentTab, loadTrackerData, tabSlugs]
   );
   const toggleEra = useCallback((eraKey: string) => {
     setExpandedEras((prev) => {
@@ -939,6 +946,99 @@ function TrackerViewContent() {
               </div>
             ) : isArtTab && filteredData ? (
               <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+            ) : isFlat && filteredData ? (
+              <div className="space-y-1.5 sm:space-y-2">
+                {Object.values(filteredData).flatMap((era) =>
+                  era.data ? Object.values(era.data).flat() : []
+                ).map((track, i) => {
+                  const t = track as TALeak;
+                  const url = getTrackUrl(t);
+                  const source = url ? getTrackSource(url) : "unknown";
+                  const isSupported = SUPPORTED_SOURCES.includes(source);
+                  const playableUrl = url ? resolvedUrls.get(url) : null;
+                  const isPlayable = !!playableUrl || isSupported;
+                  const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
+                  const isCurrentTrack = playerState.currentTrack?.url === url;
+                  const isHighlighted = url === highlightedTrackUrl;
+                  const description = getTrackDescription(t);
+                  const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
+                  const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
+                  return (
+                    <div
+                      key={i}
+                      ref={isHighlighted ? highlightedTrackRef : null}
+                      className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
+                        {isPlayable ? (
+                          <button type="button" onClick={() => handlePlayTrack(t, fakeEra)} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
+                            {isCurrentlyPlaying ? <Pause className="w-3.5 sm:w-4 h-3.5 sm:h-4" /> : <Play className="w-3.5 sm:w-4 h-3.5 sm:h-4 ml-0.5" />}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => url && handleOpenUrl(url)} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
+                            <LinkIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+                          </button>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-white text-xs sm:text-sm truncate">{t.name || "Unknown"}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                            {t.eraName && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                style={{
+                                  background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
+                                  color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
+                                }}
+                              >
+                                {t.eraName}
+                              </span>
+                            )}
+                            {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
+                          </div>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                          {shouldShowSource && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{getSourceDisplayName(source)}</span>}
+                          {t.type && t.type !== "Unknown" && t.type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{t.type}</span>}
+                          {t.quality && !isUrl(t.quality) && t.quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{t.quality}</span>}
+                          {t.track_length && t.track_length !== "N/A" && t.track_length !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{t.track_length}</span>}
+                        </div>
+                        {url && (
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenUrl(url)} className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0">
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
+                            {isPlayable && (
+                              <>
+                                <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { const pt = createTrackObject(t, fakeEra, url!, playableUrl!); clearQueue(); playTrack(pt); }} className="cursor-pointer"><Radio className="w-4 h-4 mr-2" />Play Track Only</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-neutral-800" />
+                                <DropdownMenuItem onClick={() => handleDownload(t)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuItem onClick={() => handleOpenOriginal(t)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      {description && (
+                        <div className="px-2.5 pb-2.5 sm:px-3 sm:pb-3">
+                          <p className="text-[10px] sm:text-xs text-neutral-500 pl-11 sm:pl-[52px]">{description}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-4 sm:space-y-6">
                 {Object.entries(filteredData).map(([key, era]) => {
@@ -971,12 +1071,24 @@ function TrackerViewContent() {
                             <img
                               src={era.image}
                               alt={era.name}
-                              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-neutral-800 flex-shrink-0"
+                              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-contain flex-shrink-0"
+                              style={{
+                                background: era.backgroundColor
+                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 70%)`
+                                  : "oklch(14.5% 0 0)",
+                              }}
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
                             />
                           ) : (
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-neutral-800 flex-shrink-0" />
+                            <div
+                              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex-shrink-0"
+                              style={{
+                                background: era.backgroundColor
+                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 70%)`
+                                  : "oklch(20% 0 0)",
+                              }}
+                            />
                           )}
                           <div className="flex-1 min-w-0">
                             <h3

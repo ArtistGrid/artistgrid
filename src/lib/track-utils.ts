@@ -33,9 +33,13 @@ export function getTrackUrl(track: TALeak): string | null {
 export function getTrackDescription(track: TALeak): string | null {
   return track.description || track.notes || track.info || null;
 }
+const SPECIAL_TRACKER_IDS = ["yetracker.net"];
+
 export function isValidTrackerId(id: string): boolean {
   if (!id || typeof id !== "string") return false;
-  return id.trim().length === TRACKER_ID_LENGTH && /^[a-zA-Z0-9_-]+$/.test(id.trim());
+  const trimmed = id.trim();
+  if (SPECIAL_TRACKER_IDS.includes(trimmed)) return true;
+  return trimmed.length === TRACKER_ID_LENGTH && /^[a-zA-Z0-9_-]+$/.test(trimmed);
 }
 export function encodeTrackForUrl(url: string): string {
   return btoa(url).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

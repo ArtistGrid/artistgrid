@@ -51,12 +51,17 @@ export interface TALeak {
   notes?: string;
   info?: string;
   image?: string;
+  eraName?: string;
+  eraColor?: string;
+  eraTextColor?: string;
 }
 export interface TrackerResponse {
   name: string | null | undefined;
   tabs: string[];
+  tabSlugs?: Record<string, string>;
   current_tab: string;
   eras: Record<string, Era>;
+  isFlat?: boolean;
 }
 export interface Artist {
   name: string;

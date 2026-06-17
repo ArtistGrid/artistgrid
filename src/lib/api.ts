@@ -26,6 +26,12 @@ interface V3Track {
   type?: string;
   sub_era?: string;
 }
+interface V3FlatTrack extends V3Track {
+  era: string;
+  era_color?: string;
+  era_text_color?: string;
+  og_filename?: string;
+}
 interface V3Era {
   name: string;
   aka?: string[];
@@ -45,7 +51,17 @@ export interface V3Response {
   name: string;
   tab: V3Tab;
   tabs: V3Tab[];
-  eras: V3Era[];
+  eras?: V3Era[];
+  tracks?: V3FlatTrack[];
+}
+
+function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<TrackerResponse, "tabs" | "tabSlugs" | "current_tab"> {
+  const tabNames = v3.tabs.map((t) => t.name);
+  if (!tabNames.includes(v3.tab.name)) tabNames.unshift(v3.tab.name);
+  const tabSlugs: Record<string, string> = {};
+  for (const t of v3.tabs) tabSlugs[t.name] = t.slug;
+  if (!tabSlugs[v3.tab.name]) tabSlugs[v3.tab.name] = v3.tab.slug;
+  return { tabs: tabNames, tabSlugs, current_tab: v3.tab.name };
 }
 
 function adaptV3Track(v3Track: V3Track): TALeak {
@@ -68,8 +84,8 @@ function adaptV3Track(v3Track: V3Track): TALeak {
 
 export function adaptV3Response(v3: V3Response): TrackerResponse {
   const eras: Record<string, Era> = {};
-  for (let i = 0; i < v3.eras.length; i++) {
-    const v3Era = v3.eras[i];
+  for (let i = 0; i < (v3.eras?.length ?? 0); i++) {
+    const v3Era = v3.eras![i];
     const key = v3Era.name || String(i);
     const grouped: Record<string, TALeak[]> = {};
     for (const track of v3Era.tracks) {
@@ -88,13 +104,31 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
       data: Object.keys(grouped).length > 0 ? grouped : undefined,
     };
   }
-  // Ensure current tab is included in the tabs list
-  const tabNames = v3.tabs.map((t) => t.name);
-  if (!tabNames.includes(v3.tab.name)) tabNames.unshift(v3.tab.name);
-  return {
-    name: v3.name,
-    tabs: tabNames,
-    current_tab: v3.tab.name,
-    eras,
-  };
+  return { name: v3.name, eras, ...buildTabMeta(v3) };
+}
+
+// Handles tabs that return a flat tracks list (e.g. "Recent") instead of era-grouped eras.
+// Preserves original order — eras are only used as a lookup for era color metadata.
+export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
+  const erasMeta: Record<string, Era> = {};
+  const flat: TALeak[] = [];
+  for (const track of v3.tracks ?? []) {
+    const eraName = track.era || "Unknown";
+    if (!erasMeta[eraName]) {
+      erasMeta[eraName] = {
+        name: eraName,
+        backgroundColor: track.era_color,
+        textColor: track.era_text_color,
+      };
+    }
+    const taLeak = adaptV3Track(track);
+    taLeak.eraName = eraName;
+    taLeak.eraColor = track.era_color;
+    taLeak.eraTextColor = track.era_text_color;
+    flat.push(taLeak);
+  }
+  // Store as a single pseudo-era so the rest of the data pipeline still works,
+  // but set isFlat so the UI renders a plain list instead of the accordion.
+  const eras: Record<string, Era> = { _flat: { name: "", data: { Default: flat } } };
+  return { name: v3.name, eras, isFlat: true, ...buildTabMeta(v3) };
 }
