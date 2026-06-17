@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
 const CONCURRENT_DOWNLOADS = 3;
-const MAX_ZIP_SIZE = 500 * 1024 * 1024;
+const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
 interface DownloadItem {
   id: string;
@@ -349,49 +349,69 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           creatingZipsRef.current.add(job.id);
           setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
           try {
-            const zip = new JSZip();
-            let totalSize = 0;
+            // Split completed items into ≤900 MB chunks
+            type ChunkEntry = { item: DownloadItem; fileData: { blob: Blob; ext: string } };
+            const chunks: ChunkEntry[][] = [[]];
+            let chunkBytes = 0;
             for (const item of job.items) {
-              if (item.status === "completed") {
-                const fileData = jobData.get(item.id);
-                if (fileData) {
-                  totalSize += fileData.blob.size;
-                  if (totalSize > MAX_ZIP_SIZE) throw new Error("ZIP size exceeds maximum limit");
-                  zip.file(
-                    `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
-                    fileData.blob
-                  );
-                }
+              if (item.status !== "completed") continue;
+              const fileData = jobData.get(item.id);
+              if (!fileData) continue;
+              if (chunkBytes + fileData.blob.size > ZIP_CHUNK_SIZE && chunks[chunks.length - 1].length > 0) {
+                chunks.push([]);
+                chunkBytes = 0;
               }
+              chunks[chunks.length - 1].push({ item, fileData });
+              chunkBytes += fileData.blob.size;
             }
-            const content = await zip.generateAsync({
-              type: "blob",
-              compression: "DEFLATE",
-              compressionOptions: { level: 6 },
-            });
-            const zipName = job.eraName
-              ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}.zip`
-              : `${sanitizeFilename(job.artistName)} Tracker.zip`;
-            const downloadUrl = URL.createObjectURL(content);
-            downloadUrlsRef.current.set(job.id, downloadUrl);
+            const filled = chunks.filter((c) => c.length > 0);
+            if (filled.length === 0) {
+              setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j)));
+              creatingZipsRef.current.delete(job.id);
+              return;
+            }
+            const baseName = job.eraName
+              ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}`
+              : `${sanitizeFilename(job.artistName)} Tracker`;
+            let firstContent: Blob | undefined;
+            // Generate each part sequentially to avoid holding multiple 900 MB blobs in memory simultaneously
+            for (let i = 0; i < filled.length; i++) {
+              const zip = new JSZip();
+              for (const { item, fileData } of filled[i]) {
+                zip.file(
+                  `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
+                  fileData.blob
+                );
+              }
+              const content = await zip.generateAsync({
+                type: "blob",
+                compression: "DEFLATE",
+                compressionOptions: { level: 6 },
+              });
+              if (i === 0) firstContent = content;
+              const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
+              const downloadUrl = URL.createObjectURL(content);
+              if (i === 0) downloadUrlsRef.current.set(job.id, downloadUrl);
+              // Stagger each part by 600 ms so the browser doesn't block simultaneous saves
+              const t1 = setTimeout(() => {
+                const link = document.createElement("a");
+                link.href = downloadUrl;
+                link.download = zipName;
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                const t2 = setTimeout(() => document.body.removeChild(link), 100);
+                timeouts.push(t2);
+              }, i * 600);
+              timeouts.push(t1);
+            }
             setJobs((prev) =>
               prev.map((j) =>
                 j.id === job.id
-                  ? { ...j, status: "completed" as const, zipBlob: content, isCreatingZip: false, downloadUrl }
+                  ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current.get(job.id) }
                   : j
               )
             );
-            const link = document.createElement("a");
-            link.href = downloadUrl;
-            link.download = zipName;
-            link.style.display = "none";
-            document.body.appendChild(link);
-            const t1 = setTimeout(() => {
-              link.click();
-              const t2 = setTimeout(() => document.body.removeChild(link), 100);
-              timeouts.push(t2);
-            }, 100);
-            timeouts.push(t1);
             zipDataRef.current.delete(job.id);
             creatingZipsRef.current.delete(job.id);
           } catch (error) {

@@ -127,6 +127,11 @@ function TrackerViewContent() {
   } | null>(null);
   const [highlightedTrackUrl, setHighlightedTrackUrl] = useState<string | null>(null);
   const highlightedTrackRef = useRef<HTMLDivElement | null>(null);
+  const [downloadConfirm, setDownloadConfirm] = useState<{
+    artistName: string;
+    eraName: string | undefined;
+    items: Array<{ track: TALeak; era: Era; playableUrl: string }>;
+  } | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
   const getEraImage = useCallback(
@@ -537,15 +542,37 @@ function TrackerViewContent() {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
       }
-      downloadManager.startDownload({
+      // Fire two 0-byte probe downloads to pre-trigger Chrome's "Allow multiple downloads"
+      // permission prompt. Probe #1 uses this user-gesture (allowed immediately). Probe #2
+      // fires from setTimeout so Chrome shows the Allow/Block popup right now — while the
+      // user is reading the confirmation dialog — rather than mid-download on part 2.
+      const fireProbe = () => {
+        const blob = new Blob([], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "agrid-permission.bin";
+        a.style.cssText = "display:none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+      };
+      fireProbe();
+      setTimeout(fireProbe, 100);
+      setDownloadConfirm({
         artistName: artistDisplayName,
         eraName: eraKey ? data.eras[eraKey]?.name : undefined,
         items: downloadItems,
       });
-      toast({ title: "Download started", description: `Downloading ${downloadItems.length} tracks in background` });
     },
-    [data, resolvedUrls, artistDisplayName, downloadManager, toast]
+    [data, resolvedUrls, artistDisplayName, toast]
   );
+  const confirmDownload = useCallback(() => {
+    if (!downloadConfirm) return;
+    downloadManager.startDownload(downloadConfirm);
+    toast({ title: "Download started", description: `Downloading ${downloadConfirm.items.length} tracks in background` });
+    setDownloadConfirm(null);
+  }, [downloadConfirm, downloadManager, toast]);
   const qualities = useMemo(() => {
     if (!data?.eras) return [];
     const set = new Set<string>();
@@ -669,6 +696,61 @@ function TrackerViewContent() {
           originalUrl={lightboxImage.originalUrl}
           onClose={() => setLightboxImage(null)}
         />
+      )}
+      {downloadConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setDownloadConfirm(null)}
+        >
+          <div
+            className="bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-sm animate-in fade-in-0 zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center flex-shrink-0">
+                  <FolderDown className="w-4 h-4 text-neutral-300" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-white">
+                    Download {downloadConfirm.items.length} track{downloadConfirm.items.length !== 1 ? "s" : ""}
+                  </h2>
+                  <p className="text-sm text-neutral-400 mt-0.5">
+                    {downloadConfirm.eraName ?? downloadConfirm.artistName}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5 mb-5 space-y-2.5">
+                <div className="flex gap-2 text-sm text-neutral-300">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Your browser is asking for permission to download multiple files.{" "}
+                    <span className="text-white font-medium">Click Allow</span> in the popup before continuing.
+                  </span>
+                </div>
+                <div className="flex gap-2 text-sm text-neutral-400">
+                  <Download className="w-4 h-4 text-neutral-500 flex-shrink-0 mt-0.5" />
+                  <span>Large downloads are automatically split into 900 MB ZIP files.</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  className="flex-1 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
+                  onClick={() => setDownloadConfirm(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-white text-black hover:bg-neutral-200"
+                  onClick={confirmDownload}
+                >
+                  Start Download
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {status === "idle" && (
