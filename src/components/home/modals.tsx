@@ -57,7 +57,7 @@ export const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCode
   >
     <div className="bg-white p-4 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
       <Suspense fallback={<div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" />}>
-        <QRCode value={`${qrCodeData.uriScheme}:${qrCodeData.value}`} size={240} level="H" />
+        <QRCode value={qrCodeData.uriScheme ? `${qrCodeData.uriScheme}:${qrCodeData.value}` : qrCodeData.value} size={240} level="H" />
       </Suspense>
     </div>
     <p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p>
@@ -97,10 +97,10 @@ export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClo
       <div className="p-6">
         <h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2>
         <p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p>
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 -mr-2">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-3">
             {DONATION_OPTIONS.URL.map((opt) => (
-              <Button key={opt.name} asChild className="font-semibold rounded-lg">
+              <Button key={opt.name} asChild className="font-semibold rounded-lg w-full">
                 <a href={opt.value} target="_blank" rel="noopener noreferrer">
                   {opt.name}
                 </a>

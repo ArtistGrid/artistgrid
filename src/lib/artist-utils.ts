@@ -16,6 +16,8 @@ export function getSheetViewUrl(url: string): string {
 }
 const SPECIAL_IDS: Record<string, string> = {
   "yetracker.net": "yetracker.net",
+  "https://yetracker.net": "yetracker.net",
+  "https://yetracker.net/": "yetracker.net",
 };
 
 export function extractTrackerId(url: string): string | null {
