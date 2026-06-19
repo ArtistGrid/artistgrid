@@ -11,7 +11,8 @@ export function getImageFilename(artistName: string): string {
   return artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
 }
 export function getSheetViewUrl(url: string): string {
-  const id = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+  if (url.includes("/spreadsheets/d/e/")) return url;
+  const id = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9-_]+)/)?.[1];
   return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : url;
 }
 const SPECIAL_IDS: Record<string, string> = {
@@ -22,7 +23,9 @@ const SPECIAL_IDS: Record<string, string> = {
 
 export function extractTrackerId(url: string): string | null {
   if (SPECIAL_IDS[url]) return SPECIAL_IDS[url];
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{44})/);
+  const pubhtml = url.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
+  if (pubhtml) return pubhtml[1];
+  const match = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
   return match ? match[1] : null;
 }
 export function artistsEqual(a: Artist[], b: Artist[]): boolean {
