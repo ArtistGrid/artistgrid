@@ -6,9 +6,9 @@ export type TrackSource =
   | "imgur"
   | "pixeldrain"
   | "soundcloud"
-  | "tidal"
   | "qobuz"
   | "yetracker"
+  | "youtube"
   | "unknown";
 export interface Track {
   id: string;

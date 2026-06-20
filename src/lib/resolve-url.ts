@@ -2,28 +2,11 @@ import type { Track } from "@/src/types";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
-const TIDAL_APIS = [
-  { baseUrl: "https://triton.squid.wtf" },
-  { baseUrl: "https://tidal.kinoplus.online" },
-  { baseUrl: "https://hund.qqdl.site" },
-  { baseUrl: "https://katze.qqdl.site" },
-  { baseUrl: "https://maus.qqdl.site" },
-  { baseUrl: "https://vogel.qqdl.site" },
-  { baseUrl: "https://wolf.qqdl.site" },
-];
 const PIXELDRAIN_APIS = [
   "https://trackerapi-1.artistgrid.cx",
   "https://trackerapi-2.artistgrid.cx",
   "https://trackerapi-3.artistgrid.cx",
 ];
-const selectTidalApi = (() => {
-  let i = 0;
-  return (): string => {
-    const { baseUrl } = TIDAL_APIS[i];
-    i = (i + 1) % TIDAL_APIS.length;
-    return baseUrl;
-  };
-})();
 export function normalizePillowsUrl(url: string): string {
   return url.replace(/pillowcase\.su/g, "pillows.su");
 }
@@ -41,10 +24,6 @@ function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
 }
-function extractTidalId(url: string): string | null {
-  const match = url.match(/tidal\.com\/(?:browse\/)?track\/(\d+)/);
-  return match ? match[1] : null;
-}
 function extractQobuzId(url: string): string | null {
   const match = url.match(/(?:open\.)?qobuz\.com\/track\/(\d+)/);
   return match ? match[1] : null;
@@ -53,13 +32,13 @@ export function getTrackSource(url: string): Track["source"] {
   const normalized = normalizePillowsUrl(url);
   if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
   if (/https?:\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
+  if (/https?:\/\/(?:www\.|music\.)?youtube\.com\/|https?:\/\/youtu\.be\//.test(normalized)) return "youtube";
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
   if (/https?:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
   if (/https?:\/\/files\.yetracker\.org\/f\//.test(normalized)) return "yetracker";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
-  if (/https?:\/\/tidal\.com\//.test(normalized)) return "tidal";
   if (/https?:\/\/(open\.)?qobuz\.com\/track\//.test(normalized)) return "qobuz";
   return "unknown";
 }
@@ -92,6 +71,8 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       }
       case "froste":
         return null;
+      case "youtube":
+        return null;
       case "krakenfiles": {
         const id = extractKrakenId(normalized);
         if (!id) return null;
@@ -105,6 +86,8 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
         const res = await fetch(`${IMGUR_API}${id}`);
         if (!res.ok) return null;
         const data = await res.json();
+        const mediaType: string = data.mediaType || data.mimeType || data.type || "";
+        if (mediaType.startsWith("image/")) return null;
         return data.cdnUrl || null;
       }
       case "yetracker": {
@@ -114,21 +97,6 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       case "soundcloud": {
         const path = extractSoundcloudPath(normalized);
         return path ? `https://sc.maid.zone/_/restream/${path}` : null;
-      }
-      case "tidal": {
-        const id = extractTidalId(normalized);
-        if (!id) return null;
-        const apiBase = selectTidalApi();
-        const res = await fetch(`${apiBase}/track/?id=${id}&quality=HI_RES_LOSSLESS`, {
-          signal: AbortSignal.timeout(10000),
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (data?.data?.manifest) {
-          const manifestJson = JSON.parse(atob(data.data.manifest));
-          if (manifestJson?.urls?.[0]) return manifestJson.urls[0];
-        }
-        return null;
       }
       case "qobuz": {
         const id = extractQobuzId(normalized);

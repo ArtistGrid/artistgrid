@@ -56,6 +56,7 @@ import {
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
+import { YouTubePlayer } from "@/src/components/youtube-player";
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
@@ -199,6 +200,7 @@ function TrackerViewContent() {
   const tabSlugsRef = useRef<Record<string, string>>({});
   const [tabError, setTabError] = useState(false);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
@@ -500,6 +502,10 @@ function TrackerViewContent() {
       toast({ title: "froste.lol (file host for this song) has shut down :/" });
       return;
     }
+    if (getTrackSource(url) === "youtube") {
+      setYoutubeUrl(url);
+      return;
+    }
     window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
   }, [toast]);
   const handlePlayTrack = useCallback(
@@ -664,8 +670,10 @@ function TrackerViewContent() {
     const url = getTrackUrl(track);
     const source = url ? getTrackSource(url) : "unknown";
     const isSupported = SUPPORTED_SOURCES_SET.has(source);
-    const playableUrl = url ? resolvedUrls.get(url) : null;
-    const isPlayable = !!playableUrl || isSupported;
+    const resolvedEntry = url ? resolvedUrls.get(url) : undefined;
+    const playableUrl = resolvedEntry || null;
+    // resolved null = explicitly not playable; undefined = not yet checked
+    const isPlayable = !!playableUrl || (isSupported && resolvedEntry === undefined);
     const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
     const isCurrentTrack = playerState.currentTrack?.url === url;
     const isHighlighted = url === highlightedTrackUrl;
@@ -764,6 +772,7 @@ function TrackerViewContent() {
   return (
     <div className="min-h-screen bg-black pb-32 sm:pb-28">
       {headerSlots}
+      {youtubeUrl && <YouTubePlayer url={youtubeUrl} onClose={() => setYoutubeUrl(null)} />}
       <LastFMModal
         isOpen={lastfmModalOpen}
         onClose={() => setLastfmModalOpen(false)}
