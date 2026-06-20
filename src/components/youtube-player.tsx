@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X, GripHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function extractYouTubeId(url: string): string | null {
+function extractYouTubeId(url: string): string | null {
   const match = url.match(
     /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
   );
@@ -11,14 +11,18 @@ export function extractYouTubeId(url: string): string | null {
 
 export function YouTubePlayer({ url, onClose }: { url: string; onClose: () => void }) {
   const videoId = extractYouTubeId(url);
-  const containerRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
     x: window.innerWidth - 352,
     y: window.innerHeight - 260,
   }));
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
-  const onMouseMove = useCallback((e: MouseEvent) => {
+  const onMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const onMouseUpRef = useRef<() => void>(() => {});
+
+  onMouseMoveRef.current = useCallback((e: MouseEvent) => {
     if (!dragState.current) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
@@ -28,34 +32,37 @@ export function YouTubePlayer({ url, onClose }: { url: string; onClose: () => vo
     });
   }, []);
 
-  const onMouseUp = useCallback(() => {
+  onMouseUpRef.current = useCallback(() => {
     dragState.current = null;
   }, []);
 
   useEffect(() => {
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    const move = (e: MouseEvent) => onMouseMoveRef.current(e);
+    const up = () => onMouseUpRef.current();
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
     return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
     };
-  }, [onMouseMove, onMouseUp]);
+  }, []);
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
-  }, [pos]);
+    dragState.current = { startX: e.clientX, startY: e.clientY, origX: posRef.current.x, origY: posRef.current.y };
+  }, []);
 
   if (!videoId) return null;
 
   return (
     <div
-      ref={containerRef}
       className="fixed z-[80] glass-elevated rounded-2xl overflow-hidden shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: 320 }}
     >
-      <div
-        className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none border-b border-white/[0.08]"
+      <button
+        type="button"
+        aria-label="Drag to reposition player"
+        className="w-full flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none border-b border-white/[0.08] bg-transparent"
         onMouseDown={onDragStart}
       >
         <div className="flex items-center gap-2">
@@ -70,13 +77,14 @@ export function YouTubePlayer({ url, onClose }: { url: string; onClose: () => vo
         >
           <X className="w-3 h-3" />
         </Button>
-      </div>
+      </button>
       <iframe
         src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
         width="320"
         height="180"
         allow="autoplay; encrypted-media; fullscreen"
         allowFullScreen
+        sandbox="allow-scripts allow-popups allow-presentation"
         className="block"
         title="YouTube video"
       />

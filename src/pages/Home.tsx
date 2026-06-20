@@ -24,7 +24,8 @@ import {
   trackEvent,
 } from "@/src/lib/home-constants";
 import { useLocalStorage } from "@/src/hooks/use-local-storage";
-import { GallerySkeleton, ErrorMessage, NoResultsMessage } from "@/src/components/home/skeletons";
+import { GallerySkeleton } from "@/src/components/home/skeletons";
+import { ErrorMessage, NoResultsMessage } from "@/src/components/home/messages";
 import { ArtistGridDisplay } from "@/src/components/home/artist-card";
 import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/components/home/header";
 import { Footer } from "@/src/components/home/footer";

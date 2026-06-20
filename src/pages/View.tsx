@@ -1039,11 +1039,12 @@ function TrackerViewContent() {
             ) : isFlat && filteredData ? (
               <div className="space-y-1.5 sm:space-y-2">
                 {flatTracks.map((t, i) => {
+                  const flatKey = `flat-${i}`;
                   const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } = computeTrackState(t);
                   const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
                   return (
                     <div
-                      key={`flat-${i}`}
+                      key={flatKey}
                       ref={isHighlighted ? highlightedTrackRef : null}
                       className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                     >
@@ -1212,10 +1213,11 @@ function TrackerViewContent() {
                                 )}
                                 <div className="space-y-1.5 sm:space-y-2">
                                   {(tracks as TALeak[]).map((track, i) => {
+                                    const trackKey = `${key}-${cat}-${i}`;
                                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } = computeTrackState(track);
                                     return (
                                       <div
-                                        key={`${key}-${cat}-${i}`}
+                                        key={trackKey}
                                         ref={isHighlighted ? highlightedTrackRef : null}
                                         className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                                       >
