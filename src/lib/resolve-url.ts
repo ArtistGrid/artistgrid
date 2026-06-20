@@ -28,6 +28,10 @@ function extractQobuzId(url: string): string | null {
   const match = url.match(/(?:open\.)?qobuz\.com\/track\/(\d+)/);
   return match ? match[1] : null;
 }
+const NETWORK_SOURCES = new Set<Track["source"]>(["krakenfiles", "imgur", "qobuz", "pixeldrain"]);
+export function isNetworkSource(source: Track["source"]): boolean {
+  return NETWORK_SOURCES.has(source);
+}
 export function getTrackSource(url: string): Track["source"] {
   const normalized = normalizePillowsUrl(url);
   if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";

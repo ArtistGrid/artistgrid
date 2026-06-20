@@ -55,6 +55,14 @@ export default defineConfig({
               expiration: { maxEntries: 5, maxAgeSeconds: 3600 },
             },
           },
+          {
+            urlPattern: /^https:\/\/assets\.artistgrid\.cx\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "artist-images",
+              expiration: { maxEntries: 1000, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
         ],
       },
     }),
@@ -62,6 +70,21 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "radix-vendor": [
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-toast",
+          ],
+        },
+      },
     },
   },
 });

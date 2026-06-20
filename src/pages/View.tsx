@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
-import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/src/lib/resolve-url";
+import { resolvePlayableUrl, getTrackSource, isNetworkSource, transformUrlForOpening } from "@/src/lib/resolve-url";
 import {
   generateTrackId,
   isUrl,
@@ -70,6 +70,15 @@ function forEachEraTrack(eras: Record<string, Era>, cb: (track: TALeak, era: Era
       }
     }
   }
+}
+function mergeAndCache(
+  id: string,
+  tab: string | undefined,
+  trackerData: TrackerResponse,
+  newResolved: Record<string, string | null>
+): void {
+  const existing = getCache(id, tab)?.resolvedUrls || {};
+  setCache(id, trackerData, { ...existing, ...newResolved }, tab);
 }
 function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource }: {
   source: string; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean;
@@ -370,38 +379,38 @@ function TrackerViewContent() {
       }
     } catch {}
   }, []);
-  const preloadAllUrls = async (
-    eras: Record<string, Era>,
-    id: string,
-    tab: string | undefined,
-    trackerData: TrackerResponse
-  ) => {
-    const urls: string[] = [];
-    for (const era of Object.values(eras)) {
-      if (!era.data) continue;
-      for (const tracks of Object.values(era.data)) {
-        if (!Array.isArray(tracks)) continue;
-        for (const t of tracks) {
-          const url = getTrackUrl(t);
-          if (url) urls.push(url);
-        }
-      }
-    }
-    if (urls.length === 0) return;
+  // Resolves a batch of track URLs to their playable form, merging results into
+  // resolvedUrls as it goes. Throttles UI updates so resolving large catalogs doesn't
+  // force a full re-render (and re-filter of every track) after every single batch.
+  const resolveUrls = useCallback(async (urls: string[]): Promise<Record<string, string | null>> => {
+    if (urls.length === 0) return {};
     setIsPreloading(true);
     setResolveProgress({ current: 0, total: urls.length });
     const resolved: Record<string, string | null> = {};
     const batchSize = 10;
+    const FLUSH_INTERVAL_MS = 200;
+    let lastFlush = 0;
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
       const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
       for (const { url, playable } of results) resolved[url] = playable;
-      setResolvedUrls(new Map(Object.entries(resolved)));
-      setResolveProgress({ current: Math.min(i + batchSize, urls.length), total: urls.length });
+      const current = Math.min(i + batchSize, urls.length);
+      const isLast = current >= urls.length;
+      const now = Date.now();
+      if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
+        lastFlush = now;
+        const snapshot = { ...resolved };
+        setResolvedUrls((prev) => {
+          const next = new Map(prev);
+          for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
+          return next;
+        });
+        setResolveProgress({ current, total: urls.length });
+      }
     }
-    setCache(id, trackerData, resolved, tab);
     setIsPreloading(false);
-  };
+    return resolved;
+  }, []);
   const loadTrackerData = useCallback(
     async (id: string, tab?: string) => {
       setStatus("loading");
@@ -428,12 +437,9 @@ function TrackerViewContent() {
       }
       try {
         const endpoint = tab ? `/sh/${id}/tab/${encodeURIComponent(tab)}` : `/sh/${id}/`;
-        console.log("[tracker] fetching", endpoint);
         const res = await fetchWithFallback(endpoint);
-        console.log("[tracker] status", res.status, res.ok);
         if (!res.ok) { fail(); return; }
         const v3: V3Response = await res.json();
-        console.log("[tracker] eras", v3?.eras?.length, "tracks", v3?.tracks?.length);
         const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
         const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
         if (!hasFlatTracks && !hasEras) { fail(); return; }
@@ -443,13 +449,26 @@ function TrackerViewContent() {
         if (json.tabs?.length) setTabsList(json.tabs);
         if (json.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...json.tabSlugs };
         setStatus("success");
-        if (!NON_PLAYABLE_TABS.includes(json.current_tab)) preloadAllUrls(json.eras, id, tab, json);
+        // Eagerly resolve only sources that don't require a network round trip (e.g. pillows,
+        // soundcloud). Network-backed sources (krakenfiles, imgur, qobuz, pixeldrain) are resolved
+        // on demand when a track is actually played or downloaded, instead of hitting those APIs
+        // for every track in the catalog on page load.
+        if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
+          const freeUrls: string[] = [];
+          forEachEraTrack(json.eras, (t) => {
+            const url = getTrackUrl(t);
+            if (url && !isNetworkSource(getTrackSource(url))) freeUrls.push(url);
+          });
+          if (freeUrls.length > 0) {
+            resolveUrls(freeUrls).then((resolved) => mergeAndCache(id, tab, json, resolved));
+          }
+        }
       } catch (e) {
         console.error("[tracker] load failed", e);
         fail();
       }
     },
-    [fetchBaseEraImages]
+    [fetchBaseEraImages, resolveUrls]
   );
   useEffect(() => {
     if (!trackerId || !isValidTrackerId(trackerId)) return;
@@ -612,28 +631,26 @@ function TrackerViewContent() {
     else window.open(url, "_blank", "noopener,noreferrer");
   }, []);
   const downloadTracker = useCallback(
-    (eraKey?: string, catKey?: string) => {
+    async (eraKey?: string, catKey?: string) => {
       if (!data?.eras) return;
-      const downloadItems: Array<{ track: TALeak; era: Era; playableUrl: string }> = [];
+      const candidates: Array<{ track: TALeak; era: Era; url: string }> = [];
       if (eraKey && catKey) {
         const era = data.eras[eraKey];
         const catTracks = era?.data?.[catKey];
         if (Array.isArray(catTracks)) {
           for (const track of catTracks) {
             const url = getTrackUrl(track);
-            const playableUrl = url ? resolvedUrls.get(url) : null;
-            if (url && playableUrl) downloadItems.push({ track, era, playableUrl });
+            if (url) candidates.push({ track, era, url });
           }
         }
       } else {
         const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
         forEachEraTrack(erasToDownload, (track, era) => {
           const url = getTrackUrl(track);
-          const playableUrl = url ? resolvedUrls.get(url) : null;
-          if (url && playableUrl) downloadItems.push({ track, era, playableUrl });
+          if (url) candidates.push({ track, era, url });
         });
       }
-      if (downloadItems.length === 0) {
+      if (candidates.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
       }
@@ -641,6 +658,7 @@ function TrackerViewContent() {
       // permission prompt. Probe #1 uses this user-gesture (allowed immediately). Probe #2
       // fires from setTimeout so Chrome shows the Allow/Block popup right now — while the
       // user is reading the confirmation dialog — rather than mid-download on part 2.
+      // Must fire synchronously, before any awaits below, so it still counts as part of the click gesture.
       const fireProbe = () => {
         const blob = new Blob([], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
@@ -654,6 +672,25 @@ function TrackerViewContent() {
       };
       fireProbe();
       setTimeout(fireProbe, 100);
+      // Network-backed sources (krakenfiles, imgur, qobuz, pixeldrain) aren't pre-resolved on
+      // page load anymore, so resolve any that this download set still needs right now.
+      const unresolvedUrls = candidates
+        .map((c) => c.url)
+        .filter((url) => resolvedUrls.get(url) === undefined && isNetworkSource(getTrackSource(url)));
+      let urlMap = resolvedUrls;
+      if (unresolvedUrls.length > 0) {
+        const freshlyResolved = await resolveUrls(unresolvedUrls);
+        mergeAndCache(trackerId, currentTab, data, freshlyResolved);
+        urlMap = new Map(resolvedUrls);
+        for (const [url, playable] of Object.entries(freshlyResolved)) urlMap.set(url, playable);
+      }
+      const downloadItems = candidates
+        .map(({ track, era, url }) => ({ track, era, playableUrl: urlMap.get(url) }))
+        .filter((item): item is { track: TALeak; era: Era; playableUrl: string } => !!item.playableUrl);
+      if (downloadItems.length === 0) {
+        toast({ title: "No tracks to download", description: "No playable tracks found" });
+        return;
+      }
       const eraDisplayName = eraKey ? data.eras[eraKey]?.name : undefined;
       const catDisplayName = catKey && catKey.toLowerCase() !== "default" ? catKey : undefined;
       setDownloadConfirm({
@@ -664,7 +701,7 @@ function TrackerViewContent() {
         items: downloadItems,
       });
     },
-    [data, resolvedUrls, artistDisplayName, toast]
+    [data, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab]
   );
   const computeTrackState = useCallback((track: TALeak) => {
     const url = getTrackUrl(track);
