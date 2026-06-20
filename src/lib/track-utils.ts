@@ -3,7 +3,6 @@ import { normalizePillowsUrl } from "./resolve-url";
 export const TRACKER_ID_LENGTH = 44;
 export const SUPPORTED_SOURCES: Track["source"][] = [
   "pillows",
-  "froste",
   "krakenfiles",
   "pixeldrain",
   "imgur",

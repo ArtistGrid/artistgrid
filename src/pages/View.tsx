@@ -228,7 +228,7 @@ function TrackerViewContent() {
     for (const [key, era] of Object.entries(data.eras)) result[key] = { ...era, image: getEraImage(era) };
     return result;
   }, [data?.eras, getEraImage]);
-  const isArtTab = ART_TABS.includes(currentTab);
+  const isArtTab = ART_TABS.some((t) => currentTab.toLowerCase().includes(t.toLowerCase()));
   const isFlat = !!data?.isFlat;
   const filteredData = useMemo(() => {
     if (!erasWithImages) return null;
@@ -496,8 +496,12 @@ function TrackerViewContent() {
     });
   }, []);
   const handleOpenUrl = useCallback((url: string) => {
+    if (getTrackSource(url) === "froste") {
+      toast({ title: "froste.lol (file host for this song) has shut down :/" });
+      return;
+    }
     window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
-  }, []);
+  }, [toast]);
   const handlePlayTrack = useCallback(
     async (rawTrack: TALeak, era: Era) => {
       const url = getTrackUrl(rawTrack);

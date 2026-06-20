@@ -90,10 +90,8 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
           return null;
         }
       }
-      case "froste": {
-        const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);
-        return match ? `https://music.froste.lol/song/${match[1]}/download` : null;
-      }
+      case "froste":
+        return null;
       case "krakenfiles": {
         const id = extractKrakenId(normalized);
         if (!id) return null;
