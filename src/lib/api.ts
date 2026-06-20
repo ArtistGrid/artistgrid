@@ -86,7 +86,9 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
   const eras: Record<string, Era> = {};
   for (let i = 0; i < (v3.eras?.length ?? 0); i++) {
     const v3Era = v3.eras![i];
-    const key = v3Era.name || String(i);
+    // Prefix with index: plain numeric-looking names (e.g. "2022") would otherwise be
+    // treated as array indices by JS and reordered ahead of string keys, breaking era order.
+    const key = `${i}:${v3Era.name || ""}`;
     const grouped: Record<string, TALeak[]> = {};
     for (const track of v3Era.tracks) {
       const group = track.sub_era || "Default";
