@@ -35,31 +35,31 @@ export function ArtGallery({
     });
   };
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {Object.entries(eras).map(([key, era]) => (
-        <div key={key} className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden">
+        <div key={key} className="glass rounded-2xl overflow-hidden">
           <button
             type="button"
-            className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
             onClick={() => toggleEra(key)}
           >
             {era.image ? (
               <img
                 src={era.image}
                 alt={era.name}
-                className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-neutral-800 flex-shrink-0"
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
                 referrerPolicy="no-referrer"
                 crossOrigin="anonymous"
               />
             ) : (
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-neutral-800 flex-shrink-0" />
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-white/[0.08] flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
               <h3 className="text-base sm:text-lg font-bold text-white truncate">{era.name || key}</h3>
-              {era.extra && <p className="text-xs sm:text-sm text-neutral-500 truncate">{era.extra}</p>}
+              {era.extra && <p className="text-xs sm:text-sm text-white/40 truncate">{era.extra}</p>}
             </div>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-500 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
+              className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
             />
           </button>
           {expandedEras.has(key) && era.data && (
@@ -67,11 +67,11 @@ export function ArtGallery({
               {Object.entries(era.data).map(([cat, items]) => (
                 <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
                   {cat !== "Default" && (
-                    <h4 className="text-xs sm:text-sm font-semibold text-neutral-300 pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-neutral-800">
+                    <h4 className="text-xs sm:text-sm font-semibold text-white/50 pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
                       {cat}
                     </h4>
                   )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                     {(items as TALeak[]).map((item, i) => {
                       const url = item.url || (item.urls && item.urls[0]);
                       const urlAsImage = url ? getImageUrl(url) : null;
@@ -81,7 +81,7 @@ export function ArtGallery({
                       const stableKey = item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
                       const cardContent = (
                         <>
-                          <div className="aspect-square relative bg-neutral-800 overflow-hidden">
+                          <div className="aspect-square relative bg-white/[0.05] overflow-hidden">
                             {displaySrc ? (
                               <img
                                 src={displaySrc}
@@ -93,13 +93,13 @@ export function ArtGallery({
                                 crossOrigin="anonymous"
                               />
                             ) : (
-                              <div className="w-full h-full bg-neutral-800" />
+                              <div className="w-full h-full bg-white/[0.05]" />
                             )}
                           </div>
                           <div className="p-2 sm:p-3">
                             <p className="text-xs sm:text-sm font-medium text-white truncate">{item.name}</p>
                             {item.description && (
-                              <p className="text-xs text-neutral-500 truncate mt-0.5 sm:mt-1 hidden sm:block">
+                              <p className="text-xs text-white/35 truncate mt-0.5 sm:mt-1 hidden sm:block">
                                 {item.description}
                               </p>
                             )}
@@ -110,7 +110,7 @@ export function ArtGallery({
                         <button
                           key={stableKey}
                           type="button"
-                          className="group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all cursor-pointer hover:border-neutral-600 text-left w-full"
+                          className="group glass-flat rounded-xl overflow-hidden transition-all cursor-pointer text-left w-full"
                           onClick={() => onImageClick(clickTarget, item.name)}
                         >
                           {cardContent}
@@ -118,7 +118,7 @@ export function ArtGallery({
                       ) : (
                         <div
                           key={stableKey}
-                          className="group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all cursor-default"
+                          className="group glass-flat rounded-xl overflow-hidden transition-all cursor-default"
                         >
                           {cardContent}
                         </div>
@@ -148,7 +148,7 @@ export function ImageLightbox({
 }) {
   useKeyPress("Escape", onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4">
       <button
         type="button"
         className="absolute inset-0"
@@ -166,7 +166,7 @@ export function ImageLightbox({
           <img
             src={src}
             alt={alt}
-            className="max-w-full max-h-full object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+            className="max-w-full max-h-full object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
           />
@@ -175,11 +175,11 @@ export function ImageLightbox({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="absolute top-3 right-3 text-white bg-black/40 hover:bg-black/60 rounded-xl w-9 h-9 backdrop-blur-sm"
+          className="absolute top-3 right-3 text-white glass rounded-xl w-9 h-9"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </Button>
-        <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-neutral-400 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+        <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-white/50 glass rounded-full px-3 py-1.5">
           Click to open original
         </p>
       </div>

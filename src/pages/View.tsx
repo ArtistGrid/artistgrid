@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
+import { useHeaderSlots } from "@/src/components/layout";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import type { Track, Era, TALeak, TrackerResponse } from "@/src/types";
 import { usePlayer } from "../providers";
@@ -73,32 +74,32 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource 
   source: string; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean;
 }) {
   return (
-    <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-      {shouldShowSource && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{getSourceDisplayName(source)}</span>}
-      {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{type}</span>}
-      {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{quality}</span>}
-      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-1 bg-white/5 rounded text-neutral-400">{trackLength}</span>}
+    <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+      {shouldShowSource && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{getSourceDisplayName(source)}</span>}
+      {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{type}</span>}
+      {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{quality}</span>}
+      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{trackLength}</span>}
     </div>
   );
 }
 function PlayButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <button type="button" onClick={onPlay} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-      <Play className="w-3.5 sm:w-4 h-3.5 sm:h-4 ml-0.5" />
+    <button type="button" onClick={onPlay} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all">
+      <Play className="w-3 sm:w-3.5 h-3 sm:h-3.5 ml-0.5" />
     </button>
   );
 }
 function PauseButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <button type="button" onClick={onPlay} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-      <Pause className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+    <button type="button" onClick={onPlay} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all">
+      <Pause className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
     </button>
   );
 }
 function OpenLinkButton({ onOpenLink }: { onOpenLink: () => void }) {
   return (
-    <button type="button" onClick={onOpenLink} className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:scale-110 transition-transform">
-      <LinkIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+    <button type="button" onClick={onOpenLink} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-all">
+      <LinkIcon className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
     </button>
   );
 }
@@ -128,7 +129,7 @@ function TrackItemActions({ track, source, shouldShowSource, url, onOpenUrl, chi
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200">
+        <DropdownMenuContent align="end" className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1">
           {children}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -148,27 +149,27 @@ interface PlayableTrackData {
 }
 const FallbackView = ({ sheetsUrl }: { sheetsUrl: string }) => (
   <div className="min-h-screen bg-black flex items-center justify-center p-4">
-    <div className="max-w-lg w-full bg-neutral-950 border border-neutral-800 rounded-xl p-6 sm:p-8 text-center">
-      <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4 sm:mb-6" />
+    <div className="max-w-lg w-full glass-elevated rounded-2xl p-6 sm:p-8 text-center">
+      <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/80 mx-auto mb-4 sm:mb-6" />
       <h1 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Unable to Load Tracker</h1>
-      <p className="text-sm sm:text-base text-neutral-400 mb-4 sm:mb-6">
+      <p className="text-sm sm:text-base text-white/50 mb-5 sm:mb-6">
         We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google Sheets.
       </p>
-      <Button asChild className="bg-white text-black hover:bg-neutral-200 mb-4 sm:mb-6 w-full">
+      <Button asChild className="bg-white text-black hover:bg-white/90 mb-4 sm:mb-6 w-full rounded-xl h-11">
         <a href={sheetsUrl} target="_blank" rel="noopener noreferrer">
           <ExternalLink className="w-4 h-4 mr-2" />
           Open Original Spreadsheet
         </a>
       </Button>
-      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 sm:p-4 text-left">
-        <p className="text-xs text-neutral-500 leading-relaxed">
-          <strong className="text-neutral-400">Disclaimer:</strong> ArtistGrid is not affiliated with, endorsed by, or
+      <div className="glass-flat rounded-xl p-3 sm:p-4 text-left">
+        <p className="text-xs text-white/35 leading-relaxed">
+          <strong className="text-white/50">Disclaimer:</strong> ArtistGrid is not affiliated with, endorsed by, or
           associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not host,
           store, or distribute any copyrighted content.
         </p>
       </div>
-      <div className="mt-4 sm:mt-6">
-        <Link to="/" className="text-sm text-neutral-500 hover:text-white transition-colors">
+      <div className="mt-5 sm:mt-6">
+        <Link to="/" className="text-sm text-white/35 hover:text-white transition-colors">
           ← Back to Home
         </Link>
       </div>
@@ -705,67 +706,60 @@ function TrackerViewContent() {
     }
     return { total, playable };
   }, [data, resolvedUrls]);
+  const headerSlots = useHeaderSlots(
+    <div className="relative flex-1 min-w-0">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+      <Input
+        type="text"
+        placeholder="Tracker ID..."
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleLoad()}
+        className="glass-flat rounded-xl w-full pl-9 pr-8 h-10 sm:h-11 text-sm text-white placeholder:text-white/25 border-0 focus-visible:ring-1 focus-visible:ring-white/30"
+      />
+      {inputValue && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-white/30 hover:text-white hover:bg-transparent"
+          onClick={() => setInputValue("")}
+        >
+          <X className="w-3.5 h-3.5" />
+        </Button>
+      )}
+    </div>,
+    <div className="flex items-center gap-1 sm:gap-1.5">
+      {trackerId && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleShare}
+          className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
+        >
+          <Share2 className="w-4 h-4" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setLastfmModalOpen(true)}
+        aria-label="Last.fm"
+        className={`glass-flat rounded-xl h-9 w-9 sm:h-10 sm:w-10 ${lastfm.isAuthenticated ? "text-green-400" : "text-white/50 hover:text-white"}`}
+      >
+        <Radio className="w-4 h-4" />
+      </Button>
+      <Button
+        onClick={handleLoad}
+        className="bg-white text-black hover:bg-white/90 rounded-xl h-9 sm:h-10 px-3 sm:px-4 text-sm font-medium"
+      >
+        Load
+      </Button>
+    </div>
+  );
   if (status === "fallback") return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId)} />;
   return (
     <div className="min-h-screen bg-black pb-32 sm:pb-28">
-      <header className="sticky top-0 z-30 py-3 sm:py-4 bg-black/70 backdrop-blur-lg border-b border-neutral-900">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4 px-3 sm:px-6">
-          <Link
-            to="/"
-            className="text-xl sm:text-2xl font-bold bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent flex-shrink-0"
-          >
-            ArtistGrid
-          </Link>
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-neutral-500 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Tracker ID..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLoad()}
-              className="bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-white/50 rounded-lg sm:rounded-xl w-full pl-9 sm:pl-12 pr-8 sm:pr-10 h-10 sm:h-12 text-sm sm:text-base"
-            />
-            {inputValue && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 h-7 w-7 sm:h-8 sm:w-8 text-neutral-500 hover:text-white"
-                onClick={() => setInputValue("")}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            {trackerId && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleShare}
-                className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white h-9 w-9 sm:h-10 sm:w-10"
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setLastfmModalOpen(true)}
-              aria-label="Last.fm"
-              className={`bg-neutral-900 border-neutral-800 hover:bg-neutral-800 h-9 w-9 sm:h-10 sm:w-10 ${lastfm.isAuthenticated ? "text-green-500 hover:text-green-400" : "text-white hover:text-white"}`}
-            >
-              <Radio className="w-4 sm:w-5 h-4 sm:h-5" />
-            </Button>
-            <Button
-              onClick={handleLoad}
-              className="bg-white text-black hover:bg-neutral-200 h-9 sm:h-10 px-3 sm:px-4 text-sm sm:text-base"
-            >
-              Load
-            </Button>
-          </div>
-        </div>
-      </header>
+      {headerSlots}
       <LastFMModal
         isOpen={lastfmModalOpen}
         onClose={() => setLastfmModalOpen(false)}
@@ -839,33 +833,33 @@ function TrackerViewContent() {
       )}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {status === "idle" && (
-          <div className="text-center py-12 sm:py-20">
-            <h2 className="text-lg sm:text-xl font-semibold text-neutral-300 mb-2">
+          <div className="text-center py-16 sm:py-24">
+            <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">
               Enter a Tracker ID to get started
             </h2>
-            <p className="text-sm sm:text-base text-neutral-500">Tracker IDs are exactly 44 characters long</p>
+            <p className="text-sm sm:text-base text-white/30">Tracker IDs are exactly 44 characters long</p>
           </div>
         )}
         {status === "loading" && (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 text-neutral-400 text-sm sm:text-base">
-                <Loader2 className="w-4 sm:w-5 h-4 sm:h-5 animate-spin" />
+              <div className="inline-flex items-center gap-2 text-white/40 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Loading tracker data...</span>
               </div>
             </div>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 sm:p-5">
+              <div key={i} className="glass rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                  <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-neutral-800" />
+                  <Skeleton className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/[0.08]" />
                   <div className="flex-1">
-                    <Skeleton className="h-4 sm:h-5 w-1/3 bg-neutral-800 mb-2" />
-                    <Skeleton className="h-3 sm:h-4 w-1/4 bg-neutral-800" />
+                    <Skeleton className="h-4 sm:h-5 w-1/3 bg-white/[0.08] mb-2 rounded-lg" />
+                    <Skeleton className="h-3 sm:h-4 w-1/4 bg-white/[0.06] rounded-lg" />
                   </div>
                 </div>
-                <div className="space-y-2 sm:space-y-3">
+                <div className="space-y-2 sm:space-y-2.5">
                   {Array.from({ length: 3 }).map((_, j) => (
-                    <Skeleton key={j} className="h-14 sm:h-16 bg-neutral-800 rounded-xl" />
+                    <Skeleton key={j} className="h-13 sm:h-14 bg-white/[0.05] rounded-xl" />
                   ))}
                 </div>
               </div>
@@ -874,7 +868,7 @@ function TrackerViewContent() {
         )}
         {status === "error" && (
           <div className="flex items-center justify-center py-12 sm:py-20">
-            <div className="text-center bg-neutral-900 border border-red-500/30 p-6 sm:p-8 rounded-xl max-w-md">
+            <div className="glass-elevated rounded-2xl p-6 sm:p-8 text-center max-w-md w-full">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Error Loading Data</h2>
             </div>
           </div>
@@ -882,22 +876,22 @@ function TrackerViewContent() {
         {status === "success" && (data || tabError) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h1 className="text-xl sm:text-2xl font-bold text-white">{artistDisplayName}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
               {!isArtTab && stats.playable > 0 && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => downloadTracker()}
                   disabled={isPreloading}
-                  className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white self-start sm:self-auto"
+                  className="glass-flat rounded-xl text-white/60 hover:text-white self-start sm:self-auto"
                 >
-                  <FolderDown className="w-4 h-4 mr-2" />
+                  <FolderDown className="w-3.5 h-3.5 mr-2" />
                   Download All ({stats.playable})
                 </Button>
               )}
             </div>
             {tabsList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-neutral-800/60">
+              <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-white/[0.07]">
                 {tabsList.map((tab) => (
                   <button
                     type="button"
@@ -906,7 +900,7 @@ function TrackerViewContent() {
                     className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
                       currentTab === tab
                         ? "bg-white text-black"
-                        : "border border-neutral-700 text-neutral-400 hover:text-white hover:border-neutral-500 hover:bg-white/10"
+                        : "glass-flat text-white/40 hover:text-white"
                     }`}
                   >
                     {tab}
@@ -917,26 +911,26 @@ function TrackerViewContent() {
             {!isArtTab && (
               <div className="flex flex-col gap-3 mb-4 sm:mb-6">
                 <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <Input
                     type="text"
                     placeholder="Search tracks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-neutral-900 border-neutral-800 text-white pl-10 h-10 rounded-lg text-sm"
+                    className="glass-flat rounded-xl text-white pl-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/25"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     {isPreloading ? (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-neutral-400">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-white/40">
                         <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 animate-spin" />
                         <span>
                           {resolveProgress.current}/{resolveProgress.total}
                         </span>
                       </div>
                     ) : resolvedUrls.size > 0 ? (
-                      <span className="text-xs sm:text-sm text-neutral-500">
+                      <span className="text-xs sm:text-sm text-white/30">
                         {stats.playable}/{stats.total} playable
                       </span>
                     ) : null}
@@ -944,30 +938,32 @@ function TrackerViewContent() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="bg-neutral-900 border-neutral-800 hover:bg-neutral-800 text-white h-9 w-9 sm:h-10 sm:w-10"
+                        className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
                       >
                         <Filter className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-64 max-h-96 overflow-y-auto bg-neutral-950 border-neutral-800 text-neutral-200"
+                      className="w-64 max-h-96 overflow-y-auto glass-elevated border-0 rounded-2xl text-white/80 p-1"
                     >
-                      <DropdownMenuLabel>Filters</DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-neutral-800" />
+                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Filters</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
                       <DropdownMenuCheckboxItem
                         checked={filters.showPlayableOnly}
                         onCheckedChange={(c) => setFilters((f) => ({ ...f, showPlayableOnly: !!c }))}
+                        className="rounded-xl"
                       >
                         Show playable only
                       </DropdownMenuCheckboxItem>
-                      <DropdownMenuSeparator className="bg-neutral-800" />
-                      <DropdownMenuLabel>Quality</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
+                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Quality</DropdownMenuLabel>
                       <DropdownMenuCheckboxItem
                         checked={filters.qualityFilter.length === 0}
                         onCheckedChange={() => setFilters((f) => ({ ...f, qualityFilter: [] }))}
+                        className="rounded-xl"
                       >
                         All qualities
                       </DropdownMenuCheckboxItem>
@@ -983,15 +979,17 @@ function TrackerViewContent() {
                                 : [...f.qualityFilter, q],
                             }))
                           }
+                          className="rounded-xl"
                         >
                           {q}
                         </DropdownMenuCheckboxItem>
                       ))}
-                      <DropdownMenuSeparator className="bg-neutral-800" />
-                      <DropdownMenuLabel>Source</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
+                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Source</DropdownMenuLabel>
                       <DropdownMenuCheckboxItem
                         checked={filters.sourceFilter.length === 0}
                         onCheckedChange={() => setFilters((f) => ({ ...f, sourceFilter: [] }))}
+                        className="rounded-xl"
                       >
                         All sources
                       </DropdownMenuCheckboxItem>
@@ -1007,6 +1005,7 @@ function TrackerViewContent() {
                                 : [...f.sourceFilter, s],
                             }))
                           }
+                          className="rounded-xl"
                         >
                           {getSourceDisplayName(s as any)}
                         </DropdownMenuCheckboxItem>
@@ -1018,9 +1017,9 @@ function TrackerViewContent() {
             )}
             {tabError ? (
               <div className="text-center py-12 sm:py-20 flex flex-col items-center">
-                <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-neutral-300">Failed to load this tab</h3>
-                <p className="text-sm sm:text-base text-neutral-500 mt-1">Try selecting another tab</p>
+                <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
+                <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
               </div>
             ) : isArtTab && filteredData ? (
               <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
@@ -1031,9 +1030,9 @@ function TrackerViewContent() {
                   const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
                   return (
                     <div
-                      key={url || t.name || String(i)}
+                      key={`flat-${i}`}
                       ref={isHighlighted ? highlightedTrackRef : null}
-                      className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}
+                      className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                     >
                       <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
                         {isPlayable
@@ -1081,7 +1080,7 @@ function TrackerViewContent() {
                 })}
               </div>
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
-              <div className="space-y-4 sm:space-y-6">
+              <div className="space-y-4 sm:space-y-5">
                 {Object.entries(filteredData).map(([key, era]) => {
                   const eraPlayableCount = era.data
                     ? Object.values(era.data)
@@ -1094,40 +1093,42 @@ function TrackerViewContent() {
                   return (
                     <div
                       key={key}
+                      className="rounded-2xl overflow-hidden border border-white/[0.1]"
                       style={{
                         background: era.backgroundColor
-                          ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 80%)`
-                          : "oklch(14.5% 0 0)",
+                          ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 82%)`
+                          : "rgba(255,255,255,0.055)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3)",
                       }}
-                      className="border border-neutral-800 rounded-xl overflow-hidden"
                     >
                       <div className="flex items-center">
                         <button
                           type="button"
-                          style={{ color: "black" }}
-                          className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.02] transition-colors"
+                          className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
                           onClick={() => toggleEra(key)}
                         >
                           {era.image ? (
                             <img
                               src={era.image}
                               alt={era.name}
-                              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-contain flex-shrink-0"
+                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
                               style={{
                                 background: era.backgroundColor
-                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 70%)`
-                                  : "oklch(14.5% 0 0)",
+                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                                  : "rgba(255,255,255,0.07)",
                               }}
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
                             />
                           ) : (
                             <div
-                              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex-shrink-0"
+                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex-shrink-0"
                               style={{
                                 background: era.backgroundColor
-                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(14.5% 0 0) 70%)`
-                                  : "oklch(20% 0 0)",
+                                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                                  : "rgba(255,255,255,0.07)",
                               }}
                             />
                           )}
@@ -1142,10 +1143,10 @@ function TrackerViewContent() {
                             >
                               {era.name || key}
                             </h3>
-                            {era.extra && <p className="text-xs sm:text-sm text-neutral-500 truncate">{era.extra}</p>}
+                            {era.extra && <p className="text-xs sm:text-sm text-white/40 truncate">{era.extra}</p>}
                           </div>
                           <ChevronDown
-                            className={`w-5 h-5 text-neutral-500 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
+                            className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
                           />
                         </button>
                         {eraPlayableCount > 0 && (
@@ -1154,16 +1155,16 @@ function TrackerViewContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-neutral-500 hover:text-white hover:bg-white/10 mr-2 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                                className="text-white/30 hover:text-white hover:bg-white/10 mr-2 h-9 w-9 flex-shrink-0 rounded-xl"
                               >
-                                <MoreHorizontal className="w-4 sm:w-5 h-4 sm:h-5" />
+                                <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
-                              className="w-48 bg-neutral-950 border-neutral-800 text-neutral-200"
+                              className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1"
                             >
-                              <DropdownMenuItem onClick={() => downloadTracker(key)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={() => downloadTracker(key)} className="cursor-pointer rounded-xl">
                                 <FolderDown className="w-4 h-4 mr-2" />
                                 Download Era ({eraPlayableCount})
                               </DropdownMenuItem>
@@ -1174,21 +1175,21 @@ function TrackerViewContent() {
                       {expandedEras.has(key) && (
                         <div className="px-3 pb-3 sm:px-5 sm:pb-5">
                           {era.description && (
-                            <p className="text-xs sm:text-sm text-neutral-400 p-3 sm:p-4 bg-black/30 rounded-xl mb-3 sm:mb-5">
+                            <p className="text-xs sm:text-sm text-white/45 p-3 sm:p-4 bg-black/20 rounded-xl mb-3 sm:mb-5">
                               {era.description}
                             </p>
                           )}
                           {era.data &&
                             Object.entries(era.data).map(([cat, tracks]) => (
-                              <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
+                              <div key={cat} className="mb-4 sm:mb-5 last:mb-0">
                                 {cat.toLowerCase() !== "default" && (
-                                  <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-neutral-800">
-                                    <h4 className="text-xs sm:text-sm font-semibold text-neutral-300">{cat}</h4>
+                                  <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
+                                    <h4 className="text-xs sm:text-sm font-semibold text-white/50">{cat}</h4>
                                     {(tracks as TALeak[]).some(t => { const u = getTrackUrl(t); return u ? !!resolvedUrls.get(u) : false; }) && (
                                       <button
                                         type="button"
                                         onClick={() => downloadTracker(key, cat)}
-                                        className="text-neutral-500 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
+                                        className="text-white/25 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
                                         title={`Download ${cat}`}
                                       >
                                         <FolderDown className="w-3.5 h-3.5" />
@@ -1201,9 +1202,9 @@ function TrackerViewContent() {
                                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } = computeTrackState(track);
                                     return (
                                       <div
-                                        key={url || track.name || String(i)}
+                                        key={`${key}-${cat}-${i}`}
                                         ref={isHighlighted ? highlightedTrackRef : null}
-                                        className={`rounded-lg sm:rounded-xl transition-colors ${isHighlighted ? "bg-yellow-500/20 border border-yellow-500/50 ring-2 ring-yellow-500/30" : isCurrentTrack ? "bg-white/10 border border-white/20" : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent"}`}
+                                        className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                                       >
                                         <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
                                           {isPlayable

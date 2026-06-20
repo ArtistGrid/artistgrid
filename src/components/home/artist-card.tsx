@@ -16,13 +16,13 @@ const ArtistCard = memo(function ArtistCard({
 }) {
   const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
   return (
-    <div className="relative border-neutral-800 hover:border-white/30 bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)]">
+    <div className="relative glass rounded-2xl overflow-hidden hover:border-white/25 hover:-translate-y-1 group transition-all duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.08)]">
       <button
         type="button"
-        className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
+        className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white/50"
         onClick={() => onClick(artist)}
       >
-        <div className="relative aspect-square w-full bg-neutral-900 overflow-hidden">
+        <div className="relative aspect-square w-full overflow-hidden">
           <img
             src={`${ASSET_BASE}/${artist.imageFilename}`}
             alt={artist.name}
@@ -44,10 +44,10 @@ const ArtistCard = memo(function ArtistCard({
             e.stopPropagation();
             onSheetClick(getSheetViewUrl(artist.url));
           }}
-          className="absolute bottom-3 right-3 z-10 p-1 rounded-md text-neutral-500 group-hover:text-white transition-colors"
+          className="absolute bottom-3 right-3 z-10 p-1.5 rounded-lg text-white/30 group-hover:text-white/60 hover:!text-white hover:bg-white/10 transition-all"
           aria-label={`Open sheet for ${artist.name}`}
         >
-          <FileSpreadsheet className="w-4 h-4" />
+          <FileSpreadsheet className="w-3.5 h-3.5" />
         </button>
       )}
     </div>

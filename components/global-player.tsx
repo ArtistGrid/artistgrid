@@ -62,32 +62,32 @@ const QueueModal = ({
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pb-36 sm:pb-4">
       <button
         type="button"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-md"
         onClick={onClose}
         aria-label="Close queue"
         tabIndex={-1}
       />
-      <div className="relative z-10 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-neutral-800">
+      <div className="relative z-10 glass-elevated rounded-2xl w-full max-w-md animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
-            <ListMusic className="w-5 h-5 text-neutral-400" />
-            <h2 className="text-base font-semibold text-white">Queue</h2>
-            <span className="text-xs text-neutral-500 bg-neutral-800 px-2 py-0.5 rounded-full">{queue.length}</span>
+            <ListMusic className="w-4 h-4 text-white/50" />
+            <h2 className="text-sm font-semibold text-white">Queue</h2>
+            <span className="text-xs text-white/40 bg-white/[0.08] px-2 py-0.5 rounded-full">{queue.length}</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="text-neutral-500 hover:text-white h-8 w-8 rounded-lg"
+            className="text-white/40 hover:text-white hover:bg-white/10 h-8 w-8 rounded-xl"
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
-        <div className="p-4 max-h-[60vh] overflow-y-auto">
+        <div className="p-4 max-h-[60vh] overflow-y-auto no-scrollbar">
           {currentTrack && (
             <div className="mb-4">
-              <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-2">Now Playing</p>
-              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Now Playing</p>
+              <div className="flex items-center gap-3 p-3 bg-white/[0.06] rounded-xl border border-white/[0.1]">
                 {currentTrack.eraImage ? (
                   <img
                     src={currentTrack.eraImage}
@@ -97,23 +97,23 @@ const QueueModal = ({
                     crossOrigin="anonymous"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-neutral-800 flex-shrink-0" />
+                  <div className="w-10 h-10 rounded-lg bg-white/[0.08] flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{currentTrack.name}</p>
-                  <p className="text-xs text-neutral-400 truncate">{currentTrack.artistName}</p>
+                  <p className="text-xs text-white/40 truncate">{currentTrack.artistName}</p>
                 </div>
               </div>
             </div>
           )}
           {queue.length === 0 ? (
             <div className="text-center py-10">
-              <CircleSlash className="w-10 h-10 text-neutral-700 mx-auto mb-3" />
-              <p className="text-sm text-neutral-500">Nothing queued up</p>
+              <CircleSlash className="w-10 h-10 text-white/15 mx-auto mb-3" />
+              <p className="text-sm text-white/30">Nothing queued up</p>
             </div>
           ) : (
             <div className="space-y-0.5">
-              <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-widest mb-2">Up Next</p>
+              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Up Next</p>
               {queue.map((track, index) => (
                 <div
                   key={`${track.id}-${index}`}
@@ -121,33 +121,30 @@ const QueueModal = ({
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`flex items-center gap-2 p-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing ${draggedIndex === index ? "opacity-40" : ""} ${dragOverIndex === index && draggedIndex !== index ? "bg-white/10" : "hover:bg-white/5"}`}
+                  className={`flex items-center gap-2 p-2 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${draggedIndex === index ? "opacity-40" : ""} ${dragOverIndex === index && draggedIndex !== index ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"}`}
                 >
-                  <GripVertical className="w-4 h-4 text-neutral-700 flex-shrink-0" />
-                  <span className="text-xs text-neutral-600 w-5 text-center flex-shrink-0">{index + 1}</span>
+                  <GripVertical className="w-4 h-4 text-white/20 flex-shrink-0" />
+                  <span className="text-xs text-white/20 w-5 text-center flex-shrink-0">{index + 1}</span>
                   {track.eraImage ? (
                     <img
                       src={track.eraImage}
                       alt=""
-                      className="w-8 h-8 rounded object-cover flex-shrink-0"
+                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded bg-neutral-800 flex-shrink-0" />
+                    <div className="w-8 h-8 rounded-lg bg-white/[0.08] flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{track.name}</p>
-                    <p className="text-xs text-neutral-500 truncate">{track.artistName}</p>
+                    <p className="text-xs text-white/35 truncate">{track.artistName}</p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      onPlayFromQueue(index);
-                      onClose();
-                    }}
-                    className="h-7 w-7 text-neutral-500 hover:text-white flex-shrink-0"
+                    onClick={() => { onPlayFromQueue(index); onClose(); }}
+                    className="h-7 w-7 text-white/30 hover:text-white hover:bg-white/10 rounded-lg flex-shrink-0"
                   >
                     <Play className="w-3 h-3" />
                   </Button>
@@ -155,7 +152,7 @@ const QueueModal = ({
                     variant="ghost"
                     size="icon"
                     onClick={() => onRemove(index)}
-                    className="h-7 w-7 text-neutral-500 hover:text-red-400 flex-shrink-0"
+                    className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg flex-shrink-0"
                   >
                     <Trash2 className="w-3 h-3" />
                   </Button>
@@ -176,23 +173,18 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
     setVolume,
     playNext,
     playPrevious,
-    clearQueue,
     removeFromQueue,
     reorderQueue,
     playFromQueue,
     toggleShuffle,
+    closePlayer,
   } = usePlayer();
   const [queueModalOpen, setQueueModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(state.volume);
-  const handleProgressClick = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
-      seekTo(percent * state.duration);
-    },
-    [seekTo, state.duration]
-  );
+  const [seekPreview, setSeekPreview] = useState<number | null>(null);
+  const displayTime = seekPreview ?? state.currentTime;
+  const progress = state.duration ? (displayTime / state.duration) * 100 : 0;
   const handleVolumeToggle = useCallback(() => {
     if (isMuted) {
       setVolume(prevVolume || 0.7);
@@ -203,128 +195,131 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
       setIsMuted(true);
     }
   }, [isMuted, prevVolume, state.volume, setVolume]);
-  const handleClose = useCallback(() => {
-    clearQueue();
-  }, [clearQueue]);
   const handleQueueReorder = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      reorderQueue(fromIndex, toIndex);
-    },
+    (fromIndex: number, toIndex: number) => reorderQueue(fromIndex, toIndex),
     [reorderQueue]
   );
   const handleQueueRemove = useCallback(
-    (index: number) => {
-      removeFromQueue(index);
-    },
+    (index: number) => removeFromQueue(index),
     [removeFromQueue]
   );
   const handlePlayFromQueue = useCallback(
-    (index: number) => {
-      playFromQueue(index);
-    },
+    (index: number) => playFromQueue(index),
     [playFromQueue]
   );
   if (!state.currentTrack) return null;
-  const progress = state.duration ? (state.currentTime / state.duration) * 100 : 0;
   return (
     <>
       <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-4">
         <div className="max-w-screen-xl mx-auto">
-          <div className="bg-neutral-900/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
-            {/* Main player row */}
-            <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
-              {/* Track info — takes up flex-1 on mobile, fixed width on desktop */}
-              <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:flex-none sm:w-44">
+          <div className="glass-elevated rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-1 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+
+              {/* Art + track info */}
+              <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-none sm:w-52">
                 {state.currentTrack.eraImage ? (
                   <img
                     src={state.currentTrack.eraImage}
                     alt=""
-                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg object-cover flex-shrink-0"
                     referrerPolicy="no-referrer"
                     crossOrigin="anonymous"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-neutral-800 flex-shrink-0" />
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/[0.08] flex-shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate leading-snug">
+                  <p className="text-xs sm:text-sm font-semibold text-white truncate leading-snug">
                     {state.currentTrack.name}
                   </p>
-                  <p className="text-xs text-neutral-400 truncate">
+                  <p className="text-[10px] sm:text-xs text-white/45 truncate mt-0.5">
                     {state.currentTrack.artistName || state.currentTrack.extra}
                   </p>
                 </div>
               </div>
 
               {/* Playback controls */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
+              <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleShuffle}
-                  className={`hidden sm:flex hover:bg-white/10 rounded-full w-9 h-9 ${state.isShuffled ? "text-white" : "text-neutral-500 hover:text-white"}`}
+                  className={`hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 transition-colors ${state.isShuffled ? "text-white" : "text-white/30 hover:text-white"}`}
                   aria-label="Shuffle"
                   aria-pressed={state.isShuffled}
                 >
-                  <Shuffle className="w-4 h-4" />
+                  <Shuffle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={playPrevious}
-                  className="hidden sm:flex text-neutral-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9"
+                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9"
                 >
-                  <SkipBack className="w-4 h-4" />
+                  <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={togglePlayPause}
-                  className="bg-white text-black hover:bg-neutral-200 rounded-full w-9 h-9"
+                  className="bg-white text-black hover:bg-white/90 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0"
                 >
                   {state.isPlaying ? (
-                    <Pause className="w-4 h-4" />
+                    <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   ) : (
-                    <Play className="w-4 h-4 ml-0.5" />
+                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" />
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={playNext}
-                  className="text-neutral-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9"
+                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9"
                 >
-                  <SkipForward className="w-4 h-4" />
+                  <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
               </div>
 
-              {/* Progress bar with timestamps — desktop only */}
+              {/* Progress bar — desktop only, in the row */}
               <div className="hidden sm:flex flex-1 items-center gap-2 min-w-0">
-                <span className="text-xs text-neutral-500 tabular-nums w-8 text-right flex-shrink-0">
-                  {formatTime(state.currentTime)}
+                <span className="text-xs text-white/30 tabular-nums w-8 text-right flex-shrink-0">
+                  {formatTime(displayTime)}
                 </span>
-                <button
-                  type="button"
-                  className="flex-1 h-1 bg-neutral-800 rounded-full cursor-pointer group relative"
-                  onClick={handleProgressClick}
-                  aria-label="Seek playback position"
-                >
-                  <div
-                    className="absolute inset-y-0 left-0 bg-white/70 rounded-full group-hover:bg-white/90 transition-colors"
-                    style={{ width: `${progress}%` }}
+                <div className="relative flex-1 h-5 flex items-center group cursor-pointer">
+                  <div className="absolute inset-x-0 h-1 bg-white/[0.12] rounded-full">
+                    <div
+                      className="absolute inset-y-0 left-0 bg-white/70 group-hover:bg-white rounded-full transition-colors"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <div
+                      className="absolute top-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm pointer-events-none"
+                      style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={state.duration || 0}
+                    value={displayTime}
+                    step="1"
+                    onChange={(e) => setSeekPreview(parseFloat(e.target.value))}
+                    onMouseUp={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
+                    onTouchEnd={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                    aria-label="Seek playback position"
                   />
-                </button>
-                <span className="text-xs text-neutral-500 tabular-nums w-8 flex-shrink-0">
+                </div>
+                <span className="text-xs text-white/30 tabular-nums w-8 flex-shrink-0">
                   {formatTime(state.duration)}
                 </span>
               </div>
 
-              {/* Volume — md and up only */}
+              {/* Volume — md+ only */}
               <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
                 <button
                   type="button"
                   onClick={handleVolumeToggle}
-                  className="text-neutral-500 hover:text-white transition-colors p-1"
+                  className="text-white/30 hover:text-white transition-colors p-1"
                   aria-label="Toggle mute"
                 >
                   {state.volume === 0 || isMuted ? (
@@ -344,23 +339,23 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                     setVolume(v);
                     if (v > 0) setIsMuted(false);
                   }}
-                  className="w-20 accent-white cursor-pointer"
+                  className="w-18 accent-white cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
                   aria-label="Volume"
                 />
               </div>
 
               {/* Queue + close */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
+              <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setQueueModalOpen(true)}
-                  className={`rounded-lg w-8 h-8 relative ${
-                    state.queue.length > 0 ? "text-white" : "text-neutral-500 hover:text-white"
-                  } hover:bg-white/10`}
+                  className={`rounded-xl w-8 h-8 relative transition-colors ${
+                    state.queue.length > 0 ? "text-white hover:bg-white/10" : "text-white/30 hover:text-white hover:bg-white/10"
+                  }`}
                   aria-label="Queue"
                 >
-                  <ListMusic className="w-4 h-4" />
+                  <ListMusic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {state.queue.length > 0 && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-white text-black text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                       {Math.min(state.queue.length, 99)}
@@ -370,13 +365,33 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleClose}
-                  className="text-neutral-600 hover:text-white hover:bg-white/10 rounded-lg w-8 h-8"
+                  onClick={closePlayer}
+                  className="text-white/25 hover:text-white hover:bg-white/10 rounded-xl w-8 h-8"
                   aria-label="Close player"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* Mobile progress bar — below the row */}
+            <div className="sm:hidden relative w-full h-1 bg-white/[0.1]">
+              <div
+                className="absolute inset-y-0 left-0 bg-white/60 transition-none"
+                style={{ width: `${progress}%` }}
+              />
+              <input
+                type="range"
+                min="0"
+                max={state.duration || 0}
+                value={displayTime}
+                step="1"
+                onChange={(e) => setSeekPreview(parseFloat(e.target.value))}
+                onMouseUp={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
+                onTouchEnd={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                aria-label="Seek"
+              />
             </div>
           </div>
         </div>

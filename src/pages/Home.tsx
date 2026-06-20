@@ -24,10 +24,11 @@ import {
   trackEvent,
 } from "@/src/lib/home-constants";
 import { useLocalStorage } from "@/src/hooks/use-local-storage";
-import { GallerySkeleton, HeaderSkeleton, ErrorMessage, NoResultsMessage } from "@/src/components/home/skeletons";
+import { GallerySkeleton, ErrorMessage, NoResultsMessage } from "@/src/components/home/skeletons";
 import { ArtistGridDisplay } from "@/src/components/home/artist-card";
-import { Header } from "@/src/components/home/header";
+import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/components/home/header";
 import { Footer } from "@/src/components/home/footer";
+import { useHeaderSlots } from "@/src/components/layout";
 import { AnnouncementModal, DonationModal, InfoModal } from "@/src/components/home/modals";
 import { TripleBool } from "@/lib/utils";
 function parseCSVRow(line: string): string[] {
@@ -68,7 +69,6 @@ export default function ArtistGallery() {
     LOCAL_STORAGE_KEYS.FILTER_OPTIONS,
     DEFAULT_FILTER_OPTIONS
   );
-  const [useSheet, setUseSheet] = useLocalStorage<boolean>(LOCAL_STORAGE_KEYS.USE_SHEET, false);
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef("");
@@ -136,7 +136,7 @@ export default function ArtistGallery() {
   useEffect(() => {
     const controller = new AbortController();
     const loadData = async () => {
-      const cacheKey = useSheet ? LOCAL_STORAGE_KEYS.CSV_CACHE_REMOTE : LOCAL_STORAGE_KEYS.CSV_CACHE_LOCAL;
+      const cacheKey = LOCAL_STORAGE_KEYS.CSV_CACHE_LOCAL;
       const cached = getCachedData<Artist[]>(cacheKey);
       if (cached?.data?.length) {
         setAllArtists(cached.data);
@@ -204,10 +204,7 @@ export default function ArtistGallery() {
     loadData();
     loadVisitorCount();
     return () => controller.abort();
-  }, [useSheet, toast]);
-  useEffect(() => {
-    hasCachedData.current = false;
-  }, [useSheet]);
+  }, [toast]);
   const sortedArtists = useMemo(() => {
     if (!filterOptions.sortByTrends || !trendsLoaded || allArtists.length === 0) return allArtists;
     return sortArtistsByTrends(allArtists, trendsData);
@@ -218,13 +215,6 @@ export default function ArtistGallery() {
       setFilterOptions((prev) => ({ ...prev, [key]: value }));
     },
     [setFilterOptions]
-  );
-  const handleUseSheetChange = useCallback(
-    (value: boolean) => {
-      trackEvent("Data Source Change", { source: value ? "Remote CSV" : "Local Backup" });
-      setUseSheet(value);
-    },
-    [setUseSheet]
   );
   const artistsPassingFilters = useMemo(
     () =>
@@ -303,8 +293,16 @@ export default function ArtistGallery() {
   }, []);
   const isFirstLoad = status === "loading" && !hasCachedData.current;
   const hasPlayerActive = !!playerState.currentTrack;
+  const headerSlots = useHeaderSlots(
+    <HomeHeaderCenter searchQuery={searchQuery} setSearchQuery={setSearchQuery} />,
+    <>
+      <FilterControls options={filterOptions} onFilterChange={handleFilterChange} />
+      <HeaderActions onInfoClick={openInfoModal} onDonateClick={openDonationModal} />
+    </>
+  );
   return (
     <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-32" : "pb-8"}`}>
+      {headerSlots}
       <AnnouncementModal
         isOpen={activeModal === "announcement"}
         onClose={handleDismissAnnouncement}
@@ -318,27 +316,14 @@ export default function ArtistGallery() {
         onDonate={openDonationModal}
       />
       {isFirstLoad ? (
-        <>
-          <HeaderSkeleton />
-          <main className="max-w-7xl mx-auto p-4 sm:p-6">
-            <GallerySkeleton />
-          </main>
-        </>
+        <main className="max-w-7xl mx-auto p-4 sm:p-6">
+          <GallerySkeleton />
+        </main>
       ) : status === "error" && !hasCachedData.current ? (
         <ErrorMessage message={errorMessage} />
       ) : (
         <>
-          <Header
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filterOptions={filterOptions}
-            onFilterChange={handleFilterChange}
-            onInfoClick={openInfoModal}
-            onDonateClick={openDonationModal}
-            useSheet={useSheet}
-            onUseSheetChange={handleUseSheetChange}
-          />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8" aria-hidden={!!activeModal}>
             {filteredArtists.length > 0 ? (
               <ArtistGridDisplay
                 artists={filteredArtists}
