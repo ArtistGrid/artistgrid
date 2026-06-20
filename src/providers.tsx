@@ -5,6 +5,7 @@ interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
   isPlaying: boolean;
+  isShuffled: boolean;
   currentTime: number;
   duration: number;
   volume: number;
@@ -27,6 +28,7 @@ interface PlayerContextType {
   playPrevious: () => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   playFromQueue: (index: number) => void;
+  toggleShuffle: () => void;
   history: Track[];
   closePlayer: () => void;
   lastfm: LastFMClientInfo;
@@ -59,6 +61,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     currentTrack: null,
     queue: [],
     isPlaying: false,
+    isShuffled: false,
     currentTime: 0,
     duration: 0,
     volume: 1,
@@ -378,6 +381,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
   );
+  const toggleShuffle = useCallback(() => {
+    setState((s) => {
+      const newShuffled = !s.isShuffled;
+      if (newShuffled && s.queue.length > 1) {
+        const shuffled = [...s.queue];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return { ...s, isShuffled: true, queue: shuffled };
+      }
+      return { ...s, isShuffled: newShuffled };
+    });
+  }, []);
   const closePlayer = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -437,6 +454,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playPrevious,
         reorderQueue,
         playFromQueue,
+        toggleShuffle,
         history,
         closePlayer,
         lastfm: {
@@ -446,7 +464,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           completeAuth,
           disconnect: disconnectLastFM,
         },
-      }), [state, playTrack, togglePlayPause, seekTo, setVolume, addToQueue, removeFromQueue, clearQueue, playNext, playPrevious, reorderQueue, playFromQueue, history, closePlayer, lastfmSession, getAuthUrl, completeAuth, disconnectLastFM])}
+      }), [state, playTrack, togglePlayPause, seekTo, setVolume, addToQueue, removeFromQueue, clearQueue, playNext, playPrevious, reorderQueue, playFromQueue, toggleShuffle, history, closePlayer, lastfmSession, getAuthUrl, completeAuth, disconnectLastFM])}
     >
       {children}
     </PlayerContext.Provider>

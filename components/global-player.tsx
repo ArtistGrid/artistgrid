@@ -11,6 +11,7 @@ import {
   Volume2,
   VolumeX,
   ListMusic,
+  Shuffle,
   GripVertical,
   Trash2,
   CircleSlash,
@@ -179,6 +180,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
     removeFromQueue,
     reorderQueue,
     playFromQueue,
+    toggleShuffle,
   } = usePlayer();
   const [queueModalOpen, setQueueModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -256,6 +258,16 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
 
               {/* Playback controls */}
               <div className="flex items-center gap-0.5 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleShuffle}
+                  className={`hidden sm:flex hover:bg-white/10 rounded-full w-9 h-9 ${state.isShuffled ? "text-white" : "text-neutral-500 hover:text-white"}`}
+                  aria-label="Shuffle"
+                  aria-pressed={state.isShuffled}
+                >
+                  <Shuffle className="w-4 h-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
