@@ -1,5 +1,5 @@
 import type { Track, TALeak } from "@/src/types";
-import { normalizePillowsUrl, getTrackSource } from "./resolve-url";
+import { normalizePillowsUrl } from "./resolve-url";
 export const TRACKER_ID_LENGTH = 44;
 export const SUPPORTED_SOURCES: Track["source"][] = [
   "pillows",
@@ -73,4 +73,3 @@ export function getSourceDisplayName(source: Track["source"]): string {
   };
   return names[source];
 }
-export { getTrackSource };

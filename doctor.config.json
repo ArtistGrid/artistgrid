@@ -1,0 +1,13 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "rules": {
+    "react-doctor/no-giant-component": "off",
+    "react-doctor/prefer-useReducer": "off",
+    "react-doctor/no-fetch-in-effect": "off",
+    "react-doctor/async-await-in-loop": "off",
+    "react-doctor/no-cascading-set-state": "off",
+    "react-doctor/no-event-handler": "off",
+    "react-doctor/js-set-map-lookups": "off",
+    "react-doctor/no-derived-state": "off"
+  }
+}

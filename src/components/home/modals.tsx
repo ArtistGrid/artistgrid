@@ -1,23 +1,16 @@
 import { memo, useState, useCallback, lazy, Suspense } from "react";
-import { QrCode, Copy as CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
 import { Modal } from "@/src/components/modal";
-import { DONATION_OPTIONS, trackEvent } from "@/src/lib/home-constants";
+import { DonationContent, type QrCodeData } from "@/src/components/crypto-donation-section";
 const QRCode = lazy(() => import("qrcode.react").then((mod) => ({ default: mod.QRCodeSVG })));
-interface QrCodeData {
-  value: string;
-  uriScheme: string;
-  name: string;
-}
-export const AnnouncementModal = memo(
-  ({ isOpen, onClose, message }: { isOpen: boolean; onClose: () => void; message: string }) => {
-    const renderMarkdown = (text: string) => {
-      return text.split("\n").map((line, i) => {
+
+function MarkdownContent({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line) => {
         if (line.startsWith("# "))
           return (
-            <h2 key={i} className="text-xl font-bold text-white mb-4">
+            <h2 key={`h-${line}`} className="text-xl font-bold text-white mb-4">
               {line.slice(2)}
             </h2>
           );
@@ -25,131 +18,81 @@ export const AnnouncementModal = memo(
           const match = line.match(/- \*\*(.+?)\*\*: (.+)/);
           if (match)
             return (
-              <p key={i} className="text-neutral-300 mb-2">
+              <p key={`b-${match[1]}`} className="text-neutral-300 mb-2">
                 • <strong className="text-white">{match[1]}</strong>: {match[2]}
               </p>
             );
         }
-        if (line.trim() === "") return <br key={i} />;
+        if (line.trim() === "") return null;
         return (
-          <p key={i} className="text-neutral-300 mb-2">
+          <p key={`p-${line}`} className="text-neutral-300 mb-2">
             {line}
           </p>
         );
-      });
-    };
-    return (
-      <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Announcement">
-        <div className="p-6 pt-12">
-          {renderMarkdown(message)}
-          <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">
-            Got it!
-          </Button>
-        </div>
-      </Modal>
-    );
-  }
+      })}
+    </>
+  );
+}
+
+export const AnnouncementModal = memo(
+  ({ isOpen, onClose, message }: { isOpen: boolean; onClose: () => void; message: string }) => (
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Announcement">
+      <div className="p-6 pt-12">
+        <MarkdownContent text={message} />
+        <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">
+          Got it!
+        </Button>
+      </div>
+    </Modal>
+  )
 );
-export const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void }) => (
-  <div
-    className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center p-4 rounded-xl backdrop-blur-sm"
-    onClick={onClose}
-  >
-    <div className="bg-white p-4 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
-      <Suspense fallback={<div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" />}>
-        <QRCode value={qrCodeData.uriScheme ? `${qrCodeData.uriScheme}:${qrCodeData.value}` : qrCodeData.value} size={240} level="H" />
-      </Suspense>
-    </div>
-    <p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p>
-    <p className="text-xs text-neutral-300 mt-2 break-all text-center px-4 font-mono">{qrCodeData.value}</p>
-    <Button
-      variant="ghost"
-      className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg"
+
+const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void }) => (
+  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 rounded-xl">
+    <button
+      type="button"
+      className="absolute inset-0 bg-black/90 backdrop-blur-sm rounded-xl cursor-default"
       onClick={onClose}
-    >
-      Close
-    </Button>
+      aria-label="Close QR code"
+      tabIndex={-1}
+    />
+    <div className="relative z-10 flex flex-col items-center">
+      <div className="bg-white p-4 rounded-lg shadow-2xl">
+        <Suspense fallback={<div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" />}>
+          <QRCode value={qrCodeData.uriScheme ? `${qrCodeData.uriScheme}:${qrCodeData.value}` : qrCodeData.value} size={240} level="H" />
+        </Suspense>
+      </div>
+      <p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p>
+      <p className="text-xs text-neutral-300 mt-2 break-all text-center px-4 font-mono">{qrCodeData.value}</p>
+      <Button
+        variant="ghost"
+        className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg"
+        onClick={onClose}
+      >
+        Close
+      </Button>
+    </div>
   </div>
 ));
+
 export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-  if (prevIsOpen !== isOpen) {
-    setPrevIsOpen(isOpen);
-    if (!isOpen) setActiveQrCode(null);
-  }
-  const { toast } = useToast();
-  const handleCopy = useCallback(
-    (text: string, name: string) => {
-      trackEvent("Copy Address", { crypto: name });
-      navigator.clipboard.writeText(text).then(() => {
-        toast({ title: "Copied!", description: `${name} address copied.` });
-      });
-    },
-    [toast]
-  );
-  const handleShowQr = useCallback((option: (typeof DONATION_OPTIONS.CRYPTO)[0]) => {
-    trackEvent("Show QR Code", { crypto: option.name });
-    setActiveQrCode({ ...option });
-  }, []);
+  const handleShowQr = useCallback((data: QrCodeData) => setActiveQrCode(data), []);
+  const handleCloseQr = useCallback(() => setActiveQrCode(null), []);
   return (
     <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Donation options">
       <div className="p-6">
         <h2 className="text-2xl font-bold text-white text-center mb-2">Support ArtistGrid</h2>
         <p className="text-center text-sm text-neutral-400 mb-6">Your contributions help cover server costs.</p>
         <div className="space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
-          <div className="flex flex-col gap-3">
-            {DONATION_OPTIONS.URL.map((opt) => (
-              <Button key={opt.name} asChild className="font-semibold rounded-lg w-full">
-                <a href={opt.value} target="_blank" rel="noopener noreferrer">
-                  {opt.name}
-                </a>
-              </Button>
-            ))}
-          </div>
-          <div className="relative flex items-center">
-            <div className="flex-grow border-t border-neutral-800" />
-            <span className="flex-shrink mx-4 text-xs text-neutral-500 uppercase">Or Crypto</span>
-            <div className="flex-grow border-t border-neutral-800" />
-          </div>
-          <div className="space-y-4">
-            {DONATION_OPTIONS.CRYPTO.map((option) => (
-              <div key={option.name}>
-                <label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    readOnly
-                    value={option.value}
-                    className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleShowQr(option)}
-                    className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg"
-                    aria-label={`Show ${option.name} QR code`}
-                  >
-                    <QrCode className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleCopy(option.value, option.name)}
-                    className="bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white flex-shrink-0 rounded-lg"
-                    aria-label={`Copy ${option.name} address`}
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <DonationContent onShowQr={handleShowQr} />
         </div>
-        {activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={() => setActiveQrCode(null)} />}
+        {activeQrCode && <QrCodeOverlay qrCodeData={activeQrCode} onClose={handleCloseQr} />}
       </div>
     </Modal>
   );
 });
+
 export const InfoModal = memo(
   ({
     isOpen,

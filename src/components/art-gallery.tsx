@@ -74,22 +74,13 @@ export function ArtGallery({
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                     {(items as TALeak[]).map((item, i) => {
                       const url = item.url || (item.urls && item.urls[0]);
-                      // A URL counts as an image if it resolves to a direct image (not a music link)
                       const urlAsImage = url ? getImageUrl(url) : null;
-                      // The item's own image: explicit image field, or a URL that IS an image
                       const ownImageSrc = item.image || urlAsImage;
-                      // Fall back to the era cover art so the grid always has something to show
                       const displaySrc = ownImageSrc || era.image || null;
-                      // Only open the lightbox when we have an image that belongs to this item
                       const clickTarget = ownImageSrc || null;
-                      return (
-                        <div
-                          key={i}
-                          className={`group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all ${
-                            clickTarget ? "cursor-pointer hover:border-neutral-600" : "cursor-default"
-                          }`}
-                          onClick={() => clickTarget && onImageClick(clickTarget, item.name)}
-                        >
+                      const stableKey = item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
+                      const cardContent = (
+                        <>
                           <div className="aspect-square relative bg-neutral-800 overflow-hidden">
                             {displaySrc ? (
                               <img
@@ -113,6 +104,23 @@ export function ArtGallery({
                               </p>
                             )}
                           </div>
+                        </>
+                      );
+                      return clickTarget ? (
+                        <button
+                          key={stableKey}
+                          type="button"
+                          className="group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all cursor-pointer hover:border-neutral-600 text-left w-full"
+                          onClick={() => onImageClick(clickTarget, item.name)}
+                        >
+                          {cardContent}
+                        </button>
+                      ) : (
+                        <div
+                          key={stableKey}
+                          className="group rounded-lg sm:rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 transition-all cursor-default"
+                        >
+                          {cardContent}
                         </div>
                       );
                     })}
@@ -140,23 +148,29 @@ export function ImageLightbox({
 }) {
   useKeyPress("Escape", onClose);
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <img
-          src={src}
-          alt={alt}
-          className="max-w-full max-h-full object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+      <button
+        type="button"
+        className="absolute inset-0"
+        onClick={onClose}
+        aria-label="Close lightbox"
+        tabIndex={-1}
+      />
+      <div className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+        <button
+          type="button"
+          className="max-w-full max-h-full p-0 bg-transparent border-0"
           onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")}
           title="Click to open original"
-          referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
-        />
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full max-h-full object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+          />
+        </button>
         <Button
           variant="ghost"
           size="icon"

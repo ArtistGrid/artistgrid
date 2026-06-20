@@ -1,7 +1,7 @@
 import type { Era, TALeak, TrackerResponse } from "@/src/types";
 import { isUrl } from "./track-utils";
 
-export const API_BASE = "https://trackerapi.artistgrid.cx";
+const API_BASE = "https://trackerapi.artistgrid.cx";
 
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${endpoint}`, options);

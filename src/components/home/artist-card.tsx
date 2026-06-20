@@ -3,7 +3,7 @@ import { FileSpreadsheet } from "lucide-react";
 import type { Artist } from "@/src/types";
 import { ASSET_BASE } from "@/src/lib/home-constants";
 import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
-export const ArtistCard = memo(function ArtistCard({
+const ArtistCard = memo(function ArtistCard({
   artist,
   priority,
   onClick,
@@ -16,14 +16,12 @@ export const ArtistCard = memo(function ArtistCard({
 }) {
   const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      className="border-neutral-800 hover:border-white/30 bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
-      onClick={() => onClick(artist)}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick(artist)}
-    >
-      <div className="flex flex-col h-full">
+    <div className="relative border-neutral-800 hover:border-white/30 bg-neutral-950 border hover:bg-neutral-900 hover:-translate-y-1 group rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.12)]">
+      <button
+        type="button"
+        className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white"
+        onClick={() => onClick(artist)}
+      >
         <div className="relative aspect-square w-full bg-neutral-900 overflow-hidden">
           <img
             src={`${ASSET_BASE}/${artist.imageFilename}`}
@@ -35,23 +33,23 @@ export const ArtistCard = memo(function ArtistCard({
             crossOrigin="anonymous"
           />
         </div>
-        <div className="flex items-start justify-between p-3">
-          <h3 className="font-semibold text-white text-sm leading-tight flex-1 mr-2">{artist.name}</h3>
-          {trackerId && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSheetClick(getSheetViewUrl(artist.url));
-              }}
-              className="flex-shrink-0 p-1 -m-1 rounded-md text-neutral-500 group-hover:text-white transition-colors"
-              aria-label={`Open sheet for ${artist.name}`}
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-            </button>
-          )}
+        <div className={`p-3 ${trackerId ? "pr-8" : ""}`}>
+          <h3 className="font-semibold text-white text-sm leading-tight">{artist.name}</h3>
         </div>
-      </div>
+      </button>
+      {trackerId && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSheetClick(getSheetViewUrl(artist.url));
+          }}
+          className="absolute bottom-3 right-3 z-10 p-1 rounded-md text-neutral-500 group-hover:text-white transition-colors"
+          aria-label={`Open sheet for ${artist.name}`}
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 });

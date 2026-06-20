@@ -58,14 +58,15 @@ const QueueModal = ({
   };
   if (!isOpen) return null;
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 pb-36 sm:pb-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-md relative animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pb-36 sm:pb-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-label="Close queue"
+        tabIndex={-1}
+      />
+      <div className="relative z-10 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-neutral-800">
           <div className="flex items-center gap-2.5">
             <ListMusic className="w-5 h-5 text-neutral-400" />
@@ -183,7 +184,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(state.volume);
   const handleProgressClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const percent = (e.clientX - rect.left) / rect.width;
       seekTo(percent * state.duration);
@@ -290,15 +291,17 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 <span className="text-xs text-neutral-500 tabular-nums w-8 text-right flex-shrink-0">
                   {formatTime(state.currentTime)}
                 </span>
-                <div
+                <button
+                  type="button"
                   className="flex-1 h-1 bg-neutral-800 rounded-full cursor-pointer group relative"
                   onClick={handleProgressClick}
+                  aria-label="Seek playback position"
                 >
                   <div
                     className="absolute inset-y-0 left-0 bg-white/70 rounded-full group-hover:bg-white/90 transition-colors"
                     style={{ width: `${progress}%` }}
                   />
-                </div>
+                </button>
                 <span className="text-xs text-neutral-500 tabular-nums w-8 flex-shrink-0">
                   {formatTime(state.duration)}
                 </span>

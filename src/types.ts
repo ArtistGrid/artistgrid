@@ -78,3 +78,10 @@ export interface ArtistFilterOptions {
   showAlts: boolean;
   sortByTrends: boolean;
 }
+export interface LastFMClientInfo {
+  isAuthenticated: boolean;
+  username: string | null;
+  getAuthUrl: () => Promise<{ token: string; url: string }>;
+  completeAuth: (token: string) => Promise<{ success: boolean; username: string }>;
+  disconnect: () => void;
+}

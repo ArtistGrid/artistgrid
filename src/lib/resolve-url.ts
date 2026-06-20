@@ -75,18 +75,20 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       case "pixeldrain": {
         const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
         if (!match) return null;
-        for (const base of PIXELDRAIN_APIS) {
-          try {
-            const res = await fetch(`${base}/goy/dl/${match[1]}`);
-            if (res.ok) {
+        try {
+          const url = await Promise.any(
+            PIXELDRAIN_APIS.map(async (base) => {
+              const res = await fetch(`${base}/goy/dl/${match[1]}`);
+              if (!res.ok) throw new Error("not ok");
               const data = await res.json();
-              if (data?.url) return data.url;
-            }
-          } catch {
-            continue;
-          }
+              if (!data?.url) throw new Error("no url");
+              return data.url as string;
+            })
+          );
+          return url;
+        } catch {
+          return null;
         }
-        return null;
       }
       case "froste": {
         const match = normalized.match(/music\.froste\.lol\/song\/([a-f0-9]+)/);

@@ -1,6 +1,6 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
 import SparkMD5 from "spark-md5";
-import type { Track } from "./types";
+import type { Track, LastFMClientInfo } from "./types";
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
@@ -29,23 +29,11 @@ interface PlayerContextType {
   playFromQueue: (index: number) => void;
   history: Track[];
   closePlayer: () => void;
-  lastfm: {
-    isAuthenticated: boolean;
-    username: string | null;
-    getAuthUrl: () => Promise<{
-      token: string;
-      url: string;
-    }>;
-    completeAuth: (token: string) => Promise<{
-      success: boolean;
-      username: string;
-    }>;
-    disconnect: () => void;
-  };
+  lastfm: LastFMClientInfo;
 }
 const PlayerContext = createContext<PlayerContextType | null>(null);
-const LASTFM_API_KEY = "0fc32c426d943d34a662977b31b98b67";
-const LASTFM_API_SECRET = "53acf2466be726db021e7fdfd0ad1084";
+const LASTFM_API_KEY = import.meta.env.VITE_LASTFM_API_KEY as string;
+const LASTFM_API_SIG = import.meta.env.VITE_LASTFM_SIG as string;
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 export function usePlayer() {
   const context = use(PlayerContext);
@@ -77,18 +65,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isBuffering: false,
   });
   const [history, setHistory] = useState<Track[]>([]);
-  const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(null);
+  const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(() => {
+    try {
+      const session = localStorage.getItem("lastfm-session:v1");
+      return session ? (JSON.parse(session) as LastFMSession) : null;
+    } catch {
+      return null;
+    }
+  });
   const scrobbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrobbledRef = useRef(false);
   const currentTrackRef = useRef<Track | null>(null);
-  useEffect(() => {
-    try {
-      const session = localStorage.getItem("lastfm-session");
-      if (session) setLastfmSession(JSON.parse(session));
-    } catch (e) {
-      console.error("Failed to load Last.fm session:", e);
-    }
-  }, []);
   const getScrobbleArtist = useCallback((track: Track): string => {
     if (track.artistName) return track.artistName;
     return track.eraName || "Unknown Artist";
@@ -125,7 +112,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     delete filteredParams.format;
     delete filteredParams.callback;
     const sortedKeys = Object.keys(filteredParams).sort();
-    const signatureString = sortedKeys.map((key) => `${key}${filteredParams[key]}`).join("") + LASTFM_API_SECRET;
+    const signatureString = sortedKeys.map((key) => `${key}${filteredParams[key]}`).join("") + LASTFM_API_SIG;
     return SparkMD5.hash(signatureString);
   }, []);
   const makeLastFMRequest = useCallback(
@@ -316,20 +303,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, opts);
     return () => controller.abort();
   }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume]);
-  const playTrack = useCallback(
+  const beginPlayback = useCallback(
     (track: Track) => {
-      if (!audioRef.current || !track.playableUrl) return;
+      if (!audioRef.current) return;
       clearScrobbleTimer();
       hasScrobbledRef.current = false;
       currentTrackRef.current = track;
-      audioRef.current.src = track.playableUrl;
+      audioRef.current.src = track.playableUrl!;
       audioRef.current.play().catch(console.error);
       setHistory((h) => [...h, track]);
+    },
+    [clearScrobbleTimer]
+  );
+  const playTrack = useCallback(
+    (track: Track) => {
+      if (!audioRef.current || !track.playableUrl) return;
+      beginPlayback(track);
       setState((s) => ({ ...s, currentTrack: track, isPlaying: true }));
       if (lastfmSession?.key) updateNowPlaying(track);
       updateMediaSession(track, true);
     },
-    [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]
+    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
   );
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -374,12 +368,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const track = s.queue[index];
         const newQueue = s.queue.slice(index + 1);
         if (audioRef.current && track.playableUrl) {
-          clearScrobbleTimer();
-          hasScrobbledRef.current = false;
-          currentTrackRef.current = track;
-          audioRef.current.src = track.playableUrl;
-          audioRef.current.play().catch(console.error);
-          setHistory((h) => [...h, track]);
+          beginPlayback(track);
           if (lastfmSession?.key) updateNowPlaying(track);
           updateMediaSession(track, true);
           return { ...s, currentTrack: track, queue: newQueue, isPlaying: true };
@@ -387,7 +376,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return s;
       });
     },
-    [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]
+    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
   );
   const closePlayer = useCallback(() => {
     if (audioRef.current) {
@@ -421,7 +410,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (data.session) {
         const session = { key: data.session.key, name: data.session.name };
         setLastfmSession(session);
-        localStorage.setItem("lastfm-session", JSON.stringify(session));
+        localStorage.setItem("lastfm-session:v1", JSON.stringify(session));
         return { success: true, username: data.session.name };
       }
       throw new Error("No session returned");
@@ -430,7 +419,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
   const disconnectLastFM = useCallback(() => {
     setLastfmSession(null);
-    localStorage.removeItem("lastfm-session");
+    localStorage.removeItem("lastfm-session:v1");
     clearScrobbleTimer();
   }, [clearScrobbleTimer]);
   return (

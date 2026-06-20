@@ -2,22 +2,11 @@ import { useState } from "react";
 import { Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/src/components/modal";
+import type { LastFMClientInfo } from "@/src/types";
 export interface LastFMModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lastfm: {
-    isAuthenticated: boolean;
-    username: string | null;
-    getAuthUrl: () => Promise<{
-      token: string;
-      url: string;
-    }>;
-    completeAuth: (token: string) => Promise<{
-      success: boolean;
-      username: string;
-    }>;
-    disconnect: () => void;
-  };
+  lastfm: LastFMClientInfo;
   token: string | null;
   setToken: (t: string | null) => void;
 }

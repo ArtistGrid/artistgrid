@@ -1,0 +1,16 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/fallow@latest/schema.json",
+  "health": {
+    // Raise thresholds to realistic levels for a UI-heavy SPA without test coverage.
+    // CRAP scores assume 0% coverage (fallow estimate), making even moderate functions
+    // appear extreme. These values allow catching truly pathological complexity.
+    "maxCyclomatic": 40,
+    "maxCognitive": 100,
+    "maxCrap": 2000
+  },
+  "duplicates": {
+    // Only flag clones of 8+ lines; very short structural patterns (6-7 line guard
+    // clauses, Set-toggle idioms) are idiomatic in React and not worth extracting.
+    "minLines": 8
+  }
+}

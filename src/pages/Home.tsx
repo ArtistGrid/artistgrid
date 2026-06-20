@@ -57,7 +57,11 @@ export default function ArtistGallery() {
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(null);
+  const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(() => {
+    const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
+    const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
+    return storedHash !== currentHash ? "announcement" : null;
+  });
   const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
   const [trendsLoaded, setTrendsLoaded] = useState(false);
   const [filterOptions, setFilterOptions] = useLocalStorage<ArtistFilterOptions>(
@@ -68,14 +72,7 @@ export default function ArtistGallery() {
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef("");
-  const initialSortApplied = useRef(false);
-  const originalOrder = useRef<Artist[]>([]);
   const hasCachedData = useRef(false);
-  useEffect(() => {
-    const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
-    const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
-    if (storedHash !== currentHash) setActiveModal("announcement");
-  }, []);
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
     localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
@@ -120,7 +117,7 @@ export default function ArtistGallery() {
     return () => controller.abort();
   }, []);
   const sortArtistsByTrends = useCallback((artists: Artist[], trends: Map<string, number>): Artist[] => {
-    return [...artists].sort((a, b) => {
+    return artists.toSorted((a, b) => {
       const aV = trends.get(a.name) || 0;
       const bV = trends.get(b.name) || 0;
       const getGroup = (artist: Artist, v: number) => {
@@ -142,7 +139,6 @@ export default function ArtistGallery() {
       const cacheKey = useSheet ? LOCAL_STORAGE_KEYS.CSV_CACHE_REMOTE : LOCAL_STORAGE_KEYS.CSV_CACHE_LOCAL;
       const cached = getCachedData<Artist[]>(cacheKey);
       if (cached?.data?.length) {
-        originalOrder.current = cached.data;
         setAllArtists(cached.data);
         setStatus("success");
         hasCachedData.current = true;
@@ -187,7 +183,6 @@ export default function ArtistGallery() {
         }
         if (!cached?.data || !artistsEqual(parsed, cached.data)) {
           setCachedData(cacheKey, parsed);
-          originalOrder.current = parsed;
           setAllArtists(parsed);
         }
         setStatus("success");
@@ -211,27 +206,12 @@ export default function ArtistGallery() {
     return () => controller.abort();
   }, [useSheet, toast]);
   useEffect(() => {
-    if (
-      status === "success" &&
-      trendsLoaded &&
-      !initialSortApplied.current &&
-      filterOptions.sortByTrends &&
-      allArtists.length > 0
-    ) {
-      initialSortApplied.current = true;
-      setAllArtists(sortArtistsByTrends(allArtists, trendsData));
-    }
-  }, [status, trendsLoaded, sortArtistsByTrends, trendsData, filterOptions.sortByTrends, allArtists]);
-  useEffect(() => {
-    if (status === "success" && trendsLoaded && originalOrder.current.length > 0) {
-      if (filterOptions.sortByTrends) setAllArtists(sortArtistsByTrends(originalOrder.current, trendsData));
-      else setAllArtists([...originalOrder.current]);
-    }
-  }, [filterOptions.sortByTrends, status, trendsLoaded, sortArtistsByTrends, trendsData]);
-  useEffect(() => {
-    initialSortApplied.current = false;
     hasCachedData.current = false;
   }, [useSheet]);
+  const sortedArtists = useMemo(() => {
+    if (!filterOptions.sortByTrends || !trendsLoaded || allArtists.length === 0) return allArtists;
+    return sortArtistsByTrends(allArtists, trendsData);
+  }, [allArtists, filterOptions.sortByTrends, trendsLoaded, trendsData, sortArtistsByTrends]);
   const handleFilterChange = useCallback(
     (key: keyof ArtistFilterOptions, value: boolean) => {
       trackEvent("Filter Change", { filter: key, enabled: value });
@@ -248,14 +228,14 @@ export default function ArtistGallery() {
   );
   const artistsPassingFilters = useMemo(
     () =>
-      allArtists.filter(
+      sortedArtists.filter(
         (artist) =>
           (filterOptions.showWorking ? artist.isLinkWorking : true) &&
           (filterOptions.showUpdated ? artist.isUpdated : true) &&
           (filterOptions.showStarred ? artist.isStarred : true) &&
           (filterOptions.showAlts ? true : !artist.name.toLowerCase().includes("[alt"))
       ),
-    [allArtists, filterOptions]
+    [sortedArtists, filterOptions]
   );
   const fuse = useMemo(
     () => new Fuse(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true }),
@@ -323,50 +303,6 @@ export default function ArtistGallery() {
   }, []);
   const isFirstLoad = status === "loading" && !hasCachedData.current;
   const hasPlayerActive = !!playerState.currentTrack;
-  const renderContent = () => {
-    if (isFirstLoad) {
-      return (
-        <>
-          <HeaderSkeleton />
-          <main className="max-w-7xl mx-auto p-4 sm:p-6">
-            <GallerySkeleton />
-          </main>
-        </>
-      );
-    }
-    if (status === "error" && !hasCachedData.current) return <ErrorMessage message={errorMessage} />;
-    return (
-      <>
-        <Header
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filterOptions={filterOptions}
-          onFilterChange={handleFilterChange}
-          onInfoClick={openInfoModal}
-          onDonateClick={openDonationModal}
-          useSheet={useSheet}
-          onUseSheetChange={handleUseSheetChange}
-        />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
-          {filteredArtists.length > 0 ? (
-            <ArtistGridDisplay
-              artists={filteredArtists}
-              onArtistClick={handleArtistClick}
-              onSheetClick={handleSheetClick}
-            />
-          ) : (
-            <NoResultsMessage searchQuery={searchQuery} />
-          )}
-        </main>
-        <Footer
-          displayedCount={filteredArtists.length}
-          totalCount={allArtists.length}
-          onDonateClick={openDonationModal}
-          visitorCount={visitorCount}
-        />
-      </>
-    );
-  };
   return (
     <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-32" : "pb-8"}`}>
       <AnnouncementModal
@@ -374,14 +310,53 @@ export default function ArtistGallery() {
         onClose={handleDismissAnnouncement}
         message={ANNOUNCEMENT_MESSAGE}
       />
-      <DonationModal isOpen={activeModal === "donate"} onClose={closeModal} />
+      <DonationModal key={String(activeModal === "donate")} isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal
         isOpen={activeModal === "info"}
         onClose={closeModal}
         visitorCount={visitorCount}
         onDonate={openDonationModal}
       />
-      {renderContent()}
+      {isFirstLoad ? (
+        <>
+          <HeaderSkeleton />
+          <main className="max-w-7xl mx-auto p-4 sm:p-6">
+            <GallerySkeleton />
+          </main>
+        </>
+      ) : status === "error" && !hasCachedData.current ? (
+        <ErrorMessage message={errorMessage} />
+      ) : (
+        <>
+          <Header
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            filterOptions={filterOptions}
+            onFilterChange={handleFilterChange}
+            onInfoClick={openInfoModal}
+            onDonateClick={openDonationModal}
+            useSheet={useSheet}
+            onUseSheetChange={handleUseSheetChange}
+          />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6" aria-hidden={!!activeModal}>
+            {filteredArtists.length > 0 ? (
+              <ArtistGridDisplay
+                artists={filteredArtists}
+                onArtistClick={handleArtistClick}
+                onSheetClick={handleSheetClick}
+              />
+            ) : (
+              <NoResultsMessage searchQuery={searchQuery} />
+            )}
+          </main>
+          <Footer
+            displayedCount={filteredArtists.length}
+            totalCount={allArtists.length}
+            onDonateClick={openDonationModal}
+            visitorCount={visitorCount}
+          />
+        </>
+      )}
     </div>
   );
 }

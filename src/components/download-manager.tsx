@@ -57,6 +57,12 @@ export function useDownloadManager() {
   if (!ctx) throw new Error("useDownloadManager must be used within DownloadProvider");
   return ctx;
 }
+function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch: Partial<DownloadItem>): DownloadJob[] {
+  return prev.map((job) => {
+    if (job.id !== jobId) return job;
+    return { ...job, items: job.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) };
+  });
+}
 function sanitizeFilename(name: string): string {
   return (
     name
@@ -231,47 +237,40 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const activeDownloadsRef = useRef(0);
   const downloadQueueRef = useRef<DownloadQueueItem[]>([]);
-  const zipDataRef = useRef<
-    Map<
-      string,
-      Map<
-        string,
-        {
-          blob: Blob;
-          ext: string;
-        }
-      >
-    >
-  >(new Map());
+  const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>> | null>(null);
+  if (!zipDataRef.current) zipDataRef.current = new Map();
   const processQueueRef = useRef<() => void>(() => {});
-  const creatingZipsRef = useRef<Set<string>>(new Set());
-  const downloadUrlsRef = useRef<Map<string, string>>(new Map());
-  const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
+  const creatingZipsRef = useRef<Set<string> | null>(null);
+  if (!creatingZipsRef.current) creatingZipsRef.current = new Set();
+  const downloadUrlsRef = useRef<Map<string, string> | null>(null);
+  if (!downloadUrlsRef.current) downloadUrlsRef.current = new Map();
+  const markItemFailed = useCallback((item: DownloadQueueItem) => {
     setJobs((prev) =>
       prev.map((job) => {
         if (job.id !== item.jobId) return job;
-        return {
-          ...job,
-          items: job.items.map((i) =>
-            i.id === item.itemId ? { ...i, status: "downloading" as const, progress: 0 } : i
-          ),
-        };
+        const newItems = job.items.map((i) => {
+          if (i.id !== item.itemId) return i;
+          if (i.retryCount < MAX_RETRY_ATTEMPTS) {
+            downloadQueueRef.current.push(item);
+            return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
+          }
+          return { ...i, status: "failed" as const };
+        });
+        return { ...job, items: newItems, failedCount: newItems.filter((i) => i.status === "failed").length };
       })
     );
+  }, []);
+  const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
+    setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "downloading", progress: 0 }));
     try {
       const result = await downloadFileAsBlob(item.playableUrl, (loaded, total) => {
         const progress = Math.round((loaded / total) * 100);
-        setJobs((prev) =>
-          prev.map((job) => {
-            if (job.id !== item.jobId) return job;
-            return { ...job, items: job.items.map((i) => (i.id === item.itemId ? { ...i, progress } : i)) };
-          })
-        );
+        setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { progress }));
       });
       if (result) {
         const ext = getFileExtension(item.playableUrl, result.contentType);
-        if (!zipDataRef.current.has(item.jobId)) zipDataRef.current.set(item.jobId, new Map());
-        zipDataRef.current.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
+        if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
+        zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
         setJobs((prev) =>
           prev.map((job) => {
             if (job.id !== item.jobId) return job;
@@ -282,45 +281,15 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           })
         );
       } else {
-        setJobs((prev) =>
-          prev.map((job) => {
-            if (job.id !== item.jobId) return job;
-            const newItems = job.items.map((i) => {
-              if (i.id === item.itemId) {
-                if (i.retryCount < MAX_RETRY_ATTEMPTS) {
-                  downloadQueueRef.current.push(item);
-                  return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
-                }
-                return { ...i, status: "failed" as const };
-              }
-              return i;
-            });
-            return { ...job, items: newItems, failedCount: newItems.filter((i) => i.status === "failed").length };
-          })
-        );
+        markItemFailed(item);
       }
     } catch (error) {
       console.error("Download failed:", error);
-      setJobs((prev) =>
-        prev.map((job) => {
-          if (job.id !== item.jobId) return job;
-          const newItems = job.items.map((i) => {
-            if (i.id === item.itemId) {
-              if (i.retryCount < MAX_RETRY_ATTEMPTS) {
-                downloadQueueRef.current.push(item);
-                return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
-              }
-              return { ...i, status: "failed" as const };
-            }
-            return i;
-          });
-          return { ...job, items: newItems, failedCount: newItems.filter((i) => i.status === "failed").length };
-        })
-      );
+      markItemFailed(item);
     }
     activeDownloadsRef.current--;
     processQueueRef.current();
-  }, []);
+  }, [markItemFailed]);
   const processQueue = useCallback(() => {
     while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
       const item = downloadQueueRef.current.shift();
@@ -334,19 +303,19 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     const checkAndCreateZips = async () => {
       const readyJobs = jobs.filter((job) => {
-        if (job.status !== "active" || creatingZipsRef.current.has(job.id)) return false;
+        if (job.status !== "active" || creatingZipsRef.current!.has(job.id)) return false;
         return job.items.every((i) => i.status === "completed" || i.status === "failed") && !job.zipBlob && !job.isCreatingZip;
       });
       if (readyJobs.length === 0) return;
       const JSZip = (await import("jszip")).default;
       await Promise.all(
         readyJobs.map(async (job) => {
-          const jobData = zipDataRef.current.get(job.id);
+          const jobData = zipDataRef.current!.get(job.id);
           if (!jobData || jobData.size === 0) {
             setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
             return;
           }
-          creatingZipsRef.current.add(job.id);
+          creatingZipsRef.current!.add(job.id);
           setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
           try {
             // Split completed items into ≤900 MB chunks
@@ -367,7 +336,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             const filled = chunks.filter((c) => c.length > 0);
             if (filled.length === 0) {
               setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j)));
-              creatingZipsRef.current.delete(job.id);
+              creatingZipsRef.current!.delete(job.id);
               return;
             }
             const baseName = job.eraName
@@ -391,7 +360,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               if (i === 0) firstContent = content;
               const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
               const downloadUrl = URL.createObjectURL(content);
-              if (i === 0) downloadUrlsRef.current.set(job.id, downloadUrl);
+              if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
               // Stagger each part by 600 ms so the browser doesn't block simultaneous saves
               const t1 = setTimeout(() => {
                 const link = document.createElement("a");
@@ -408,18 +377,18 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             setJobs((prev) =>
               prev.map((j) =>
                 j.id === job.id
-                  ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current.get(job.id) }
+                  ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current!.get(job.id) }
                   : j
               )
             );
-            zipDataRef.current.delete(job.id);
-            creatingZipsRef.current.delete(job.id);
+            zipDataRef.current!.delete(job.id);
+            creatingZipsRef.current!.delete(job.id);
           } catch (error) {
             console.error("ZIP creation failed:", error);
             setJobs((prev) =>
               prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
             );
-            creatingZipsRef.current.delete(job.id);
+            creatingZipsRef.current!.delete(job.id);
           }
         })
       );
@@ -428,11 +397,14 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     return () => timeouts.forEach(clearTimeout);
   }, [jobs]);
   useEffect(() => {
+    const ref = downloadUrlsRef;
     return () => {
-      for (const url of downloadUrlsRef.current.values()) URL.revokeObjectURL(url);
-      downloadUrlsRef.current.clear();
+      if (ref.current) {
+        for (const url of ref.current.values()) URL.revokeObjectURL(url);
+        ref.current.clear();
+      }
     };
-  }, []);
+  }, [downloadUrlsRef]);
   const startDownload = useCallback(
     (params: {
       artistName: string;
@@ -480,23 +452,23 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const clearCompleted = useCallback(() => {
     const completedJobs = jobs.filter((j) => j.status === "completed" || j.status === "failed");
     for (const job of completedJobs) {
-      const url = downloadUrlsRef.current.get(job.id);
+      const url = downloadUrlsRef.current!.get(job.id);
       if (url) {
         URL.revokeObjectURL(url);
-        downloadUrlsRef.current.delete(job.id);
+        downloadUrlsRef.current!.delete(job.id);
       }
     }
     setJobs((prev) => prev.filter((j) => j.status === "active"));
   }, [jobs]);
   const dismissJob = useCallback((jobId: string) => {
-    const url = downloadUrlsRef.current.get(jobId);
+    const url = downloadUrlsRef.current!.get(jobId);
     if (url) {
       URL.revokeObjectURL(url);
-      downloadUrlsRef.current.delete(jobId);
+      downloadUrlsRef.current!.delete(jobId);
     }
     setJobs((prev) => prev.filter((j) => j.id !== jobId));
-    zipDataRef.current.delete(jobId);
-    creatingZipsRef.current.delete(jobId);
+    zipDataRef.current!.delete(jobId);
+    creatingZipsRef.current!.delete(jobId);
   }, []);
   return (
     <DownloadContext.Provider value={useMemo(() => ({ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }), [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob])}>
