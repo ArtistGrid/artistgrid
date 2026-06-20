@@ -601,19 +601,27 @@ function TrackerViewContent() {
     else window.open(url, "_blank", "noopener,noreferrer");
   }, []);
   const downloadTracker = useCallback(
-    (eraKey?: string) => {
+    (eraKey?: string, catKey?: string) => {
       if (!data?.eras) return;
-      const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
-      const downloadItems: Array<{
-        track: TALeak;
-        era: Era;
-        playableUrl: string;
-      }> = [];
-      forEachEraTrack(erasToDownload, (track, era) => {
-        const url = getTrackUrl(track);
-        const playableUrl = url ? resolvedUrls.get(url) : null;
-        if (url && playableUrl) downloadItems.push({ track, era, playableUrl });
-      });
+      const downloadItems: Array<{ track: TALeak; era: Era; playableUrl: string }> = [];
+      if (eraKey && catKey) {
+        const era = data.eras[eraKey];
+        const catTracks = era?.data?.[catKey];
+        if (Array.isArray(catTracks)) {
+          for (const track of catTracks) {
+            const url = getTrackUrl(track);
+            const playableUrl = url ? resolvedUrls.get(url) : null;
+            if (url && playableUrl) downloadItems.push({ track, era, playableUrl });
+          }
+        }
+      } else {
+        const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
+        forEachEraTrack(erasToDownload, (track, era) => {
+          const url = getTrackUrl(track);
+          const playableUrl = url ? resolvedUrls.get(url) : null;
+          if (url && playableUrl) downloadItems.push({ track, era, playableUrl });
+        });
+      }
       if (downloadItems.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
@@ -635,9 +643,13 @@ function TrackerViewContent() {
       };
       fireProbe();
       setTimeout(fireProbe, 100);
+      const eraDisplayName = eraKey ? data.eras[eraKey]?.name : undefined;
+      const catDisplayName = catKey && catKey.toLowerCase() !== "default" ? catKey : undefined;
       setDownloadConfirm({
         artistName: artistDisplayName,
-        eraName: eraKey ? data.eras[eraKey]?.name : undefined,
+        eraName: catDisplayName
+          ? eraDisplayName ? `${eraDisplayName} › ${catDisplayName}` : catDisplayName
+          : eraDisplayName,
         items: downloadItems,
       });
     },
@@ -1170,9 +1182,19 @@ function TrackerViewContent() {
                             Object.entries(era.data).map(([cat, tracks]) => (
                               <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
                                 {cat.toLowerCase() !== "default" && (
-                                  <h4 className="text-xs sm:text-sm font-semibold text-neutral-300 pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-neutral-800">
-                                    {cat}
-                                  </h4>
+                                  <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-neutral-800">
+                                    <h4 className="text-xs sm:text-sm font-semibold text-neutral-300">{cat}</h4>
+                                    {(tracks as TALeak[]).some(t => { const u = getTrackUrl(t); return u ? !!resolvedUrls.get(u) : false; }) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadTracker(key, cat)}
+                                        className="text-neutral-500 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
+                                        title={`Download ${cat}`}
+                                      >
+                                        <FolderDown className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                                 <div className="space-y-1.5 sm:space-y-2">
                                   {(tracks as TALeak[]).map((track, i) => {
