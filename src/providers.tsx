@@ -34,8 +34,8 @@ interface PlayerContextType {
   lastfm: LastFMClientInfo;
 }
 const PlayerContext = createContext<PlayerContextType | null>(null);
-const LASTFM_API_KEY = import.meta.env.VITE_LASTFM_API_KEY as string;
-const LASTFM_API_SIG = import.meta.env.VITE_LASTFM_SIG as string;
+const LASTFM_API_KEY = "0fc32c426d943d34a662977b31b98b67";
+const LASTFM_API_SIG = "53acf2466be726db021e7fdfd0ad1084";
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 export function usePlayer() {
   const context = use(PlayerContext);
