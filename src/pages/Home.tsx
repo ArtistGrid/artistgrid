@@ -243,7 +243,7 @@ export default function ArtistGallery() {
       const trackerId = extractTrackerId(artist.url);
       trackEvent("Artist Click", { name: artist.name });
       if (trackerId) {
-        navigate(`/sh/${trackerId}?artist=${encodeURIComponent(getCleanArtistName(artist.name))}`);
+        navigate(`/sh/${trackerId}/?artist=${encodeURIComponent(getCleanArtistName(artist.name))}`);
       } else {
         window.open(artist.url, "_blank", "noopener,noreferrer");
       }
