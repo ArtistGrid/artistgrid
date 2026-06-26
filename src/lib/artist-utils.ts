@@ -1,4 +1,5 @@
 import type { Artist } from "@/src/types";
+import { isValidTrackerId } from "@/src/lib/track-utils";
 export function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -21,12 +22,15 @@ const SPECIAL_IDS: Record<string, string> = {
   "https://yetracker.net/": "yetracker.net",
 };
 
-export function extractTrackerId(url: string): string | null {
-  if (SPECIAL_IDS[url]) return SPECIAL_IDS[url];
-  const pubhtml = url.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
+export function extractTrackerId(input: string): string | null {
+  if (SPECIAL_IDS[input]) return SPECIAL_IDS[input];
+  if (isValidTrackerId(input)) return input;
+  const pubhtml = input.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
   if (pubhtml) return pubhtml[1];
-  const match = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
-  return match ? match[1] : null;
+  const match = input.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (match) return match[1];
+  if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(input.trim())) return input.trim();
+  return null;
 }
 export function artistsEqual(a: Artist[], b: Artist[]): boolean {
   if (a.length !== b.length) return false;

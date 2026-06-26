@@ -59,7 +59,6 @@ import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
 import { YouTubePlayer } from "@/src/components/youtube-player";
 import {
-  TrackMetaBadges,
   PlayButton,
   PauseButton,
   OpenLinkButton,
@@ -92,16 +91,16 @@ function mergeAndCache(
   const existing = getCache(id, tab)?.resolvedUrls || {};
   setCache(id, trackerData, { ...existing, ...newResolved }, tab);
 }
-function TrackerViewContent() {
+function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string } = {}) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { state: playerState, playTrack, addToQueue, clearQueue, togglePlayPause, lastfm } = usePlayer();
   const downloadManager = useDownloadManager();
-  const [trackerId, setTrackerId] = useState(searchParams.get("id") || "");
-  const [inputValue, setInputValue] = useState(searchParams.get("id") || "");
+  const [trackerId, setTrackerId] = useState(propTrackerId || searchParams.get("id") || "");
+  const [inputValue, setInputValue] = useState(trackerId);
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(() => searchParams.get("artist"));
-  usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/view?id=${trackerId}` });
+    usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/sh/${trackerId}?artist=${encodeURIComponent(artistNameFromUrl || "")}` });
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "fallback">("idle");
@@ -382,24 +381,35 @@ function TrackerViewContent() {
     loadTrackerData(trackerId);
   }, [trackerId, loadTrackerData]);
   const handleLoad = useCallback(() => {
-    if (!isValidTrackerId(inputValue)) {
-      toast({ title: "Invalid ID", description: `Tracker ID must be ${TRACKER_ID_LENGTH} characters` });
+    if (!inputValue.trim()) {
+      toast({ title: "Invalid input", description: "Enter a tracker ID or Google Sheets link" });
       return;
     }
-    navigate(`/view?id=${inputValue}`);
-  }, [inputValue, navigate, toast]);
+    let resolvedUrl = inputValue.trim();
+    if (!resolvedUrl.includes("/")) {
+      resolvedUrl = `https://docs.google.com/spreadsheets/d/${resolvedUrl}/edit`;
+    }
+    try {
+      new URL(resolvedUrl);
+    } catch {
+      toast({ title: "Invalid input", description: "Enter a valid Google Sheets link or tracker ID" });
+      return;
+    }
+    const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+    navigate(`/sh/${encodeURIComponent(resolvedUrl)}${artistQs}`);
+  }, [inputValue, navigate, toast, artistNameFromUrl]);
   const handleShare = useCallback(() => {
-    let url = `${window.location.origin}/view?id=${trackerId}`;
-    if (artistNameFromUrl) url += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
+    const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+    const url = `${window.location.origin}/sh/${trackerId}${artistQs}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Copied!", description: "Share link copied to clipboard" });
   }, [trackerId, artistNameFromUrl, toast]);
   const handleShareTrack = useCallback(
     (trackUrl: string, trackName: string) => {
+      const artistQs = artistNameFromUrl ? `&artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+      const tabQs = currentTab && currentTab !== data?.tabs?.[0] ? `&tab=${encodeURIComponent(currentTab)}` : "";
       const encodedTrack = encodeTrackForUrl(trackUrl);
-      let shareUrl = `${window.location.origin}/view?id=${trackerId}&track=${encodedTrack}`;
-      if (artistNameFromUrl) shareUrl += `&artist=${encodeURIComponent(artistNameFromUrl)}`;
-      if (currentTab && currentTab !== data?.tabs?.[0]) shareUrl += `&tab=${encodeURIComponent(currentTab)}`;
+      const shareUrl = `${window.location.origin}/sh/${trackerId}?track=${encodedTrack}${artistQs}${tabQs}`;
       navigator.clipboard.writeText(shareUrl);
       toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
     },
@@ -1272,14 +1282,14 @@ function TrackerViewContent() {
     </div>
   );
 }
-function TrackerViewWithProvider() {
+function TrackerViewWithProvider({ trackerId }: { trackerId?: string } = {}) {
   return (
     <DownloadProvider>
-      <TrackerViewContent />
+      <TrackerViewContent trackerId={trackerId} />
     </DownloadProvider>
   );
 }
-export default function TrackerViewPage() {
+export default function TrackerViewPage({ trackerId }: { trackerId?: string } = {}) {
   return (
     <Suspense
       fallback={
@@ -1288,7 +1298,7 @@ export default function TrackerViewPage() {
         </div>
       }
     >
-      <TrackerViewWithProvider />
+      <TrackerViewWithProvider trackerId={trackerId} />
     </Suspense>
   );
 }

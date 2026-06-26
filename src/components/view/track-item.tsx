@@ -9,8 +9,6 @@ import { Play, Pause, ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizon
 import { Link } from "react-router-dom";
 import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
 
-export { getSourceDisplayName, isUrl };
-
 export interface FilterOptions {
   showPlayableOnly: boolean;
   qualityFilter: string[];
@@ -24,7 +22,7 @@ export interface PlayableTrackData {
   playableUrl: string;
 }
 
-export function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource }: {
+function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource }: {
   source: Track["source"]; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean;
 }) {
   return (

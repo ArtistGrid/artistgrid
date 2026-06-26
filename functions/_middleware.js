@@ -15,19 +15,33 @@ export async function onRequest(context) {
     const ua = request.headers.get('User-Agent') || '';
 
     if (!BOT_RE.test(ua)) return next(request);
-    if (url.pathname !== '/view') return next(request);
+    const isViewPath = url.pathname === '/view';
+  const shMatch = url.pathname.match(/^\/sh\/([a-zA-Z0-9_%-]+)\/?$/);
+  if (!isViewPath && !shMatch) return next(request);
 
-    const trackerId = url.searchParams.get('id');
-    const artist = url.searchParams.get('artist');
+  let trackerId = null;
+  let artist = null;
+  let sheetUrl = null;
 
-    if (!trackerId || !artist) return next(request);
+  if (isViewPath) {
+    trackerId = url.searchParams.get('id');
+    artist = url.searchParams.get('artist');
+  } else {
+    try { sheetUrl = decodeURIComponent(shMatch[1]); } catch (_) { sheetUrl = shMatch[1]; }
+    trackerId = sheetUrl;
+    artist = url.searchParams.get('artist');
+  }
+
+  if (!trackerId || !artist) return next(request);
+
+  const pageUrl = 'https://artistgrid.cx/sh/' + shMatch[1] + (artist ? '?artist=' + encodeURIComponent(artist) : '');
 
     const imageFilename = getImageFilename(artist);
     const image = 'https://assets.artistgrid.cx/' + imageFilename;
 
     const title = artist + ' - ArtistGrid';
     const description = 'Unreleased music by ' + artist;
-    const pageUrl = 'https://artistgrid.cx/view?id=' + trackerId;
+    const pageUrl = 'https://artistgrid.cx/sh/' + trackerId + (artist ? '?artist=' + encodeURIComponent(artist) : '');
 
     const html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
       escapeHtml(title) + '</title><meta name="description" content="' + escapeHtml(description) + '">' +

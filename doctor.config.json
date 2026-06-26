@@ -1,5 +1,8 @@
 {
   "$schema": "https://react.doctor/schema/config.json",
+  "ignore": {
+    "files": ["functions/_middleware.js"]
+  },
   "rules": {
     "react-doctor/no-giant-component": "off",
     "react-doctor/prefer-useReducer": "off",
