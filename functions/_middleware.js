@@ -4,6 +4,10 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function getImageFilename(artistName) {
+  return artistName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.webp';
+}
+
 export async function onRequest(context) {
   try {
     const { request, next } = context;
@@ -18,10 +22,12 @@ export async function onRequest(context) {
 
     if (!trackerId || !artist) return next(request);
 
+    const imageFilename = getImageFilename(artist);
+    const image = 'https://assets.artistgrid.cx/' + imageFilename;
+
     const title = artist + ' - ArtistGrid';
     const description = 'Unreleased music by ' + artist;
     const pageUrl = 'https://artistgrid.cx/view?id=' + trackerId;
-    const image = 'https://artistgrid.cx/og-default.png';
 
     const html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
       escapeHtml(title) + '</title><meta name="description" content="' + escapeHtml(description) + '">' +
