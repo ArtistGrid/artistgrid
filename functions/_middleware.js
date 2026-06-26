@@ -34,8 +34,6 @@ export async function onRequest(context) {
 
   if (!trackerId || !artist) return next(request);
 
-  const pageUrl = 'https://artistgrid.cx/sh/' + shMatch[1] + (artist ? '?artist=' + encodeURIComponent(artist) : '');
-
     const imageFilename = getImageFilename(artist);
     const image = 'https://assets.artistgrid.cx/' + imageFilename;
 
