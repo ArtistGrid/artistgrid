@@ -6,7 +6,8 @@ function escapeHtml(s) {
 
 export async function onRequest(context) {
   try {
-    const { request, next, url } = context;
+    const { request, next } = context;
+    const url = new URL(request.url);
     const ua = request.headers.get('User-Agent') || '';
 
     if (!BOT_RE.test(ua)) return next(request);
