@@ -20,11 +20,15 @@ const SPECIAL_IDS: Record<string, string> = {
   "yetracker.net": "yetracker.net",
   "https://yetracker.net": "yetracker.net",
   "https://yetracker.net/": "yetracker.net",
+  "franktracker.net": "franktracker.net",
+  "https://franktracker.net": "franktracker.net",
+  "https://franktracker.net/": "franktracker.net",
 };
 
 export function extractTrackerId(input: string): string | null {
   if (SPECIAL_IDS[input]) return SPECIAL_IDS[input];
-  if (isValidTrackerId(input)) return input;
+  const cleanInput = input.replace(/\./g, '');
+  if (isValidTrackerId(cleanInput)) return cleanInput;
   const pubhtml = input.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
   if (pubhtml) return pubhtml[1];
   const match = input.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);

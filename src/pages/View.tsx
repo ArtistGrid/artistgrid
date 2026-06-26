@@ -54,6 +54,7 @@ import {
   TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
+import { extractTrackerId } from "@/src/lib/artist-utils";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
@@ -380,7 +381,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
     if (!trackerId || !isValidTrackerId(trackerId)) return;
     loadTrackerData(trackerId);
   }, [trackerId, loadTrackerData]);
-  const handleLoad = useCallback(() => {
+const handleLoad = useCallback(() => {
     if (!inputValue.trim()) {
       toast({ title: "Invalid input", description: "Enter a tracker ID or Google Sheets link" });
       return;
@@ -395,8 +396,13 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
       toast({ title: "Invalid input", description: "Enter a valid Google Sheets link or tracker ID" });
       return;
     }
+    const trackerId = extractTrackerId(resolvedUrl);
+    if (!trackerId) {
+      toast({ title: "Invalid input", description: "Could not extract tracker ID from URL" });
+      return;
+    }
     const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
-    navigate(`/sh/${encodeURIComponent(resolvedUrl)}${artistQs}`);
+    navigate(`/sh/${trackerId}${artistQs}`);
   }, [inputValue, navigate, toast, artistNameFromUrl]);
   const handleShare = useCallback(() => {
     const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";

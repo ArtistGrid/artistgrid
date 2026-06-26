@@ -16,7 +16,7 @@ export async function onRequest(context) {
 
     if (!BOT_RE.test(ua)) return next(request);
     const isViewPath = url.pathname === '/view';
-  const shMatch = url.pathname.match(/^\/sh\/([a-zA-Z0-9_%-]+)\/?$/);
+  const shMatch = url.pathname.match(/^\/sh\/([a-zA-Z0-9_%.%-]+)\/?$/);
   if (!isViewPath && !shMatch) return next(request);
 
   let trackerId = null;
