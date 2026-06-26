@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageMeta } from "@/src/hooks/use-page-meta";
 import Fuse from "fuse.js";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
@@ -51,6 +52,7 @@ function parseCSVRow(line: string): string[] {
   return fields;
 }
 export default function ArtistGallery() {
+  usePageMeta({ title: "ArtistGrid", description: "Discover and track unreleased music from your favorite artists.", url: "https://artistgrid.cx/" });
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
   const { toast } = useToast();
@@ -198,7 +200,7 @@ export default function ArtistGallery() {
     };
     const loadVisitorCount = async () => {
       try {
-        const res = await fetch("https://121124.prigoana.com/artistgrid.cx/", { signal: controller.signal });
+        const res = await fetch("https://121124.edideaur.com/artistgrid.cx/", { signal: controller.signal });
         if (res.ok) setVisitorCount(Number((await res.json()).count));
       } catch {}
     };

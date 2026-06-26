@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageMeta } from "@/src/hooks/use-page-meta";
 import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DonationContent, QrOverlay, type QrCodeData } from "@/src/components/crypto-donation-section";
 
 export default function Donate() {
+  usePageMeta({ title: "Support ArtistGrid", description: "Support ArtistGrid development and server costs.", url: "https://artistgrid.cx/donate" });
   const navigate = useNavigate();
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
   const handleShowQr = useCallback((data: QrCodeData) => setActiveQrCode(data), []);

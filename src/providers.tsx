@@ -1,6 +1,7 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
 import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
+import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL } from "@/src/lib/config";
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
@@ -34,9 +35,6 @@ interface PlayerContextType {
   lastfm: LastFMClientInfo;
 }
 const PlayerContext = createContext<PlayerContextType | null>(null);
-const LASTFM_API_KEY = "0fc32c426d943d34a662977b31b98b67";
-const LASTFM_API_SIG = "53acf2466be726db021e7fdfd0ad1084";
-const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 export function usePlayer() {
   const context = use(PlayerContext);
   if (!context) throw new Error("usePlayer must be used within PlayerProvider");
@@ -119,8 +117,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return SparkMD5.hash(signatureString);
   }, []);
   const makeLastFMRequest = useCallback(
-    async (method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<any> => {
-      const requestParams: Record<string, string> = { method, api_key: LASTFM_API_KEY, ...params };
+    async <T = unknown>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> => {
+      const requestParams: Record<string, string> = { method, api_key: LASTFM_KEY, ...params };
       if (requiresAuth && lastfmSession?.key) requestParams.sk = lastfmSession.key;
       const signature = generateSignature(requestParams);
       const formData = new URLSearchParams({ ...requestParams, api_sig: signature, format: "json" });
@@ -129,9 +127,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
       });
-      const data = await response.json();
-      if (data.error) throw new Error(data.message || "Last.fm API error");
-      return data;
+      const data = await response.json() as { error?: { code: number; message: string }; [key: string]: unknown };
+      if (data.error) throw new Error(data.error.message || "Last.fm API error");
+      return data as T;
     },
     [generateSignature, lastfmSession]
   );
@@ -243,7 +241,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current = new Audio();
       audioRef.current.volume = state.volume;
       audioRef.current.preload = "metadata";
-      (audioRef.current as any).referrerPolicy = "no-referrer";
+      (audioRef.current as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
       audioRef.current.crossOrigin = "anonymous";
     }
     const audio = audioRef.current;
@@ -413,8 +411,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     token: string;
     url: string;
   }> => {
-    const data = await makeLastFMRequest("auth.getToken");
-    return { token: data.token, url: `https://www.last.fm/api/auth/?api_key=${LASTFM_API_KEY}&token=${data.token}` };
+    const data = await makeLastFMRequest<{ token: string }>("auth.getToken");
+    return { token: data.token, url: `https://www.last.fm/api/auth/?api_key=${LASTFM_KEY}&token=${data.token}` };
   }, [makeLastFMRequest]);
   const completeAuth = useCallback(
     async (
@@ -423,7 +421,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       success: boolean;
       username: string;
     }> => {
-      const data = await makeLastFMRequest("auth.getSession", { token });
+      const data = await makeLastFMRequest<{ session: { key: string; name: string } }>("auth.getSession", { token });
       if (data.session) {
         const session = { key: data.session.key, name: data.session.name };
         setLastfmSession(session);
