@@ -35,7 +35,6 @@ export function getTrackDescription(track: TALeak): string | null {
 
 
 const SPECIAL_TRACKER_IDS = ["yetracker.net", "franktracker.net"];
-const DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export function isValidTrackerId(id: string): boolean {
   if (!id || typeof id !== "string") return false;

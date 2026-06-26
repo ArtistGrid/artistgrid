@@ -22,7 +22,11 @@ function ShTrackerView() {
   if (tab) qs.push(`tab=${encodeURIComponent(tab)}`);
   const queryString = qs.length > 0 ? `?${qs.join("&")}` : "";
 
-  return <View trackerId={trackerId || ""} />;
+  return (
+    <Suspense fallback={null}>
+      <View trackerId={trackerId || ""} />
+    </Suspense>
+  );
 }
 
 export default function App() {
