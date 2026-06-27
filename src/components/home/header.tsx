@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ArtistFilterOptions } from "@/src/types";
-import { trackEvent } from "@/src/lib/home-constants";
+import { trackEvent, DISCORD_INVITE } from "@/src/lib/home-constants";
 
 export const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -98,7 +98,7 @@ export const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick
       size="icon"
       onClick={() => {
         trackEvent("Header Click", { button: "Discord" });
-        window.open("https://discord.gg/n67DkxMt2c", "_blank", "noopener,noreferrer");
+        window.open(DISCORD_INVITE, "_blank", "noopener,noreferrer");
       }}
       aria-label="Discord"
       className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"

@@ -1,10 +1,16 @@
 import { createPortal } from "react-dom";
 import { Link, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useLayoutEffect, useState } from "react";
 
 export function useHeaderSlots(center: ReactNode, right?: ReactNode) {
-  const centerEl = typeof document !== "undefined" ? document.getElementById("header-center") : null;
-  const rightEl = typeof document !== "undefined" ? document.getElementById("header-right") : null;
+  const [ready, setReady] = useState(false);
+  useLayoutEffect(() => {
+    setReady(true);
+  }, []);
+  if (!ready) return null;
+  const centerEl = document.getElementById("header-center");
+  const rightEl = document.getElementById("header-right");
   if (!centerEl) return null;
   return (
     <>

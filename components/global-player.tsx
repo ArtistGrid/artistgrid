@@ -186,8 +186,9 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   const displayTime = seekPreview ?? state.currentTime;
   const progress = state.duration ? (displayTime / state.duration) * 100 : 0;
   const handleVolumeToggle = useCallback(() => {
-    if (isMuted) {
-      setVolume(prevVolume || 0.7);
+    if (isMuted || state.volume === 0) {
+      const restore = prevVolume || 0.7;
+      setVolume(restore);
       setIsMuted(false);
     } else {
       setPrevVolume(state.volume);

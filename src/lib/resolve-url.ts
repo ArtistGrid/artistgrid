@@ -81,6 +81,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
         const id = extractKrakenId(normalized);
         if (!id) return null;
         const res = await fetch(`${KRAKENFILES_API}${id}`);
+        if (!res.ok) return null;
         const data = await res.json();
         return data.success ? data.m4a : null;
       }

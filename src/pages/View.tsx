@@ -51,6 +51,7 @@ import {
   decodeTrackFromUrl,
   getGoogleSheetsUrl,
   getSourceDisplayName,
+  proxyImageUrl,
   TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
@@ -320,6 +321,13 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   }, []);
   const loadTrackerData = useCallback(
     async (id: string, tab?: string) => {
+      if (!tab) {
+        setData(null);
+        setResolvedUrls(new Map());
+        setExpandedEras(new Set());
+        setTabsList([]);
+        tabSlugsRef.current = {};
+      }
       setStatus("loading");
       setTabError(false);
       if (tab) fetchBaseEraImages(id);
@@ -544,7 +552,7 @@ const handleLoad = useCallback(() => {
         const match = u.match(/imgur\.com\/([a-zA-Z0-9]+)/);
         if (match) return `https://i.imgur.com/${match[1]}.jpg`;
       }
-      if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return u;
+      if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return proxyImageUrl(u) ?? null;
       // Google Sheets image URLs (v3 cover art / per-row images)
       if (u.includes("docs.google.com/sheets-images-rt") || u.includes("googleusercontent.com")) return u;
       return null;
@@ -608,8 +616,7 @@ const handleLoad = useCallback(() => {
       if (unresolvedUrls.length > 0) {
         const freshlyResolved = await resolveUrls(unresolvedUrls);
         mergeAndCache(trackerId, currentTab, data, freshlyResolved);
-        urlMap = new Map(resolvedUrls);
-        for (const [url, playable] of Object.entries(freshlyResolved)) urlMap.set(url, playable);
+        urlMap = new Map([...resolvedUrls, ...Object.entries(freshlyResolved)]);
       }
       const downloadItems = candidates
         .map(({ track, era, url }) => ({ track, era, playableUrl: urlMap.get(url) }))
@@ -1038,7 +1045,7 @@ const handleLoad = useCallback(() => {
                             {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
                           </div>
                         </div>
-                        <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={() => handleOpenUrl(url!)}>
+                        <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : undefined}>
                             {isPlayable && (
                               <>
                                 <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
@@ -1087,9 +1094,9 @@ const handleLoad = useCallback(() => {
                           className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
                           onClick={() => toggleEra(key)}
                         >
-                          {era.image ? (
+                           {era.image ? (
                             <img
-                              src={era.image}
+                              src={proxyImageUrl(era.image)}
                               alt={era.name}
                               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
                               style={{
@@ -1218,7 +1225,7 @@ const handleLoad = useCallback(() => {
                                               </div>
                                             </div>
                                           </div>
-                                          <TrackItemActions track={track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={() => handleOpenUrl(url!)}>
+                                          <TrackItemActions track={track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : undefined}>
                                               {url && (
                                                 <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
                                                   <Share className="w-4 h-4 mr-2" />

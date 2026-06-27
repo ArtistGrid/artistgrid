@@ -34,7 +34,7 @@ export function getTrackDescription(track: TALeak): string | null {
 }
 
 
-const SPECIAL_TRACKER_IDS = ["yetracker.net", "franktracker.net"];
+const SPECIAL_TRACKER_IDS = ["yetracker.net", "franktracker.net", "deftonestracker.net"];
 
 export function isValidTrackerId(id: string): boolean {
   if (!id || typeof id !== "string") return false;
@@ -57,6 +57,14 @@ export function decodeTrackFromUrl(encoded: string): string | null {
 }
 export function getGoogleSheetsUrl(trackerId: string): string {
   return `https://docs.google.com/spreadsheets/d/${trackerId}/htmlview`;
+}
+const WSRV_BASE = "https://wsrv.nl/?url=";
+export function proxyImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  for (const domain of SPECIAL_TRACKER_IDS) {
+    if (url.includes(domain)) return `${WSRV_BASE}${encodeURIComponent(url)}`;
+  }
+  return url;
 }
 export function getSourceDisplayName(source: Track["source"]): string {
   const names: Record<Track["source"], string> = {

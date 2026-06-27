@@ -66,6 +66,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isBuffering: false,
   });
   const [history, setHistory] = useState<Track[]>([]);
+  const historyRef = useRef<Track[]>([]);
+  useEffect(() => { historyRef.current = history; }, [history]);
   const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(() => {
     try {
       const session = localStorage.getItem("lastfm-session:v1");
@@ -200,8 +202,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
   const playPrevious = useCallback(() => {
-    if (history.length < 2) return;
-    const prev = history[history.length - 2];
+    const h = historyRef.current;
+    if (h.length < 2) return;
+    const prev = h[h.length - 2];
     if (audioRef.current && prev.playableUrl) {
       clearScrobbleTimer();
       hasScrobbledRef.current = false;
@@ -212,7 +215,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       updateMediaSession(prev, true);
       setState((s) => ({ ...s, currentTrack: prev, isPlaying: true }));
     }
-  }, [history, clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
+  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
   useEffect(() => {
     if ("mediaSession" in navigator) {
       navigator.mediaSession.setActionHandler("play", () => {
@@ -277,7 +280,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const [next, ...rest] = s.queue;
           if (audioRef.current && next.playableUrl) {
             audioRef.current.src = next.playableUrl;
-            audioRef.current.play();
+            audioRef.current.play().catch(console.error);
             setHistory((h) => [...h, next]);
             currentTrackRef.current = next;
             if (lastfmSession?.key) updateNowPlaying(next);

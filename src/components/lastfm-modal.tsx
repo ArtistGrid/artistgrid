@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/src/components/modal";
+import { useToast } from "@/components/ui/use-toast";
 import type { LastFMClientInfo } from "@/src/types";
 export interface LastFMModalProps {
   isOpen: boolean;
@@ -12,13 +13,17 @@ export interface LastFMModalProps {
 }
 export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFMModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   const handleConnect = async () => {
     setIsLoading(true);
+    const popup = window.open("", "_blank", "noopener,noreferrer,width=800,height=600");
     try {
       const { token: newToken, url } = await lastfm.getAuthUrl();
       setToken(newToken);
-      window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
+      if (popup) popup.location.href = url;
+      else window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
     } catch {
+      if (popup) popup.close();
     } finally {
       setIsLoading(false);
     }
@@ -30,7 +35,8 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
       await lastfm.completeAuth(token);
       setToken(null);
       onClose();
-    } catch {
+    } catch (e) {
+      toast({ title: "Connection failed", description: e instanceof Error ? e.message : "Could not complete Last.fm authentication" });
     } finally {
       setIsLoading(false);
     }

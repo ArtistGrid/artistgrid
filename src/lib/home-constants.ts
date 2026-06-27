@@ -10,6 +10,7 @@ declare global {
   }
 }
 export const ASSET_BASE = "https://assets.artistgrid.cx";
+export const DISCORD_INVITE = "https://discord.gg/RdBeMZ2m8S";
 export const LOCAL_STORAGE_KEYS = {
   USE_SHEET: "artistGridUseSheet",
   FILTER_OPTIONS: "artistGridFilterOptions",
@@ -52,7 +53,7 @@ export const CUSTOM_REDIRECTS: Record<string, string> = {
   drizzy: "Drake",
   carti: "Playboi Carti",
   kendrick: "Kendrick Lamar",
-  discord: "https://discord.gg/RdBeMZ2m8S",
+  discord: DISCORD_INVITE,
   github: "https://github.com/ArtistGrid",
 };
 export const SUFFIXES_TO_STRIP = ["tracker"];

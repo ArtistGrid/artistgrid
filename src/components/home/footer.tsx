@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Github, HandCoins, BarChart3, AlertTriangle } from "lucide-react";
 import { DiscordIcon } from "./header";
+import { DISCORD_INVITE } from "@/src/lib/home-constants";
 export const Footer = memo(
   ({
     displayedCount,
@@ -29,7 +30,7 @@ export const Footer = memo(
             <span>GitHub</span>
           </a>
           <a
-            href="https://discord.gg/n67DkxMt2c"
+            href={DISCORD_INVITE}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-white/35 hover:text-white/70 transition-colors"

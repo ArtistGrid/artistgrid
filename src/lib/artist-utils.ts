@@ -23,6 +23,9 @@ const SPECIAL_IDS: Record<string, string> = {
   "franktracker.net": "franktracker.net",
   "https://franktracker.net": "franktracker.net",
   "https://franktracker.net/": "franktracker.net",
+  "deftonestracker.net": "deftonestracker.net",
+  "https://deftonestracker.net": "deftonestracker.net",
+  "https://deftonestracker.net/": "deftonestracker.net",
 };
 
 export function extractTrackerId(input: string): string | null {
