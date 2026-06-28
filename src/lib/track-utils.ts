@@ -55,8 +55,9 @@ export function decodeTrackFromUrl(encoded: string): string | null {
     return null;
   }
 }
-export function getGoogleSheetsUrl(trackerId: string): string {
-  return `https://docs.google.com/spreadsheets/d/${trackerId}/htmlview`;
+export function getGoogleSheetsUrl(trackerId: string, htmlview = true): string {
+  const mode = htmlview ? "htmlview" : "edit";
+  return `https://docs.google.com/spreadsheets/d/${trackerId}/${mode}`;
 }
 const WSRV_BASE = "https://wsrv.nl/?url=";
 export function proxyImageUrl(url: string | null | undefined): string | undefined {

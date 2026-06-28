@@ -37,6 +37,7 @@ import {
   Share,
   SkipForward,
   FolderDown,
+  Settings,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -60,6 +61,9 @@ import { DownloadProvider, useDownloadManager } from "@/src/components/download-
 import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
 import { YouTubePlayer } from "@/src/components/youtube-player";
+import { useSettings } from "@/src/hooks/use-settings";
+import { loadSettings } from "@/src/lib/settings";
+import { useSettingsModal } from "@/src/App";
 import {
   PlayButton,
   PauseButton,
@@ -99,6 +103,8 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   const { toast } = useToast();
   const { state: playerState, playTrack, addToQueue, clearQueue, togglePlayPause, lastfm } = usePlayer();
   const downloadManager = useDownloadManager();
+  const { settings } = useSettings();
+  const { setSettingsOpen } = useSettingsModal();
   const [trackerId, setTrackerId] = useState(propTrackerId || searchParams.get("id") || "");
   const [inputValue, setInputValue] = useState(trackerId);
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(() => searchParams.get("artist"));
@@ -456,7 +462,15 @@ const handleLoad = useCallback(() => {
       setYoutubeUrl(url);
       return;
     }
-    window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
+    const s = loadSettings();
+    if (s.behavior.openInNewTab) {
+      window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
+    } else {
+      const w = 600, h = 700;
+      const left = (screen.width - w) / 2;
+      const top = (screen.height - h) / 2;
+      window.open(transformUrlForOpening(url), "_blank", `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`);
+    }
   }, [toast]);
   const handlePlayTrack = useCallback(
     async (rawTrack: TALeak, era: Era) => {
@@ -524,16 +538,56 @@ const handleLoad = useCallback(() => {
         toast({ title: "Cannot download", description: "No playable URL available" });
         return;
       }
+      const s = loadSettings();
+      let filename: string;
+      if (s.downloads.useOgFilename) {
+        try {
+          const urlPath = new URL(playableUrl).pathname;
+          const basename = decodeURIComponent(urlPath.split("/").pop() || "");
+          filename = basename || `${rawTrack.name || "track"}.mp3`;
+        } catch {
+          filename = `${rawTrack.name || "track"}.mp3`;
+        }
+      } else {
+        filename = `${rawTrack.name || "track"}.mp3`;
+      }
+      if (s.downloads.embedMetadata) {
+        try {
+          toast({ title: "Preparing download...", description: "Embedding metadata" });
+          const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
+          const res = await fetch(playableUrl);
+          const blob = await res.blob();
+          const meta: { title?: string; artist?: string } = {
+            title: rawTrack.name || undefined,
+            artist: artistDisplayName || undefined,
+          };
+          const enhanced = await embedMetadata(blob, meta);
+          const blobUrl = URL.createObjectURL(enhanced);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = filename;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+          return;
+        } catch (e) {
+          console.error("Metadata embedding failed, falling back to direct download:", e);
+          toast({ title: "Metadata failed", description: "Downloading without metadata" });
+        }
+      }
       const link = document.createElement("a");
       link.href = playableUrl;
-      link.download = `${rawTrack.name || "track"}.mp3`;
+      link.download = filename;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     },
-    [resolvedUrls, toast]
+    [resolvedUrls, toast, artistDisplayName]
   );
   const handleOpenOriginal = useCallback(
     (rawTrack: TALeak) => {
@@ -737,9 +791,18 @@ const handleLoad = useCallback(() => {
       >
         Load
       </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setSettingsOpen(true)}
+        aria-label="Settings"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
+      >
+        <Settings className="w-4 h-4" />
+      </Button>
     </div>
   );
-  if (status === "fallback") return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId)} />;
+  if (status === "fallback") return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
   return (
     <div className="min-h-screen bg-black pb-32 sm:pb-28">
       {headerSlots}

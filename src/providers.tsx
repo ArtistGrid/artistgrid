@@ -2,6 +2,7 @@ import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, 
 import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL } from "@/src/lib/config";
+import { loadSettings } from "@/src/lib/settings";
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
@@ -55,15 +56,18 @@ function extractArtistName(trackerName: string | null | undefined): string {
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [state, setState] = useState<PlayerState>({
-    currentTrack: null,
-    queue: [],
-    isPlaying: false,
-    isShuffled: false,
-    currentTime: 0,
-    duration: 0,
-    volume: 1,
-    isBuffering: false,
+  const [state, setState] = useState<PlayerState>(() => {
+    const s = loadSettings();
+    return {
+      currentTrack: null,
+      queue: [],
+      isPlaying: false,
+      isShuffled: s.player.startupShuffle,
+      currentTime: 0,
+      duration: 0,
+      volume: 1,
+      isBuffering: false,
+    };
   });
   const [history, setHistory] = useState<Track[]>([]);
   const historyRef = useRef<Track[]>([]);
@@ -285,6 +289,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             currentTrackRef.current = next;
             if (lastfmSession?.key) updateNowPlaying(next);
             updateMediaSession(next, true);
+            const settings = loadSettings();
+            if (settings.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
+              const artist = next.artistName || next.eraName || "Unknown";
+              new Notification(next.name, { body: artist, icon: next.eraImage || undefined });
+            }
+            try {
+              const raw = localStorage.getItem("artistgrid-history");
+              const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+              hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
+              if (hist.length > 200) hist.splice(0, hist.length - 200);
+              localStorage.setItem("artistgrid-history", JSON.stringify(hist));
+            } catch {}
             return { ...s, currentTrack: next, queue: rest, isPlaying: true };
           }
         }
@@ -307,6 +323,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, opts);
     return () => controller.abort();
   }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume]);
+
+  useEffect(() => {
+    const s = loadSettings();
+    if (s.behavior.notifications && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
   const beginPlayback = useCallback(
     (track: Track) => {
       if (!audioRef.current) return;
@@ -326,6 +349,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, currentTrack: track, isPlaying: true }));
       if (lastfmSession?.key) updateNowPlaying(track);
       updateMediaSession(track, true);
+      const s = loadSettings();
+      if (s.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
+        const artist = track.artistName || track.eraName || "Unknown";
+        new Notification(track.name, { body: artist, icon: track.eraImage || undefined });
+      }
+      try {
+        const raw = localStorage.getItem("artistgrid-history");
+        const history: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+        history.push({ name: track.name, artist: track.artistName || track.eraName || "", time: Date.now() });
+        if (history.length > 200) history.splice(0, history.length - 200);
+        localStorage.setItem("artistgrid-history", JSON.stringify(history));
+      } catch {}
     },
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
   );

@@ -3,6 +3,7 @@ import { Archive, CheckCircle2, Loader2, Maximize2, Minimize2, X, XCircle } from
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
+import { loadSettings } from "@/src/lib/settings";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
@@ -33,6 +34,7 @@ interface DownloadQueueItem {
   itemId: string;
   playableUrl: string;
   trackName: string;
+  artistName: string;
   eraName: string;
 }
 interface DownloadContextType {
@@ -268,9 +270,22 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { progress }));
       });
       if (result) {
+        let finalBlob = result.blob;
+        const s = loadSettings();
+        if (s.downloads.embedMetadata) {
+          try {
+            const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
+            finalBlob = await embedMetadata(result.blob, {
+              title: item.trackName,
+              artist: item.artistName,
+            });
+          } catch (e) {
+            console.error("Metadata embedding failed for batch download:", e);
+          }
+        }
         const ext = getFileExtension(item.playableUrl, result.contentType);
         if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
-        zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: result.blob, ext });
+        zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: finalBlob, ext });
         setJobs((prev) =>
           prev.map((job) => {
             if (job.id !== item.jobId) return job;
@@ -442,6 +457,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           itemId: item.id,
           playableUrl: item.playableUrl,
           trackName: item.trackName,
+          artistName: params.artistName,
           eraName: item.eraName,
         });
       }

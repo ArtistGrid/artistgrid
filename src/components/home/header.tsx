@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Search, X, SlidersHorizontal, Info, HandCoins } from "lucide-react";
+import { Search, X, SlidersHorizontal, Info, HandCoins, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link } from "react-router-dom";
+import { useSettingsModal } from "@/src/App";
 import type { ArtistFilterOptions } from "@/src/types";
 import { trackEvent, DISCORD_INVITE } from "@/src/lib/home-constants";
 
@@ -91,40 +93,52 @@ export const FilterControls = memo(
   }
 );
 
-export const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick: () => void; onDonateClick: () => void }) => (
-  <>
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => {
-        trackEvent("Header Click", { button: "Discord" });
-        window.open(DISCORD_INVITE, "_blank", "noopener,noreferrer");
-      }}
-      aria-label="Discord"
-      className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
-    >
-      <DiscordIcon className="w-4 h-4" />
-    </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={onDonateClick}
-      aria-label="Donate"
-      className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
-    >
-      <HandCoins className="w-4 h-4" />
-    </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={onInfoClick}
-      aria-label="About"
-      className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
-    >
-      <Info className="w-4 h-4" />
-    </Button>
-  </>
-));
+export const HeaderActions = memo(({ onInfoClick, onDonateClick }: { onInfoClick: () => void; onDonateClick: () => void }) => {
+  const { setSettingsOpen } = useSettingsModal();
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => {
+          trackEvent("Header Click", { button: "Discord" });
+          window.open(DISCORD_INVITE, "_blank", "noopener,noreferrer");
+        }}
+        aria-label="Discord"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
+      >
+        <DiscordIcon className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onDonateClick}
+        aria-label="Donate"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
+      >
+        <HandCoins className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setSettingsOpen(true)}
+        aria-label="Settings"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
+      >
+        <Settings className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onInfoClick}
+        aria-label="About"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
+      >
+        <Info className="w-4 h-4" />
+      </Button>
+    </>
+  );
+});
 
 export const HomeHeaderCenter = memo(
   ({ searchQuery, setSearchQuery }: { searchQuery: string; setSearchQuery: (q: string) => void }) => (

@@ -15,7 +15,9 @@ import {
   GripVertical,
   Trash2,
   CircleSlash,
+  Mic2,
 } from "lucide-react";
+import { LyricsPanel } from "@/src/components/lyrics-panel";
 interface QueueModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -180,6 +182,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
     closePlayer,
   } = usePlayer();
   const [queueModalOpen, setQueueModalOpen] = useState(false);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(state.volume);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
@@ -345,8 +348,19 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 />
               </div>
 
-              {/* Queue + close */}
+              {/* Queue + lyrics + close */}
               <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setLyricsOpen(!lyricsOpen)}
+                  className={`rounded-xl w-8 h-8 transition-colors ${
+                    lyricsOpen ? "text-white hover:bg-white/10" : "text-white/30 hover:text-white hover:bg-white/10"
+                  }`}
+                  aria-label="Lyrics"
+                >
+                  <Mic2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -406,6 +420,25 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
         onRemove={handleQueueRemove}
         onPlayFromQueue={handlePlayFromQueue}
       />
+      {lyricsOpen && state.currentTrack && (
+        <div className="fixed bottom-20 right-3 z-[55] sm:bottom-20 sm:right-4 w-72 sm:w-80 h-80 sm:h-96 glass-elevated rounded-2xl animate-in fade-in-0 slide-in-from-bottom-2 duration-200 flex flex-col overflow-hidden shadow-2xl">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <Mic2 className="w-3.5 h-3.5 text-white/50" />
+              <h2 className="text-xs font-semibold text-white">Lyrics</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLyricsOpen(false)}
+              className="text-white/40 hover:text-white hover:bg-white/10 h-6 w-6 rounded-lg"
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+          <LyricsPanel />
+        </div>
+      )}
     </>
   );
 });

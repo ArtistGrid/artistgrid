@@ -11,10 +11,15 @@ export function hashString(str: string): string {
 export function getImageFilename(artistName: string): string {
   return artistName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
 }
-export function getSheetViewUrl(url: string): string {
+export function getSheetViewUrl(url: string, htmlview = true): string {
+  const mode = htmlview ? "htmlview" : "edit";
   if (url.includes("/spreadsheets/d/e/")) return url;
   const id = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-  return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : url;
+  if (id) return `https://docs.google.com/spreadsheets/d/${id}/${mode}`;
+  const trackerId = extractTrackerId(url);
+  if (trackerId && !trackerId.includes(".")) return `https://docs.google.com/spreadsheets/d/${trackerId}/${mode}`;
+  if (trackerId && !url.startsWith("http")) return `https://${url}`;
+  return url;
 }
 const SPECIAL_IDS: Record<string, string> = {
   "yetracker.net": "yetracker.net",

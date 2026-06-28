@@ -103,11 +103,12 @@ export function FallbackView({ sheetsUrl }: { sheetsUrl: string }) {
         <p className="text-sm sm:text-base text-white/50 mb-5 sm:mb-6">
           We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google Sheets.
         </p>
-        <Button asChild className="bg-white text-black hover:bg-white/90 mb-4 sm:mb-6 w-full rounded-xl h-11">
-          <a href={sheetsUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Open Original Spreadsheet
-          </a>
+        <Button
+          onClick={() => window.open(sheetsUrl, "_blank", "noopener,noreferrer")}
+          className="bg-white text-black hover:bg-white/90 mb-4 sm:mb-6 w-full rounded-xl h-11"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          Open Original Spreadsheet
         </Button>
         <div className="glass-flat rounded-xl p-3 sm:p-4 text-left">
           <p className="text-xs text-white/35 leading-relaxed">

@@ -25,6 +25,7 @@ import {
   trackEvent,
 } from "@/src/lib/home-constants";
 import { useLocalStorage } from "@/src/hooks/use-local-storage";
+import { useSettings } from "@/src/hooks/use-settings";
 import { GallerySkeleton } from "@/src/components/home/skeletons";
 import { ErrorMessage, NoResultsMessage } from "@/src/components/home/messages";
 import { ArtistGridDisplay } from "@/src/components/home/artist-card";
@@ -33,6 +34,8 @@ import { Footer } from "@/src/components/home/footer";
 import { useHeaderSlots } from "@/src/components/layout";
 import { AnnouncementModal, DonationModal, InfoModal } from "@/src/components/home/modals";
 import { TripleBool } from "@/lib/utils";
+import { Dice6 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 function parseCSVRow(line: string): string[] {
   const fields: string[] = [];
   let cur = "";
@@ -56,11 +59,17 @@ export default function ArtistGallery() {
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
   const { toast } = useToast();
+  const { settings } = useSettings();
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (settings.behavior.rememberSearch) {
+      return localStorage.getItem("artistgrid-search") || "";
+    }
+    return "";
+  });
   const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(() => {
     const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
     const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
@@ -76,6 +85,12 @@ export default function ArtistGallery() {
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef("");
   const hasCachedData = useRef(false);
+
+  useEffect(() => {
+    if (settings.behavior.rememberSearch) {
+      localStorage.setItem("artistgrid-search", searchQuery);
+    }
+  }, [searchQuery, settings.behavior.rememberSearch]);
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
     localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
@@ -252,8 +267,9 @@ export default function ArtistGallery() {
   );
   const handleSheetClick = useCallback((url: string) => {
     trackEvent("Sheet Click", { url });
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
+    const finalUrl = settings.behavior.sheetsHtmlview ? url.replace(/\/edit$/, "/htmlview") : url;
+    window.open(finalUrl, "_blank", "noopener,noreferrer");
+  }, [settings.behavior.sheetsHtmlview]);
   useEffect(() => {
     if (status === "success" && !hashProcessed.current && window.location.hash) {
       const hash = window.location.hash.substring(1);
@@ -294,11 +310,25 @@ export default function ArtistGallery() {
     trackEvent("Header Click", { button: "Donate" });
     setActiveModal("donate");
   }, []);
+  const handleRandomArtist = useCallback(() => {
+    if (filteredArtists.length === 0) return;
+    const random = filteredArtists[Math.floor(Math.random() * filteredArtists.length)];
+    handleArtistClick(random);
+  }, [filteredArtists, handleArtistClick]);
   const isFirstLoad = status === "loading" && !hasCachedData.current;
   const hasPlayerActive = !!playerState.currentTrack;
   const headerSlots = useHeaderSlots(
     <HomeHeaderCenter searchQuery={searchQuery} setSearchQuery={setSearchQuery} />,
     <>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleRandomArtist}
+        aria-label="Random artist"
+        className="glass-flat rounded-xl text-white/50 hover:text-white h-10 w-10"
+      >
+        <Dice6 className="w-4 h-4" />
+      </Button>
       <FilterControls options={filterOptions} onFilterChange={handleFilterChange} />
       <HeaderActions onInfoClick={openInfoModal} onDonateClick={openDonationModal} />
     </>
