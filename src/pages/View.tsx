@@ -419,6 +419,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         if (json.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...json.tabSlugs };
         setStatus("success");
         hasLoadedRef.current = true;
+        setHasLoaded(true);
         setCache(id, json, {}, tab);
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
           const freeUrls: string[] = [];
@@ -1000,7 +1001,7 @@ const handleLoad = useCallback(() => {
             </div>
           </div>
         )}
-        {(status === "success" || status === "tab-loading") && (data || tabError || tabEmpty) && (
+        {((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty) || hasLoaded) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
