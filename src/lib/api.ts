@@ -3,8 +3,53 @@ import { isUrl } from "./track-utils";
 
 const API_BASE = "https://trackerapi.artistgrid.cx";
 
+const etagStore = new Map<string, string>();
+const bodyCache = new Map<string, string>();
+
+export function clearETags(): void {
+  etagStore.clear();
+  bodyCache.clear();
+}
+
+export async function computeETag(body: string): Promise<string> {
+  const data = new TextEncoder().encode(body);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `"${hex}"`;
+}
+
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
-  return fetch(`${API_BASE}${endpoint}`, options);
+  const url = `${API_BASE}${endpoint}`;
+  const storedETag = etagStore.get(url);
+
+  const mergedHeaders: Record<string, string> = {};
+  if (options?.headers) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((v, k) => { mergedHeaders[k] = v; });
+    } else {
+      for (const [k, v] of Object.entries(options.headers)) mergedHeaders[k] = v;
+    }
+  }
+  if (storedETag) mergedHeaders["If-None-Match"] = storedETag;
+
+  const res = await fetch(url, { ...options, headers: mergedHeaders });
+
+  if (res.status === 304 && storedETag) {
+    const cached = bodyCache.get(url) || "{}";
+    return new Response(cached, {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (res.ok) {
+    const body = await res.clone().text();
+    const etag = await computeETag(body);
+    etagStore.set(url, etag);
+    bodyCache.set(url, body);
+  }
+
+  return res;
 }
 
 interface V3TrackName {
