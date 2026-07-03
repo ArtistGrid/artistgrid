@@ -44,7 +44,7 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "tracker-api",
-              expiration: { maxEntries: 100, maxAgeSeconds: 3600 },
+              expiration: { maxEntries: 100 },
             },
           },
           {
@@ -52,7 +52,7 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "artists-csv",
-              expiration: { maxEntries: 5, maxAgeSeconds: 3600 },
+              expiration: { maxEntries: 5 },
             },
           },
           {
