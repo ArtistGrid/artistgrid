@@ -7,6 +7,10 @@ import App from "./App";
 Sentry.init({
   dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
   tracesSampleRate: 0.01,
+  beforeSend(event) {
+    if (event.exception?.values?.[0]?.type === "Error" && event.exception.values[0].value === "Rejected") return null;
+    return event;
+  },
 });
 
 createRoot(document.getElementById("root")!).render(

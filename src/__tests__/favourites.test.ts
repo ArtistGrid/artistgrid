@@ -5,6 +5,8 @@ import {
   toggleFavourite,
   clearFavourites,
   getFavouritedTracks,
+  toggleEraFavourite,
+  isEraFavourited,
 } from "@/src/lib/favourites";
 import type { Era, TALeak } from "@/src/types";
 
@@ -136,15 +138,15 @@ describe("favourites", () => {
       expect(getFavouritedTracks(TRACKER_DATA, [])).toEqual([]);
     });
 
-    it("returns tracks in favourites order", () => {
+    it("returns tracks in chronological era/track order regardless of favourites order", () => {
       const favs = [
         "https://example.com/3",
         "https://example.com/1",
       ];
       const result = getFavouritedTracks(TRACKER_DATA, favs);
       expect(result).toHaveLength(2);
-      expect(result[0].track).toBe(TRACK_3);
-      expect(result[1].track).toBe(TRACK_1);
+      expect(result[0].track).toBe(TRACK_1);
+      expect(result[1].track).toBe(TRACK_3);
     });
 
     it("skips urls not found in data", () => {
@@ -157,14 +159,14 @@ describe("favourites", () => {
       expect(result[0].track).toBe(TRACK_1);
     });
 
-    it("preserves user ordering over data ordering", () => {
+    it("returns tracks in era order, not user-click order", () => {
       const favs = [
         "https://example.com/2",
         "https://example.com/1",
         "https://example.com/3",
       ];
       const result = getFavouritedTracks(TRACKER_DATA, favs);
-      expect(result.map((r) => r.track)).toEqual([TRACK_2, TRACK_1, TRACK_3]);
+      expect(result.map((r) => r.track)).toEqual([TRACK_1, TRACK_2, TRACK_3]);
     });
 
     it("handles eras with no data", () => {
@@ -194,6 +196,62 @@ describe("favourites", () => {
       const favs = ["https://example.com/1"];
       const result = getFavouritedTracks(dataWithNonArray, favs);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("toggleEraFavourite", () => {
+    it("adds all era tracks to favourites", () => {
+      const added = toggleEraFavourite(TRACKER_ID, TRACKER_DATA.eras.era1);
+      expect(added).toBe(true);
+      const favs = getFavourites(TRACKER_ID);
+      expect(favs).toContain("https://example.com/1");
+      expect(favs).toContain("https://example.com/2");
+      expect(favs).toHaveLength(2);
+    });
+
+    it("removes all era tracks when already fully favourited", () => {
+      toggleFavourite(TRACKER_ID, "https://example.com/1");
+      toggleFavourite(TRACKER_ID, "https://example.com/2");
+      const added = toggleEraFavourite(TRACKER_ID, TRACKER_DATA.eras.era1);
+      expect(added).toBe(false);
+      expect(getFavourites(TRACKER_ID)).toEqual([]);
+    });
+
+    it("adds missing tracks when partially favourited", () => {
+      toggleFavourite(TRACKER_ID, "https://example.com/1");
+      const added = toggleEraFavourite(TRACKER_ID, TRACKER_DATA.eras.era1);
+      expect(added).toBe(true);
+      const favs = getFavourites(TRACKER_ID);
+      expect(favs).toContain("https://example.com/1");
+      expect(favs).toContain("https://example.com/2");
+    });
+
+    it("returns false for era with no tracks", () => {
+      const emptyEra = { name: "Empty" } as Era;
+      const added = toggleEraFavourite(TRACKER_ID, emptyEra);
+      expect(added).toBe(false);
+    });
+  });
+
+  describe("isEraFavourited", () => {
+    it("returns false when no tracks are favourited", () => {
+      expect(isEraFavourited(TRACKER_ID, TRACKER_DATA.eras.era1)).toBe(false);
+    });
+
+    it("returns true when all tracks are favourited", () => {
+      toggleFavourite(TRACKER_ID, "https://example.com/1");
+      toggleFavourite(TRACKER_ID, "https://example.com/2");
+      expect(isEraFavourited(TRACKER_ID, TRACKER_DATA.eras.era1)).toBe(true);
+    });
+
+    it("returns false when only some tracks are favourited", () => {
+      toggleFavourite(TRACKER_ID, "https://example.com/1");
+      expect(isEraFavourited(TRACKER_ID, TRACKER_DATA.eras.era1)).toBe(false);
+    });
+
+    it("returns false for era with no tracks", () => {
+      const emptyEra = { name: "Empty" } as Era;
+      expect(isEraFavourited(TRACKER_ID, emptyEra)).toBe(false);
     });
   });
 });

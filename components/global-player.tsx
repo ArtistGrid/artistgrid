@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { usePlayer } from "@/src/providers";
 import type { Track } from "@/src/types";
 import { Button } from "@/components/ui/button";
@@ -61,15 +62,29 @@ const QueueModal = ({
   };
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pb-36 sm:pb-4">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-        onClick={onClose}
-        aria-label="Close queue"
-        tabIndex={-1}
-      />
-      <div className="relative z-10 glass-elevated rounded-2xl w-full max-w-md animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+    <AnimatePresence>
+      <motion.div
+        key="queue-modal"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pb-36 sm:pb-4"
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          onClick={onClose}
+          aria-label="Close queue"
+          tabIndex={-1}
+        />
+        <motion.div
+          initial={{ y: 20, opacity: 0, scale: 0.97 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 20, opacity: 0, scale: 0.97 }}
+          transition={{ type: "spring", damping: 25, stiffness: 350 }}
+          className="relative z-10 glass-elevated rounded-2xl w-full max-w-md"
+        >
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
             <ListMusic className="w-4 h-4 text-white/50" />
@@ -163,8 +178,9 @@ const QueueModal = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 export const GlobalPlayer = memo(function GlobalPlayer() {
@@ -213,8 +229,17 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   );
   if (!state.currentTrack) return null;
   return (
-    <>
-      <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-4" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <AnimatePresence>
+      <>
+        <motion.div
+          key="player-bar"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-4"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
         <div className="max-w-screen-xl mx-auto">
           <div className="glass-elevated rounded-2xl overflow-hidden">
             <div className="flex items-center gap-1 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
@@ -398,8 +423,8 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
             </div>
           </div>
         </div>
-      </div>
-      <QueueModal
+        </motion.div>
+        <QueueModal
         isOpen={queueModalOpen}
         onClose={() => setQueueModalOpen(false)}
         queue={state.queue}
@@ -408,8 +433,16 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
         onRemove={handleQueueRemove}
         onPlayFromQueue={handlePlayFromQueue}
       />
-      {lyricsOpen && state.currentTrack && (
-        <div className="fixed bottom-24 right-3 z-[55] sm:bottom-20 sm:right-4 w-72 sm:w-80 h-72 sm:h-96 glass-elevated rounded-2xl animate-in fade-in-0 slide-in-from-bottom-2 duration-200 flex flex-col overflow-hidden shadow-2xl">
+      <AnimatePresence>
+        {lyricsOpen && state.currentTrack && (
+          <motion.div
+            key="lyrics-panel"
+            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.97 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            className="fixed bottom-24 right-3 z-[55] sm:bottom-20 sm:right-4 w-72 sm:w-80 h-72 sm:h-96 glass-elevated rounded-2xl flex flex-col overflow-hidden shadow-2xl"
+          >
           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
               <Mic2 className="w-3.5 h-3.5 text-white/50" />
@@ -425,8 +458,10 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
             </Button>
           </div>
           <LyricsPanel />
-        </div>
-      )}
-    </>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </>
+    </AnimatePresence>
   );
 });

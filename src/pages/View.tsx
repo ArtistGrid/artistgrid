@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { motion, AnimatePresence } from "framer-motion";
 import { useHeaderSlots } from "@/src/components/layout";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
@@ -41,6 +42,7 @@ import {
   Settings,
   Heart,
   Trash2,
+  Music2,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -66,7 +68,7 @@ import { YouTubePlayer } from "@/src/components/youtube-player";
 import { useSettings } from "@/src/hooks/use-settings";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/App";
-import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks } from "@/src/lib/favourites";
+import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks, toggleEraFavourite, isEraFavourited } from "@/src/lib/favourites";
 import {
   PlayButton,
   PauseButton,
@@ -127,6 +129,8 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   const hasLoadedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const [tabError, setTabError] = useState(false);
+  const [tabEmpty, setTabEmpty] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
@@ -357,6 +361,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         tabSlugsRef.current = {};
       }
       setTabError(false);
+      setTabEmpty(false);
       const cached = getCache(id, tab);
       if (cached) {
         setData(cached.data);
@@ -371,6 +376,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         if (cached.data.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...cached.data.tabSlugs };
         setStatus("success");
         hasLoadedRef.current = true;
+        setHasLoaded(true);
         return;
       }
       const controller = new AbortController();
@@ -396,7 +402,16 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         if (controller.signal.aborted) return;
         const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
         const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
-        if (!hasFlatTracks && !hasEras) { fail(); return; }
+        if (!hasFlatTracks && !hasEras) {
+          if (tab) {
+            setData(null);
+            setTabEmpty(true);
+            setStatus("success");
+          } else {
+            fail();
+          }
+          return;
+        }
         const json = hasFlatTracks ? adaptV3FlatResponse(v3) : adaptV3Response(v3);
         setData(json);
         setCurrentTab(json.current_tab);
@@ -513,6 +528,15 @@ const handleLoad = useCallback(() => {
       const added = toggleFavourite(trackerId, trackUrl);
       setFavourites(getFavourites(trackerId));
       toast({ title: added ? "Added to favourites" : "Removed from favourites" });
+    },
+    [trackerId, toast]
+  );
+  const handleToggleEraFavourite = useCallback(
+    (era: Era) => {
+      const added = toggleEraFavourite(trackerId, era);
+      setFavourites(getFavourites(trackerId));
+      const count = era.data ? Object.values(era.data).flat().length : 0;
+      toast({ title: added ? `Favourited ${count} track${count !== 1 ? "s" : ""}` : `Removed ${count} track${count !== 1 ? "s" : ""} from favourites` });
     },
     [trackerId, toast]
   );
@@ -850,7 +874,12 @@ const handleLoad = useCallback(() => {
   );
   if (status === "fallback") return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
   return (
-    <div className="min-h-screen bg-black pb-32 sm:pb-28">
+    <motion.div
+      className="min-h-screen bg-black pb-32 sm:pb-28"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {headerSlots}
       {youtubeUrl && <YouTubePlayer url={youtubeUrl} onClose={() => setYoutubeUrl(null)} />}
       <LastFMModal
@@ -934,7 +963,12 @@ const handleLoad = useCallback(() => {
           </div>
         )}
         {status === "loading" && (
-          <div className="space-y-4 sm:space-y-5">
+          <motion.div
+            className="space-y-4 sm:space-y-5"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="text-center py-4">
               <div className="inline-flex items-center gap-2 text-white/40 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -957,7 +991,7 @@ const handleLoad = useCallback(() => {
                 </div>
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
         {status === "error" && (
           <div className="flex items-center justify-center py-12 sm:py-20">
@@ -966,7 +1000,7 @@ const handleLoad = useCallback(() => {
             </div>
           </div>
         )}
-        {(status === "success" || status === "tab-loading") && (data || tabError) && (
+        {(status === "success" || status === "tab-loading") && (data || tabError || tabEmpty) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
@@ -1110,18 +1144,52 @@ const handleLoad = useCallback(() => {
                 </div>
               </div>
             )}
-            {status === "tab-loading" ? (
-              <div className="flex justify-center py-12 sm:py-20">
-                <Loader2 className="w-6 h-6 animate-spin text-white/40" />
-              </div>
-            ) : tabError ? (
-              <div className="text-center py-12 sm:py-20 flex flex-col items-center">
+            <AnimatePresence mode="wait">
+              {status === "tab-loading" ? (
+                <motion.div
+                  key="tab-loading"
+                  className="flex justify-center py-12 sm:py-20"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                </motion.div>
+              ) : tabError ? (
+                <motion.div
+                  key="tab-error"
+                  className="text-center py-12 sm:py-20 flex flex-col items-center"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.25 }}
+                >
                 <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
                 <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
-              </div>
+              </motion.div>
+            ) : tabEmpty ? (
+              <motion.div
+                key="tab-empty"
+                className="text-center py-12 sm:py-20 flex flex-col items-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Music2 className="w-12 h-12 sm:w-14 sm:h-14 text-neutral-700 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-white/60">No Tracks in This Tab</h3>
+                <p className="text-sm sm:text-base text-white/30 mt-1">This tab doesn't have any tracks yet</p>
+              </motion.div>
             ) : isFavouritesTab ? (
-              <>
+              <motion.div
+                key="favourites"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
                 {favourites.length > 0 && (
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm text-white/40">{favourites.length} favourite{favourites.length !== 1 ? "s" : ""}</span>
@@ -1198,11 +1266,26 @@ const handleLoad = useCallback(() => {
                     </p>
                   </div>
                 )}
-              </>
+              </motion.div>
             ) : isArtTab && filteredData ? (
-              <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+              <motion.div
+                key="art"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+              </motion.div>
             ) : isFlat && filteredData ? (
-              flatTracks.length > 200 ? (
+              <motion.div
+                key="flat"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+              {flatTracks.length > 200 ? (
                 <FlatTrackList
                   tracks={flatTracks}
                   computeTrackState={computeTrackState}
@@ -1282,9 +1365,17 @@ const handleLoad = useCallback(() => {
                     );
                   })}
                 </div>
-              )
+              )}
+              </motion.div>
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
-              <div className="space-y-4 sm:space-y-5">
+              <motion.div
+                key="era-grouped"
+                className="space-y-4 sm:space-y-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 {Object.entries(filteredData).map(([key, era]) => {
                   const eraPlayableCount = era.data
                     ? Object.values(era.data)
@@ -1368,6 +1459,11 @@ const handleLoad = useCallback(() => {
                               align="end"
                               className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1"
                             >
+                              <DropdownMenuItem onClick={() => handleToggleEraFavourite(era)} className="cursor-pointer rounded-xl">
+                                <Heart className={`w-4 h-4 mr-2 ${isEraFavourited(trackerId, era) ? "fill-current text-red-400" : ""}`} />
+                                {isEraFavourited(trackerId, era) ? "Unfavourite Era" : "Favourite Era"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-neutral-800" />
                               <DropdownMenuItem onClick={() => downloadTracker(key)} className="cursor-pointer rounded-xl">
                                 <FolderDown className="w-4 h-4 mr-2" />
                                 Download Era ({eraPlayableCount})
@@ -1493,16 +1589,24 @@ const handleLoad = useCallback(() => {
                     </div>
                   );
                 })}
-              </div>
+              </motion.div>
             ) : (
-              <div className="text-center py-12 sm:py-20 flex flex-col items-center">
+              <motion.div
+                key="empty"
+                className="text-center py-12 sm:py-20 flex flex-col items-center"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
                 <CircleSlash className="w-12 h-12 sm:w-16 sm:h-16 text-neutral-700 mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-medium text-neutral-300">No Tracks Found</h3>
                 <p className="text-sm sm:text-base text-neutral-500 mt-1">
                   {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters"}
                 </p>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </>
         )}
         <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-b border-neutral-800">
@@ -1518,7 +1622,7 @@ const handleLoad = useCallback(() => {
           </div>
         </div>
       </main>
-    </div>
+    </motion.div>
   );
 }
 interface FlatTrackListProps {
