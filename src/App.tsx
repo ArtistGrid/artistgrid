@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { PlayerProvider } from "./providers";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { GlobalPlayer } from "@/components/global-player";
+import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
 import Home from "./pages/Home";
@@ -66,6 +67,7 @@ export default function App() {
               </Route>
             </Routes>
             <GlobalPlayer />
+            <KeyboardShortcuts />
             <Toaster />
             {settingsOpen && (
               <Suspense fallback={null}>

@@ -3,11 +3,14 @@ import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
+export type RepeatMode = "off" | "one" | "all";
+
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
   isPlaying: boolean;
   isShuffled: boolean;
+  repeatMode: RepeatMode;
   currentTime: number;
   duration: number;
   volume: number;
@@ -31,6 +34,7 @@ interface PlayerContextType {
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   playFromQueue: (index: number) => void;
   toggleShuffle: () => void;
+  toggleRepeat: () => void;
   history: Track[];
   closePlayer: () => void;
   lastfm: LastFMClientInfo;
@@ -43,6 +47,8 @@ export function usePlayer() {
 }
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prefetchRef = useRef<HTMLAudioElement | null>(null);
+  const queueRef = useRef<Track[]>([]);
   const [state, setState] = useState<PlayerState>(() => {
     const s = loadSettings();
     return {
@@ -50,6 +56,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queue: [],
       isPlaying: false,
       isShuffled: s.player.startupShuffle,
+      repeatMode: "off",
       currentTime: 0,
       duration: 0,
       volume: 1,
@@ -59,6 +66,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Track[]>([]);
   const historyRef = useRef<Track[]>([]);
   useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => { queueRef.current = state.queue; }, [state.queue]);
   const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(() => {
     try {
       const session = localStorage.getItem("lastfm-session:v1");
@@ -230,6 +238,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [playNext, playPrevious]);
+  const prefetchNext = useCallback((queue: Track[]) => {
+    if (prefetchRef.current) {
+      prefetchRef.current.src = "";
+      prefetchRef.current = null;
+    }
+    const next = queue[0];
+    if (!next?.playableUrl) return;
+    const el = new Audio();
+    el.preload = "auto";
+    (el as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
+    el.crossOrigin = "anonymous";
+    el.src = next.playableUrl;
+    prefetchRef.current = el;
+  }, []);
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -267,13 +289,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("ended", () => {
       clearScrobbleTimer();
       setState((s) => {
+        if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
+          audio.currentTime = 0;
+          audio.play().catch(console.error);
+          return { ...s, isPlaying: true };
+        }
         if (s.queue.length > 0) {
           const [next, ...rest] = s.queue;
-          if (audioRef.current && next.playableUrl) {
-            audioRef.current.src = next.playableUrl;
-            audioRef.current.play().catch(console.error);
+          if (audio && next.playableUrl) {
+            const prefetched = prefetchRef.current;
+            if (prefetched && prefetched.src === next.playableUrl) {
+              audio.src = next.playableUrl;
+              audio.play().catch(console.error);
+              prefetchRef.current = null;
+            } else {
+              audio.src = next.playableUrl;
+              audio.play().catch(console.error);
+            }
             setHistory((h) => [...h, next]);
             currentTrackRef.current = next;
+            prefetchNext(rest);
             if (lastfmSession?.key) updateNowPlaying(next);
             updateMediaSession(next, true);
             const settings = loadSettings();
@@ -290,6 +325,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             } catch {}
             return { ...s, currentTrack: next, queue: rest, isPlaying: true };
           }
+        }
+        if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
+          audio.currentTime = 0;
+          audio.play().catch(console.error);
+          return { ...s, isPlaying: true };
         }
         if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
         return { ...s, isPlaying: false };
@@ -309,7 +349,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearScrobbleTimer();
     }, opts);
     return () => controller.abort();
-  }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume]);
+  }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume, prefetchNext]);
 
   useEffect(() => {
     const s = loadSettings();
@@ -334,6 +374,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!audioRef.current || !track.playableUrl) return;
       beginPlayback(track);
       setState((s) => ({ ...s, currentTrack: track, isPlaying: true }));
+      prefetchNext(queueRef.current);
       if (lastfmSession?.key) updateNowPlaying(track);
       updateMediaSession(track, true);
       const s = loadSettings();
@@ -349,7 +390,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("artistgrid-history", JSON.stringify(history));
       } catch {}
     },
-    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
+    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -395,6 +436,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const newQueue = s.queue.slice(index + 1);
         if (audioRef.current && track.playableUrl) {
           beginPlayback(track);
+          prefetchNext(newQueue);
           if (lastfmSession?.key) updateNowPlaying(track);
           updateMediaSession(track, true);
           return { ...s, currentTrack: track, queue: newQueue, isPlaying: true };
@@ -402,7 +444,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return s;
       });
     },
-    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession]
+    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const toggleShuffle = useCallback(() => {
     setState((s) => {
@@ -416,6 +458,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return { ...s, isShuffled: true, queue: shuffled };
       }
       return { ...s, isShuffled: newShuffled };
+    });
+  }, []);
+  const toggleRepeat = useCallback(() => {
+    setState((s) => {
+      const modes: RepeatMode[] = ["off", "all", "one"];
+      const next = modes[(modes.indexOf(s.repeatMode) + 1) % modes.length];
+      return { ...s, repeatMode: next };
     });
   }, []);
   const closePlayer = useCallback(() => {
@@ -478,6 +527,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         reorderQueue,
         playFromQueue,
         toggleShuffle,
+        toggleRepeat,
         history,
         closePlayer,
         lastfm: {

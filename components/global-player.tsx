@@ -13,6 +13,8 @@ import {
   VolumeX,
   ListMusic,
   Shuffle,
+  Repeat,
+  Repeat1,
   GripVertical,
   Trash2,
   CircleSlash,
@@ -195,6 +197,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
     reorderQueue,
     playFromQueue,
     toggleShuffle,
+    toggleRepeat,
     closePlayer,
   } = usePlayer();
   const [queueModalOpen, setQueueModalOpen] = useState(false);
@@ -274,6 +277,20 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   aria-pressed={state.isShuffled}
                 >
                   <Shuffle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleRepeat}
+                  className={`hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 transition-colors active:scale-90 ${state.repeatMode !== "off" ? "text-white" : "text-white/30 hover:text-white"}`}
+                  aria-label={`Repeat: ${state.repeatMode}`}
+                  aria-pressed={state.repeatMode !== "off"}
+                >
+                  {state.repeatMode === "one" ? (
+                    <Repeat1 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  ) : (
+                    <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
