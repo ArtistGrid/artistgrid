@@ -33,7 +33,7 @@ import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/component
 import { Footer } from "@/src/components/home/footer";
 import { useHeaderSlots } from "@/src/components/layout";
 import { AnnouncementModal, DonationModal, InfoModal } from "@/src/components/home/modals";
-import { TripleBool } from "@/lib/utils";
+import { TRIPLE_BOOL_YES } from "@/lib/utils";
 import { Dice6 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 function parseCSVRow(line: string): string[] {
@@ -194,8 +194,8 @@ export default function ArtistGallery() {
             name: newName,
             url,
             imageFilename: getImageFilename(newName),
-            isLinkWorking: links_work === TripleBool.YES,
-            isUpdated: updated === TripleBool.YES,
+            isLinkWorking: links_work === TRIPLE_BOOL_YES,
+            isUpdated: updated === TRIPLE_BOOL_YES,
             isStarred: best,
           });
         }
@@ -222,7 +222,7 @@ export default function ArtistGallery() {
     loadData();
     loadVisitorCount();
     return () => controller.abort();
-  }, [toast]);
+  }, []);
   const sortedArtists = useMemo(() => {
     if (!filterOptions.sortByTrends || !trendsLoaded || allArtists.length === 0) return allArtists;
     return sortArtistsByTrends(allArtists, trendsData);

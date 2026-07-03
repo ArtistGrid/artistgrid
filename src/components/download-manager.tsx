@@ -134,7 +134,7 @@ function DownloadFloatingUI() {
   const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   const activeCount = activeJobs.reduce((acc, j) => acc + j.items.filter((i) => i.status === "downloading").length, 0);
   return (
-    <div className="fixed bottom-20 sm:bottom-4 right-4 z-50 w-80 max-h-96 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
+    <div className="fixed bottom-24 sm:bottom-4 right-4 z-50 w-80 max-h-96 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
         <div className="flex items-center gap-2">
           <Archive className={`w-4 h-4 ${activeJobs.length > 0 ? "text-blue-400 animate-pulse" : "text-green-400"}`} />
@@ -333,7 +333,6 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           creatingZipsRef.current!.add(job.id);
           setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
           try {
-            // Split completed items into ≤900 MB chunks
             type ChunkEntry = { item: DownloadItem; fileData: { blob: Blob; ext: string } };
             const chunks: ChunkEntry[][] = [[]];
             let chunkBytes = 0;
@@ -358,7 +357,6 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}`
               : `${sanitizeFilename(job.artistName)} Tracker`;
             let firstContent: Blob | undefined;
-            // Generate each part sequentially to avoid holding multiple 900 MB blobs in memory simultaneously
             for (let i = 0; i < filled.length; i++) {
               const zip = new JSZip();
               for (const { item, fileData } of filled[i]) {
@@ -376,7 +374,6 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
               const downloadUrl = URL.createObjectURL(content);
               if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
-              // Stagger each part by 600 ms so the browser doesn't block simultaneous saves
               const t1 = setTimeout(() => {
                 const link = document.createElement("a");
                 link.href = downloadUrl;

@@ -85,7 +85,6 @@ export async function embedMetadata(
         }
       }
     } catch {
-      // Cover art fetch failed, continue without it
     }
   }
 

@@ -3,7 +3,6 @@ import {
   Download,
   Play,
   Search,
-  Menu,
   AlertTriangle,
   Settings,
   X,
@@ -71,7 +70,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="lyrics"><Mic2 className="w-3 h-3 mr-1.5" />Lyrics</TabsTrigger>
               <TabsTrigger value="player"><Play className="w-3 h-3 mr-1.5" />Player</TabsTrigger>
-              <TabsTrigger value="behavior"><Menu className="w-3 h-3 mr-1.5" />Behavior</TabsTrigger>
+              <TabsTrigger value="behavior"><Settings className="w-3 h-3 mr-1.5" />Behavior</TabsTrigger>
             </TabsList>
 
             <TabsContent value="lyrics" className="space-y-4">

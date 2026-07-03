@@ -41,19 +41,6 @@ export function usePlayer() {
   if (!context) throw new Error("usePlayer must be used within PlayerProvider");
   return context;
 }
-function extractArtistName(trackerName: string | null | undefined): string {
-  if (!trackerName) return "Unknown Artist";
-  let name = trackerName.trim();
-  const suffixes = [" Tracker", " tracker", " TRACKER"];
-  for (const suffix of suffixes) {
-    if (name.endsWith(suffix)) {
-      name = name.slice(0, -suffix.length);
-      break;
-    }
-  }
-  return name || "Unknown Artist";
-}
-
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<PlayerState>(() => {

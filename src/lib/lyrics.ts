@@ -159,8 +159,8 @@ export async function fetchLyrics(
     }
     lyricsCache.set(cacheKey, best);
     return best;
-  } catch (e: any) {
-    if (e?.name === "AbortError" || e?.message?.includes("abort")) return null;
+  } catch (e: unknown) {
+    if (e instanceof Error && (e.name === "AbortError" || e.message.includes("abort"))) return null;
     console.error("[lrclib] fetch failed:", e);
     return null;
   }

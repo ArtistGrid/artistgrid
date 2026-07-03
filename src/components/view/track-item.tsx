@@ -5,7 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Play, Pause, ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { Play, Pause, ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
 
@@ -37,24 +37,24 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource 
 
 export function PlayButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <button type="button" onClick={onPlay} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all">
-      <Play className="w-3 sm:w-3.5 h-3 sm:h-3.5 ml-0.5" />
+    <button type="button" onClick={onPlay} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all active:scale-95">
+      <Play className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5 ml-0.5" />
     </button>
   );
 }
 
 export function PauseButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <button type="button" onClick={onPlay} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all">
-      <Pause className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+    <button type="button" onClick={onPlay} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all active:scale-95">
+      <Pause className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
 }
 
 export function OpenLinkButton({ onOpenLink }: { onOpenLink: () => void }) {
   return (
-    <button type="button" onClick={onOpenLink} className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-all">
-      <LinkIcon className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+    <button type="button" onClick={onOpenLink} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-all active:scale-95">
+      <LinkIcon className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
 }
@@ -68,21 +68,33 @@ export function TrackDescription({ description }: { description: string | undefi
   );
 }
 
-export function TrackItemActions({ track, source, shouldShowSource, url, onOpenUrl, children }: {
+export function TrackItemActions({ track, source, shouldShowSource, url, onOpenUrl, isFavourited, onToggleFavourite, children }: {
   track: TALeak; source: Track["source"]; shouldShowSource: boolean; url: string | null | undefined;
-  onOpenUrl: () => void; children: React.ReactNode;
+  onOpenUrl: () => void; isFavourited?: boolean; onToggleFavourite?: () => void; children: React.ReactNode;
 }) {
   return (
     <>
       <TrackMetaBadges source={source} type={track.type} quality={track.quality} trackLength={track.track_length} shouldShowSource={shouldShowSource} />
+      {onToggleFavourite && (
+        <button
+          type="button"
+          onClick={onToggleFavourite}
+          className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg transition-all active:scale-90 ${
+            isFavourited ? "text-red-400 hover:text-red-300" : "text-neutral-500 hover:text-red-400 hover:bg-white/10"
+          }`}
+          aria-label={isFavourited ? "Remove from favourites" : "Add to favourites"}
+        >
+          <Heart className={`w-4 h-4 ${isFavourited ? "fill-current" : ""}`} />
+        </button>
+      )}
       {url && (
-        <Button variant="ghost" size="icon" onClick={onOpenUrl} className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0">
+        <Button variant="ghost" size="icon" onClick={onOpenUrl} className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95">
           <ExternalLink className="w-4 h-4" />
         </Button>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0">
+          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95">
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
-import { proxyImageUrl } from "@/src/lib/track-utils";
 import type { Era, TALeak } from "@/src/types";
 
 function getImageUrl(url: string): string | null {
@@ -46,7 +45,7 @@ export function ArtGallery({
           >
             {era.image ? (
               <img
-                src={proxyImageUrl(era.image)}
+                src={era.image}
                 alt={era.name}
                 className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
                 referrerPolicy="no-referrer"
@@ -77,7 +76,7 @@ export function ArtGallery({
                       const url = item.url || (item.urls && item.urls[0]);
                       const urlAsImage = url ? getImageUrl(url) : null;
                       const ownImageSrc = item.image || urlAsImage;
-                       const displaySrc = proxyImageUrl(ownImageSrc || era.image || null);
+                       const displaySrc = ownImageSrc || era.image || null;
                       const clickTarget = ownImageSrc || null;
                       const stableKey = item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
                       const cardContent = (

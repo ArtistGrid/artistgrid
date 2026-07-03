@@ -7,7 +7,6 @@ export async function fetchWithFallback(endpoint: string, options?: RequestInit)
   return fetch(`${API_BASE}${endpoint}`, options);
 }
 
-// v3 response types
 interface V3TrackName {
   raw: string;
   title: string;
@@ -86,8 +85,6 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
   const eras: Record<string, Era> = {};
   for (let i = 0; i < (v3.eras?.length ?? 0); i++) {
     const v3Era = v3.eras![i];
-    // Prefix with index: plain numeric-looking names (e.g. "2022") would otherwise be
-    // treated as array indices by JS and reordered ahead of string keys, breaking era order.
     const key = `${i}:${v3Era.name || ""}`;
     const grouped: Record<string, TALeak[]> = {};
     for (const track of v3Era.tracks) {
@@ -109,8 +106,6 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
   return { name: v3.name, eras, ...buildTabMeta(v3) };
 }
 
-// Handles tabs that return a flat tracks list (e.g. "Recent") instead of era-grouped eras.
-// Preserves original order — eras are only used as a lookup for era color metadata.
 export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
   const erasMeta: Record<string, Era> = {};
   const flat: TALeak[] = [];
@@ -129,8 +124,6 @@ export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
     taLeak.eraTextColor = track.era_text_color;
     flat.push(taLeak);
   }
-  // Store as a single pseudo-era so the rest of the data pipeline still works,
-  // but set isFlat so the UI renders a plain list instead of the accordion.
   const eras: Record<string, Era> = { _flat: { name: "", data: { Default: flat } } };
   return { name: v3.name, eras, isFlat: true, ...buildTabMeta(v3) };
 }

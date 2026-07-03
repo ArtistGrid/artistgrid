@@ -1,0 +1,21 @@
+import { defineConfig } from "vitest/config";
+import path from "path";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
+    },
+  },
+  test: {
+    environment: "jsdom",
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost:3000",
+      },
+    },
+    globals: true,
+    setupFiles: ["./src/__tests__/setup.ts"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "lib/**/*.{test,spec}.{ts,tsx}", "hooks/**/*.{test,spec}.{ts,tsx}"],
+  },
+});

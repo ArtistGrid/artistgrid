@@ -214,12 +214,10 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   if (!state.currentTrack) return null;
   return (
     <>
-      <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-4">
+      <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-4" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="max-w-screen-xl mx-auto">
           <div className="glass-elevated rounded-2xl overflow-hidden">
             <div className="flex items-center gap-1 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
-
-              {/* Art + track info */}
               <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-none sm:w-52">
                 {state.currentTrack.eraImage ? (
                   <img
@@ -241,14 +239,12 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   </p>
                 </div>
               </div>
-
-              {/* Playback controls */}
               <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleShuffle}
-                  className={`hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 transition-colors ${state.isShuffled ? "text-white" : "text-white/30 hover:text-white"}`}
+                  className={`hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 transition-colors active:scale-90 ${state.isShuffled ? "text-white" : "text-white/30 hover:text-white"}`}
                   aria-label="Shuffle"
                   aria-pressed={state.isShuffled}
                 >
@@ -258,7 +254,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   variant="ghost"
                   size="icon"
                   onClick={playPrevious}
-                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9"
+                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 active:scale-90"
                 >
                   <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
@@ -266,7 +262,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   variant="ghost"
                   size="icon"
                   onClick={togglePlayPause}
-                  className="bg-white text-black hover:bg-white/90 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0"
+                  className="bg-white text-black hover:bg-white/90 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 active:scale-90"
                 >
                   {state.isPlaying ? (
                     <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -278,13 +274,11 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   variant="ghost"
                   size="icon"
                   onClick={playNext}
-                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9"
+                  className="text-white/40 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 sm:w-9 sm:h-9 active:scale-90"
                 >
                   <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
               </div>
-
-              {/* Progress bar — desktop only, in the row */}
               <div className="hidden sm:flex flex-1 items-center gap-2 min-w-0">
                 <span className="text-xs text-white/30 tabular-nums w-8 text-right flex-shrink-0">
                   {formatTime(displayTime)}
@@ -317,8 +311,6 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   {formatTime(state.duration)}
                 </span>
               </div>
-
-              {/* Volume — md+ only */}
               <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
                 <button
                   type="button"
@@ -347,8 +339,6 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   aria-label="Volume"
                 />
               </div>
-
-              {/* Queue + lyrics + close */}
               <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
                 <Button
                   variant="ghost"
@@ -388,9 +378,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 </Button>
               </div>
             </div>
-
-            {/* Mobile progress bar — below the row */}
-            <div className="sm:hidden relative w-full h-1 bg-white/[0.1]">
+            <div className="sm:hidden relative w-full h-1.5 bg-white/[0.1]">
               <div
                 className="absolute inset-y-0 left-0 bg-white/60 transition-none"
                 style={{ width: `${progress}%` }}
@@ -421,7 +409,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
         onPlayFromQueue={handlePlayFromQueue}
       />
       {lyricsOpen && state.currentTrack && (
-        <div className="fixed bottom-20 right-3 z-[55] sm:bottom-20 sm:right-4 w-72 sm:w-80 h-80 sm:h-96 glass-elevated rounded-2xl animate-in fade-in-0 slide-in-from-bottom-2 duration-200 flex flex-col overflow-hidden shadow-2xl">
+        <div className="fixed bottom-24 right-3 z-[55] sm:bottom-20 sm:right-4 w-72 sm:w-80 h-72 sm:h-96 glass-elevated rounded-2xl animate-in fade-in-0 slide-in-from-bottom-2 duration-200 flex flex-col overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
               <Mic2 className="w-3.5 h-3.5 text-white/50" />

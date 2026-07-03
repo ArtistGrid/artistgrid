@@ -59,14 +59,6 @@ export function getGoogleSheetsUrl(trackerId: string, htmlview = true): string {
   const mode = htmlview ? "htmlview" : "edit";
   return `https://docs.google.com/spreadsheets/d/${trackerId}/${mode}`;
 }
-const WSRV_BASE = "https://wsrv.nl/?url=";
-export function proxyImageUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  for (const domain of SPECIAL_TRACKER_IDS) {
-    if (url.includes(domain)) return `${WSRV_BASE}${encodeURIComponent(url)}`;
-  }
-  return url;
-}
 export function getSourceDisplayName(source: Track["source"]): string {
   const names: Record<Track["source"], string> = {
     pillows: "Pillows",

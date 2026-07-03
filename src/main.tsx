@@ -1,9 +1,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import * as Sentry from "@sentry/react";
 import "./index.css";
 import App from "./App";
+
+Sentry.init({
+  dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
+  tracesSampleRate: 0.01,
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
+      <App />
+    </Sentry.ErrorBoundary>
   </StrictMode>
 );

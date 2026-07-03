@@ -59,7 +59,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
         const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
         if (!match) return null;
         try {
-          const url = await Promise.any(
+          const resolvedUrl = await Promise.any(
             PIXELDRAIN_APIS.map(async (base) => {
               const res = await fetch(`${base}/goy/dl/${match[1]}`);
               if (!res.ok) throw new Error("not ok");
@@ -68,7 +68,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
               return data.url as string;
             })
           );
-          return url;
+          return resolvedUrl;
         } catch {
           return null;
         }

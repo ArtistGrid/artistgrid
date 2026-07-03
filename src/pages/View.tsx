@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useHeaderSlots } from "@/src/components/layout";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
-import type { Track, Era, TALeak, TrackerResponse } from "@/src/types";
+import type { Track, Era, TALeak, TrackerResponse, TrackSource } from "@/src/types";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,8 @@ import {
   SkipForward,
   FolderDown,
   Settings,
+  Heart,
+  Trash2,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -52,7 +55,6 @@ import {
   decodeTrackFromUrl,
   getGoogleSheetsUrl,
   getSourceDisplayName,
-  proxyImageUrl,
   TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
@@ -64,6 +66,7 @@ import { YouTubePlayer } from "@/src/components/youtube-player";
 import { useSettings } from "@/src/hooks/use-settings";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/App";
+import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks } from "@/src/lib/favourites";
 import {
   PlayButton,
   PauseButton,
@@ -111,7 +114,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
     usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/sh/${trackerId}?artist=${encodeURIComponent(artistNameFromUrl || "")}` });
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "fallback">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "tab-loading" | "success" | "error" | "fallback">("idle");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterOptions>({ showPlayableOnly: false, qualityFilter: [], sourceFilter: [] });
@@ -121,6 +124,8 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   const [currentTab, setCurrentTab] = useState<string>("");
   const [tabsList, setTabsList] = useState<string[]>([]);
   const tabSlugsRef = useRef<Record<string, string>>({});
+  const hasLoadedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [tabError, setTabError] = useState(false);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
@@ -138,6 +143,13 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
     items: Array<{ track: TALeak; era: Era; playableUrl: string }>;
   } | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
+  const [favourites, setFavourites] = useState<string[]>(() => getFavourites(trackerId));
+  const isFavouritesTab = currentTab === "Favourites";
+  const displayTabs = useMemo(() => {
+    const tabs = [...tabsList];
+    if (!tabs.includes("Favourites")) tabs.push("Favourites");
+    return tabs;
+  }, [tabsList]);
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
   const getEraImage = useCallback(
     (era: Era): string | undefined => {
@@ -214,6 +226,18 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         : [],
     [isFlat, filteredData]
   );
+  const favouriteTracks = useMemo(() => {
+    if (!data || favourites.length === 0) return [];
+    return getFavouritedTracks(data, favourites)
+      .map(({ track, era }) => {
+        const url = getTrackUrl(track);
+        if (!url) return null;
+        const playableUrl = resolvedUrls.get(url) ?? null;
+        if (!playableUrl) return null;
+        return { track, era, url, playableUrl };
+      })
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+  }, [data, favourites, resolvedUrls]);
   const createTrackObject = useCallback(
     (rawTrack: TALeak, era: Era, url: string, playableUrl: string): Track => ({
       id: generateTrackId(url),
@@ -293,9 +317,6 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
       }
     } catch {}
   }, []);
-  // Resolves a batch of track URLs to their playable form, merging results into
-  // resolvedUrls as it goes. Throttles UI updates so resolving large catalogs doesn't
-  // force a full re-render (and re-filter of every track) after every single batch.
   const resolveUrls = useCallback(async (urls: string[]): Promise<Record<string, string | null>> => {
     if (urls.length === 0) return {};
     setIsPreloading(true);
@@ -327,6 +348,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   }, []);
   const loadTrackerData = useCallback(
     async (id: string, tab?: string) => {
+      abortRef.current?.abort();
       if (!tab) {
         setData(null);
         setResolvedUrls(new Map());
@@ -334,10 +356,29 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         setTabsList([]);
         tabSlugsRef.current = {};
       }
-      setStatus("loading");
       setTabError(false);
+      const cached = getCache(id, tab);
+      if (cached) {
+        setData(cached.data);
+        setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
+        if (tab) {
+          const dn = Object.entries(tabSlugsRef.current).find(([, s]) => s === tab)?.[0];
+          setCurrentTab(dn ?? tab);
+        } else {
+          setCurrentTab(cached.data.current_tab);
+        }
+        if (cached.data.tabs?.length) setTabsList(cached.data.tabs);
+        if (cached.data.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...cached.data.tabSlugs };
+        setStatus("success");
+        hasLoadedRef.current = true;
+        return;
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
       if (tab) fetchBaseEraImages(id);
       const fail = () => {
+        if (controller.signal.aborted) return;
         if (tab) {
           setData(null);
           setTabError(true);
@@ -346,21 +387,13 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
           setStatus("fallback");
         }
       };
-      const cached = getCache(id, tab);
-      if (cached) {
-        setData(cached.data);
-        setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
-        setCurrentTab(cached.data.current_tab);
-        if (cached.data.tabs?.length) setTabsList(cached.data.tabs);
-        if (cached.data.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...cached.data.tabSlugs };
-        setStatus("success");
-        return;
-      }
       try {
         const endpoint = tab ? `/sh/${id}/tab/${encodeURIComponent(tab)}` : `/sh/${id}/`;
-        const res = await fetchWithFallback(endpoint);
+        const res = await fetchWithFallback(endpoint, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (!res.ok) { fail(); return; }
         const v3: V3Response = await res.json();
+        if (controller.signal.aborted) return;
         const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
         const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
         if (!hasFlatTracks && !hasEras) { fail(); return; }
@@ -370,10 +403,8 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
         if (json.tabs?.length) setTabsList(json.tabs);
         if (json.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...json.tabSlugs };
         setStatus("success");
-        // Eagerly resolve only sources that don't require a network round trip (e.g. pillows,
-        // soundcloud). Network-backed sources (krakenfiles, imgur, qobuz, pixeldrain) are resolved
-        // on demand when a track is actually played or downloaded, instead of hitting those APIs
-        // for every track in the catalog on page load.
+        hasLoadedRef.current = true;
+        setCache(id, json, {}, tab);
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
           const freeUrls: string[] = [];
           forEachEraTrack(json.eras, (t) => {
@@ -385,6 +416,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
           }
         }
       } catch (e) {
+        if (controller.signal.aborted) return;
         console.error("[tracker] load failed", e);
         fail();
       }
@@ -438,6 +470,10 @@ const handleLoad = useCallback(() => {
   const handleTabChange = useCallback(
     (tabName: string) => {
       if (!trackerId || tabName === currentTab) return;
+      if (tabName === "Favourites") {
+        setCurrentTab("Favourites");
+        return;
+      }
       const slug = tabSlugsRef.current[tabName] ?? tabName;
       setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
@@ -472,6 +508,19 @@ const handleLoad = useCallback(() => {
       window.open(transformUrlForOpening(url), "_blank", `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`);
     }
   }, [toast]);
+  const handleToggleFavourite = useCallback(
+    (trackUrl: string) => {
+      const added = toggleFavourite(trackerId, trackUrl);
+      setFavourites(getFavourites(trackerId));
+      toast({ title: added ? "Added to favourites" : "Removed from favourites" });
+    },
+    [trackerId, toast]
+  );
+  const handleClearFavourites = useCallback(() => {
+    clearFavourites(trackerId);
+    setFavourites([]);
+    toast({ title: "Favourites cleared" });
+  }, [trackerId, toast]);
   const handlePlayTrack = useCallback(
     async (rawTrack: TALeak, era: Era) => {
       const url = getTrackUrl(rawTrack);
@@ -488,9 +537,10 @@ const handleLoad = useCallback(() => {
       const track = createTrackObject(rawTrack, era, url, playableUrl);
       clearQueue();
       playTrack(track);
-      const currentIdx = allPlayableTracks.findIndex((t) => t.url === url);
+      const queueSource = isFavouritesTab ? favouriteTracks : allPlayableTracks;
+      const currentIdx = queueSource.findIndex((t) => t.url === url);
       if (currentIdx !== -1) {
-        for (const t of allPlayableTracks.slice(currentIdx + 1))
+        for (const t of queueSource.slice(currentIdx + 1))
           addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl));
       }
     },
@@ -500,6 +550,8 @@ const handleLoad = useCallback(() => {
       togglePlayPause,
       handleOpenUrl,
       allPlayableTracks,
+      favouriteTracks,
+      isFavouritesTab,
       addToQueue,
       clearQueue,
       createTrackObject,
@@ -606,8 +658,7 @@ const handleLoad = useCallback(() => {
         const match = u.match(/imgur\.com\/([a-zA-Z0-9]+)/);
         if (match) return `https://i.imgur.com/${match[1]}.jpg`;
       }
-      if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return proxyImageUrl(u) ?? null;
-      // Google Sheets image URLs (v3 cover art / per-row images)
+      if (u.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return u;
       if (u.includes("docs.google.com/sheets-images-rt") || u.includes("googleusercontent.com")) return u;
       return null;
     };
@@ -616,34 +667,32 @@ const handleLoad = useCallback(() => {
     else window.open(url, "_blank", "noopener,noreferrer");
   }, []);
   const downloadTracker = useCallback(
-    async (eraKey?: string, catKey?: string) => {
+    async (eraKey?: string, catKey?: string, prebuiltCandidates?: Array<{ track: TALeak; era: Era; url: string }>) => {
       if (!data?.eras) return;
-      const candidates: Array<{ track: TALeak; era: Era; url: string }> = [];
-      if (eraKey && catKey) {
-        const era = data.eras[eraKey];
-        const catTracks = era?.data?.[catKey];
-        if (Array.isArray(catTracks)) {
-          for (const track of catTracks) {
-            const url = getTrackUrl(track);
-            if (url) candidates.push({ track, era, url });
+      const candidates = prebuiltCandidates ?? (() => {
+        const c: Array<{ track: TALeak; era: Era; url: string }> = [];
+        if (eraKey && catKey) {
+          const era = data.eras[eraKey];
+          const catTracks = era?.data?.[catKey];
+          if (Array.isArray(catTracks)) {
+            for (const track of catTracks) {
+              const url = getTrackUrl(track);
+              if (url) c.push({ track, era, url });
+            }
           }
+        } else {
+          const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
+          forEachEraTrack(erasToDownload, (track, era) => {
+            const url = getTrackUrl(track);
+            if (url) c.push({ track, era, url });
+          });
         }
-      } else {
-        const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
-        forEachEraTrack(erasToDownload, (track, era) => {
-          const url = getTrackUrl(track);
-          if (url) candidates.push({ track, era, url });
-        });
-      }
+        return c;
+      })();
       if (candidates.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
       }
-      // Fire two 0-byte probe downloads to pre-trigger Chrome's "Allow multiple downloads"
-      // permission prompt. Probe #1 uses this user-gesture (allowed immediately). Probe #2
-      // fires from setTimeout so Chrome shows the Allow/Block popup right now — while the
-      // user is reading the confirmation dialog — rather than mid-download on part 2.
-      // Must fire synchronously, before any awaits below, so it still counts as part of the click gesture.
       const fireProbe = () => {
         const blob = new Blob([], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
@@ -657,8 +706,6 @@ const handleLoad = useCallback(() => {
       };
       fireProbe();
       setTimeout(fireProbe, 100);
-      // Network-backed sources (krakenfiles, imgur, qobuz, pixeldrain) aren't pre-resolved on
-      // page load anymore, so resolve any that this download set still needs right now.
       const unresolvedUrls = candidates.reduce((acc: string[], c: { url: string }) => {
         const url = c.url;
         if (resolvedUrls.get(url) === undefined && isNetworkSource(getTrackSource(url))) {
@@ -697,7 +744,6 @@ const handleLoad = useCallback(() => {
     const isSupported = SUPPORTED_SOURCES_SET.has(source);
     const resolvedEntry = url ? resolvedUrls.get(url) : undefined;
     const playableUrl = resolvedEntry || null;
-    // resolved null = explicitly not playable; undefined = not yet checked
     const isPlayable = !!playableUrl || (isSupported && resolvedEntry === undefined);
     const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
     const isCurrentTrack = playerState.currentTrack?.url === url;
@@ -741,8 +787,8 @@ const handleLoad = useCallback(() => {
         }
       }
     }
-    return { total, playable };
-  }, [data, resolvedUrls]);
+    return { total, playable, favourites: favourites.length };
+  }, [data, resolvedUrls, favourites.length]);
   const headerSlots = useHeaderSlots(
     <div className="relative flex-1 min-w-0">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
@@ -920,7 +966,7 @@ const handleLoad = useCallback(() => {
             </div>
           </div>
         )}
-        {status === "success" && (data || tabError) && (
+        {(status === "success" || status === "tab-loading") && (data || tabError) && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
@@ -937,19 +983,20 @@ const handleLoad = useCallback(() => {
                 </Button>
               )}
             </div>
-            {tabsList.length > 0 && (
+            {displayTabs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-white/[0.07]">
-                {tabsList.map((tab) => (
+                {displayTabs.map((tab) => (
                   <button
                     type="button"
                     key={tab}
                     onClick={() => handleTabChange(tab)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 flex items-center gap-1.5 ${
                       currentTab === tab
                         ? "bg-white text-black"
                         : "glass-flat text-white/40 hover:text-white"
                     }`}
                   >
+                    {tab === "Favourites" && <Heart className={`w-3 h-3 ${favourites.length > 0 ? "fill-current" : ""}`} />}
                     {tab}
                   </button>
                 ))}
@@ -979,6 +1026,7 @@ const handleLoad = useCallback(() => {
                     ) : resolvedUrls.size > 0 ? (
                       <span className="text-xs sm:text-sm text-white/30">
                         {stats.playable}/{stats.total} playable
+                        {stats.favourites > 0 && <span className="ml-2 text-red-400/70">• {stats.favourites} favourited</span>}
                       </span>
                     ) : null}
                   </div>
@@ -1062,71 +1110,179 @@ const handleLoad = useCallback(() => {
                 </div>
               </div>
             )}
-            {tabError ? (
+            {status === "tab-loading" ? (
+              <div className="flex justify-center py-12 sm:py-20">
+                <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+              </div>
+            ) : tabError ? (
               <div className="text-center py-12 sm:py-20 flex flex-col items-center">
                 <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
                 <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
               </div>
+            ) : isFavouritesTab ? (
+              <>
+                {favourites.length > 0 && (
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-white/40">{favourites.length} favourite{favourites.length !== 1 ? "s" : ""}</span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        if (favouriteTracks.length === 0) return;
+                        const candidates = favouriteTracks.map(({ track, era, url }) => ({ track, era, url }));
+                        downloadTracker(undefined, undefined, candidates);
+                      }} disabled={isPreloading || favouriteTracks.length === 0} className="text-white/30 hover:text-white">
+                        <FolderDown className="w-3.5 h-3.5 mr-1.5" />
+                        Download
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={handleClearFavourites} className="text-white/30 hover:text-red-400">
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                        Clear All
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {favouriteTracks.length > 0 ? (
+                  <div className="space-y-1.5 sm:space-y-2">
+                    {favouriteTracks.map((t, i) => {
+                      const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t.track);
+                      return (
+                        <div
+                          key={`fav-${i}`}
+                          ref={isHighlighted ? highlightedTrackRef : null}
+                          className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+                        >
+                          <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
+                            {isPlayable
+                              ? isCurrentlyPlaying
+                                ? <PauseButton onPlay={() => handlePlayTrack(t.track, t.era)} />
+                                : <PlayButton onPlay={() => handlePlayTrack(t.track, t.era)} />
+                              : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
+                            }
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-white text-xs sm:text-sm truncate">
+                                {t.track.name || "Unknown"}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                                {t.era.name && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 glass-flat text-white/50">
+                                    {t.era.name}
+                                  </span>
+                                )}
+                                {t.track.extra && <span className="text-xs text-neutral-500 truncate">{t.track.extra}</span>}
+                              </div>
+                            </div>
+                            <TrackItemActions track={t.track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={true} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
+                              {isPlayable && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handlePlayTrack(t.track, t.era)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddToQueue(t.track, t.era)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddToQueue(t.track, t.era)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-neutral-800" />
+                                  <DropdownMenuItem onClick={() => handleDownload(t.track)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuItem onClick={() => handleOpenOriginal(t.track)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
+                            </TrackItemActions>
+                          </div>
+                          <TrackDescription description={description} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 sm:py-20 flex flex-col items-center">
+                    <Heart className="w-12 h-12 sm:w-16 sm:h-16 text-neutral-700 mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-medium text-neutral-300">No Favourites Yet</h3>
+                    <p className="text-sm sm:text-base text-neutral-500 mt-1">
+                      Tap the heart icon on any track to add it here
+                    </p>
+                  </div>
+                )}
+              </>
             ) : isArtTab && filteredData ? (
               <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
             ) : isFlat && filteredData ? (
-              <div className="space-y-1.5 sm:space-y-2">
-                {flatTracks.map((t, i) => {
-                  const flatKey = `flat-${i}`;
-                  const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
-                  const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
-                  return (
-                    <div
-                      key={flatKey}
-                      ref={isHighlighted ? highlightedTrackRef : null}
-                      className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
-                    >
-                      <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
-                        {isPlayable
-                          ? isCurrentlyPlaying
-                            ? <PauseButton onPlay={() => handlePlayTrack(t, fakeEra)} />
-                            : <PlayButton onPlay={() => handlePlayTrack(t, fakeEra)} />
-                          : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
-                        }
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-white text-xs sm:text-sm truncate">{t.name || "Unknown"}</span>
+              flatTracks.length > 200 ? (
+                <FlatTrackList
+                  tracks={flatTracks}
+                  computeTrackState={computeTrackState}
+                  handlePlayTrack={handlePlayTrack}
+                  handleAddToQueue={handleAddToQueue}
+                  handleOpenUrl={handleOpenUrl}
+                  handleOpenOriginal={handleOpenOriginal}
+                  handleToggleFavourite={handleToggleFavourite}
+                  handleDownload={handleDownload}
+                  favourites={favourites}
+                  highlightedTrackRef={highlightedTrackRef}
+                  createTrackObject={createTrackObject}
+                  clearQueue={clearQueue}
+                  playTrack={playTrack}
+                />
+              ) : (
+                <div className="space-y-1.5 sm:space-y-2">
+                  {flatTracks.map((t, i) => {
+                    const flatKey = `flat-${i}`;
+                    const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
+                    const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
+                    return (
+                      <div
+                        key={flatKey}
+                        ref={isHighlighted ? highlightedTrackRef : null}
+                        className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+                      >
+                        <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
+                          {isPlayable
+                            ? isCurrentlyPlaying
+                              ? <PauseButton onPlay={() => handlePlayTrack(t, fakeEra)} />
+                              : <PlayButton onPlay={() => handlePlayTrack(t, fakeEra)} />
+                            : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
+                          }
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-white text-xs sm:text-sm truncate">{t.name || "Unknown"}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                              {t.eraName && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                  style={{
+                                    background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
+                                    color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
+                                  }}
+                                >
+                                  {t.eraName}
+                                </span>
+                              )}
+                              {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
-                            {t.eraName && (
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
-                                style={{
-                                  background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
-                                  color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
-                                }}
-                              >
-                                {t.eraName}
-                              </span>
-                            )}
-                            {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
-                          </div>
+                          <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={url ? favourites.includes(url) : false} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
+                              {isPlayable && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => { const pt = createTrackObject(t, fakeEra, url!, playableUrl!); clearQueue(); playTrack(pt); }} className="cursor-pointer"><Radio className="w-4 h-4 mr-2" />Play Track Only</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-neutral-800" />
+                                  <DropdownMenuItem onClick={() => handleDownload(t)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuSeparator className="bg-neutral-800" />
+                              {url && (
+                                <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
+                                  <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
+                                  {favourites.includes(url) ? "Unfavourite" : "Favourite"}
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => handleOpenOriginal(t)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
+                          </TrackItemActions>
                         </div>
-                        <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : undefined}>
-                            {isPlayable && (
-                              <>
-                                <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { const pt = createTrackObject(t, fakeEra, url!, playableUrl!); clearQueue(); playTrack(pt); }} className="cursor-pointer"><Radio className="w-4 h-4 mr-2" />Play Track Only</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-neutral-800" />
-                                <DropdownMenuItem onClick={() => handleDownload(t)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
-                              </>
-                            )}
-                            <DropdownMenuItem onClick={() => handleOpenOriginal(t)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
-                        </TrackItemActions>
+                        <TrackDescription description={description} />
                       </div>
-                      <TrackDescription description={description} />
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <div className="space-y-4 sm:space-y-5">
                 {Object.entries(filteredData).map(([key, era]) => {
@@ -1159,7 +1315,7 @@ const handleLoad = useCallback(() => {
                         >
                            {era.image ? (
                             <img
-                              src={proxyImageUrl(era.image)}
+                              src={era.image}
                               alt={era.name}
                               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
                               style={{
@@ -1288,7 +1444,7 @@ const handleLoad = useCallback(() => {
                                               </div>
                                             </div>
                                           </div>
-                                          <TrackItemActions track={track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : undefined}>
+                                          <TrackItemActions track={track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={url ? favourites.includes(url) : false} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
                                               {url && (
                                                 <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
                                                   <Share className="w-4 h-4 mr-2" />
@@ -1311,6 +1467,13 @@ const handleLoad = useCallback(() => {
                                                     Download
                                                   </DropdownMenuItem>
                                                 </>
+                                              )}
+                                              <DropdownMenuSeparator className="bg-neutral-800" />
+                                              {url && (
+                                                <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
+                                                  <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
+                                                  {favourites.includes(url) ? "Unfavourite" : "Favourite"}
+                                                </DropdownMenuItem>
                                               )}
                                               <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer">
                                                 <ExternalLink className="w-4 h-4 mr-2" />
@@ -1355,6 +1518,102 @@ const handleLoad = useCallback(() => {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+interface FlatTrackListProps {
+  tracks: TALeak[];
+  computeTrackState: (t: TALeak) => { url: string | null; source: TrackSource; isPlayable: boolean; isCurrentlyPlaying: boolean; isCurrentTrack: boolean; isHighlighted: boolean; description: string | undefined; shouldShowSource: boolean; playableUrl: string | null };
+  handlePlayTrack: (t: TALeak, era: Era) => void;
+  handleAddToQueue: (t: TALeak, era: Era) => void;
+  handleOpenUrl: (url: string) => void;
+  handleOpenOriginal: (t: TALeak) => void;
+  handleToggleFavourite: (url: string) => void;
+  handleDownload: (t: TALeak) => void;
+  favourites: string[];
+  highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
+  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => any;
+  clearQueue: () => void;
+  playTrack: (t: any) => void;
+}
+function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, handleAddToQueue, handleOpenUrl, handleOpenOriginal, handleToggleFavourite, handleDownload, favourites, highlightedTrackRef, createTrackObject, clearQueue, playTrack }: FlatTrackListProps) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: tracks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56,
+    overscan: 15,
+  });
+  return (
+    <div ref={parentRef} className="h-[calc(100vh-220px)] overflow-auto rounded-xl">
+      <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const t = tracks[virtualRow.index];
+          const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
+          const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
+          return (
+            <div
+              key={virtualRow.key}
+              ref={(node) => {
+                virtualizer.measureElement(node);
+                if (isHighlighted) (highlightedTrackRef as any).current = node;
+              }}
+              data-index={virtualRow.index}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
+              className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+            >
+              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
+                {isPlayable
+                  ? isCurrentlyPlaying
+                    ? <PauseButton onPlay={() => handlePlayTrack(t, fakeEra)} />
+                    : <PlayButton onPlay={() => handlePlayTrack(t, fakeEra)} />
+                  : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
+                }
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-white text-xs sm:text-sm truncate">{t.name || "Unknown"}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                    {t.eraName && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                        style={{
+                          background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
+                          color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
+                        }}
+                      >
+                        {t.eraName}
+                      </span>
+                    )}
+                    {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
+                  </div>
+                </div>
+                <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={url ? favourites.includes(url) : false} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
+                    {isPlayable && (
+                      <>
+                        <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { const pt = createTrackObject(t, fakeEra, url!, playableUrl!); clearQueue(); playTrack(pt); }} className="cursor-pointer"><Radio className="w-4 h-4 mr-2" />Play Track Only</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-neutral-800" />
+                        <DropdownMenuItem onClick={() => handleDownload(t)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator className="bg-neutral-800" />
+                    {url && (
+                      <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
+                        <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
+                        {favourites.includes(url) ? "Unfavourite" : "Favourite"}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => handleOpenOriginal(t)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
+                </TrackItemActions>
+              </div>
+              <TrackDescription description={description} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
