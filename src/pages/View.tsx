@@ -43,6 +43,7 @@ import {
   Heart,
   Trash2,
   Music2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -59,7 +60,7 @@ import {
   TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
-import { extractTrackerId } from "@/src/lib/artist-utils";
+import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
@@ -844,6 +845,17 @@ const handleLoad = useCallback(() => {
           className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
         >
           <Share2 className="w-4 h-4" />
+        </Button>
+      )}
+      {trackerId && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => window.open(getSheetViewUrl(trackerId, settings.behavior.sheetsHtmlview), "_blank", "noopener,noreferrer")}
+          className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
+          aria-label="Open Google Sheet"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
         </Button>
       )}
       <Button
