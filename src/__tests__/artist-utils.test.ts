@@ -46,6 +46,20 @@ describe("extractTrackerId", () => {
     expect(extractTrackerId("not a url")).toBeNull();
   });
 
+  it("handles bare tracker IDs of any length", () => {
+    expect(extractTrackerId("1WkJIdOQZ45qh87XJx8V7vPkEAf4DdV1v")).toBe("1WkJIdOQZ45qh87XJx8V7vPkEAf4DdV1v");
+  });
+
+  it("handles bare 44-char tracker IDs", () => {
+    const id = "abcdefghijklmnopqrstuvwxyz12345678901234";
+    expect(extractTrackerId(id)).toBe(id);
+  });
+
+  it("handles bare IDs of any length", () => {
+    expect(extractTrackerId("shortid")).toBe("shortid");
+    expect(extractTrackerId("a")).toBe("a");
+  });
+
   it("handles domain-like tracker IDs", () => {
     expect(extractTrackerId("example.com")).toBe("example.com");
   });

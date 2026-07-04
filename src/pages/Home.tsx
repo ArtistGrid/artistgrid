@@ -95,6 +95,10 @@ export default function ArtistGallery() {
     setActiveModal(null);
     localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
   }, []);
+  const handleAnnouncementDonate = useCallback(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
+    setActiveModal("donate");
+  }, []);
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) trackEvent("Search", { query: deferredQuery });
     prevQueryRef.current = deferredQuery;
@@ -340,6 +344,7 @@ export default function ArtistGallery() {
         isOpen={activeModal === "announcement"}
         onClose={handleDismissAnnouncement}
         message={ANNOUNCEMENT_MESSAGE}
+        onDonate={handleAnnouncementDonate}
       />
       <DonationModal key={String(activeModal === "donate")} isOpen={activeModal === "donate"} onClose={closeModal} />
       <InfoModal

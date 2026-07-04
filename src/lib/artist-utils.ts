@@ -1,5 +1,4 @@
 import type { Artist } from "@/src/types";
-import { isValidTrackerId } from "@/src/lib/track-utils";
 export function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -36,12 +35,12 @@ const SPECIAL_IDS: Record<string, string> = {
 export function extractTrackerId(input: string): string | null {
   if (SPECIAL_IDS[input]) return SPECIAL_IDS[input];
   const cleanInput = input.replace(/\./g, '');
-  if (isValidTrackerId(cleanInput)) return cleanInput;
   const pubhtml = input.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
   if (pubhtml) return pubhtml[1];
   const match = input.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
   if (match) return match[1];
   if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(input.trim())) return input.trim();
+  if (/^[a-zA-Z0-9_-]+$/.test(cleanInput)) return cleanInput;
   return null;
 }
 export function artistsEqual(a: Artist[], b: Artist[]): boolean {

@@ -64,15 +64,9 @@ export const DEFAULT_FILTER_OPTIONS: ArtistFilterOptions = {
   showAlts: true,
   sortByTrends: true,
 };
-export const ANNOUNCEMENT_MESSAGE = `# Welcome.
+export const ANNOUNCEMENT_MESSAGE = `# Hi.
 
-We've made some updates:
-
-- **New Tab System**: Browse different categories like Released, Best Of, Art, and more
-- **Art Gallery**: View album artwork and promotional materials
-- **Share Tracks**: Share direct links to specific tracks with friends
-
-Thank You.`;
+ArtistGrid has been going for over a year now. In that time we've received nothing in donations. Donations help us improve the site and keep building it.`;
 export function trackEvent(eventName: string, props?: Record<string, string | boolean | number>): void {
   if (window.plausible) window.plausible(eventName, props ? { props } : undefined);
 }

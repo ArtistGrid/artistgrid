@@ -52,7 +52,6 @@ import {
   isUrl,
   getTrackUrl,
   getTrackDescription,
-  isValidTrackerId,
   encodeTrackForUrl,
   decodeTrackFromUrl,
   getGoogleSheetsUrl,
@@ -264,7 +263,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
     const id = searchParams.get("id");
     const trackParam = searchParams.get("track");
     const artistParam = searchParams.get("artist");
-    if (id && isValidTrackerId(id)) {
+    if (id) {
       setTrackerId(id);
       setInputValue(id);
     }
@@ -440,7 +439,7 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
     [fetchBaseEraImages, resolveUrls]
   );
   useEffect(() => {
-    if (!trackerId || !isValidTrackerId(trackerId)) return;
+    if (!trackerId) return;
     loadTrackerData(trackerId);
   }, [trackerId, loadTrackerData]);
 const handleLoad = useCallback(() => {

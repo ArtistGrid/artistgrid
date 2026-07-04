@@ -35,10 +35,19 @@ function MarkdownContent({ text }: { text: string }) {
 }
 
 export const AnnouncementModal = memo(
-  ({ isOpen, onClose, message }: { isOpen: boolean; onClose: () => void; message: string }) => (
+  ({ isOpen, onClose, message, onDonate }: { isOpen: boolean; onClose: () => void; message: string; onDonate?: () => void }) => (
     <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Announcement">
       <div className="p-6 pt-12">
         <MarkdownContent text={message} />
+        {onDonate && (
+          <button
+            type="button"
+            onClick={onDonate}
+            className="text-neutral-300 underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors mb-2"
+          >
+            Please consider donating.
+          </button>
+        )}
         <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">
           Got it!
         </Button>
