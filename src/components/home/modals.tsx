@@ -121,27 +121,13 @@ export const InfoModal = memo(
           <p>
             Maintained by{" "}
             <a
-              href="https://discord.com/users/454283756258197544"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-white"
-            >
-              justAMZ
-            </a>
-            ,{" "}
-            <a
               href="https://instagram.com/edideaur"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-white"
             >
               edideaur
-            </a>
-            , and{" "}
-            <a href="https://sad.ovh" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
-              fucksophie
-            </a>
-            .
+            </a>.
           </p>
           <p>
             Original trackers are in{" "}

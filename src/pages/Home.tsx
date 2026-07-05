@@ -219,7 +219,7 @@ export default function ArtistGallery() {
     };
     const loadVisitorCount = async () => {
       try {
-        const res = await fetch("https://121124.edideaur.com/artistgrid.cx/", { signal: controller.signal });
+        const res = await fetch("https://121124.prigoana.com/artistgrid.cx/", { signal: controller.signal });
         if (res.ok) setVisitorCount(Number((await res.json()).count));
       } catch {}
     };

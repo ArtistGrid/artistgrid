@@ -62,15 +62,6 @@ export const Footer = memo(
             <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors underline underline-offset-2">
               edideaur
             </a>
-            ,{" "}
-            <a href="https://discord.com/users/454283756258197544" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors underline underline-offset-2">
-              JustAMZ
-            </a>
-            , and{" "}
-            <a href="https://sad.ovh" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors underline underline-offset-2">
-              fucksophie
-            </a>
-            .
           </p>
           <p className="text-sm text-white/35">
             Original trackers are in{" "}
