@@ -10,7 +10,7 @@ declare global {
   }
 }
 export const ASSET_BASE = "https://assets.artistgrid.cx";
-export const DISCORD_INVITE = "https://discord.gg/RdBeMZ2m8S";
+export const DISCORD_INVITE = "https://discord.gg/YuwTae6QC4";
 export const LOCAL_STORAGE_KEYS = {
   USE_SHEET: "artistGridUseSheet",
   FILTER_OPTIONS: "artistGridFilterOptions",

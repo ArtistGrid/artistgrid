@@ -9,6 +9,9 @@ Sentry.init({
   tracesSampleRate: 0.01,
   beforeSend(event) {
     if (event.exception?.values?.[0]?.type === "Error" && event.exception.values[0].value === "Rejected") return null;
+    const msg = event.exception?.values?.[0]?.value ?? "";
+    if (msg.includes("is not a valid JavaScript MIME type")) return null;
+    if (msg.includes("Failed to fetch dynamically imported module")) return null;
     return event;
   },
 });

@@ -23,15 +23,25 @@ const ArtistCard = memo(function ArtistCard({
         onClick={() => onClick(artist)}
       >
         <div className="relative aspect-square w-full overflow-hidden">
-          <img
-            src={`${ASSET_BASE}/${artist.imageFilename}`}
-            alt={artist.name}
-            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-            loading={priority ? "eager" : "lazy"}
-            draggable={false}
-            referrerPolicy="no-referrer"
-            crossOrigin="anonymous"
-          />
+          <picture>
+            <source
+              type="image/jxl"
+              srcSet={`${ASSET_BASE}/jxl/${artist.imageFilename.replace(/\.webp$/, ".jxl")}`}
+            />
+            <source
+              type="image/webp"
+              srcSet={`${ASSET_BASE}/webp/${artist.imageFilename}`}
+            />
+            <img
+              src={`${ASSET_BASE}/jpg/${artist.imageFilename.replace(/\.webp$/, ".jpg")}`}
+              alt={artist.name}
+              className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+              loading={priority ? "eager" : "lazy"}
+              draggable={false}
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+            />
+          </picture>
         </div>
         <div className={`p-3 ${trackerId ? "pr-8" : ""}`}>
           <h3 className="font-semibold text-white text-sm leading-tight">{artist.name}</h3>

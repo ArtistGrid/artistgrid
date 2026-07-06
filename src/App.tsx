@@ -6,6 +6,7 @@ import { GlobalPlayer } from "@/components/global-player";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
+import { ChunkErrorBoundary } from "@/src/components/error-boundary";
 import Home from "./pages/Home";
 
 const View = lazy(() => import("./pages/View"));
@@ -25,9 +26,11 @@ function ShTrackerView() {
   const { trackerId } = useParams<{ trackerId: string }>();
 
   return (
-    <Suspense fallback={null}>
-      <View trackerId={trackerId || ""} />
-    </Suspense>
+    <ChunkErrorBoundary>
+      <Suspense fallback={null}>
+        <View trackerId={trackerId || ""} />
+      </Suspense>
+    </ChunkErrorBoundary>
   );
 }
 
@@ -47,9 +50,11 @@ export default function App() {
                 <Route
                   path="/view"
                   element={
-                    <Suspense fallback={null}>
-                      <View />
-                    </Suspense>
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={null}>
+                        <View />
+                      </Suspense>
+                    </ChunkErrorBoundary>
                   }
                 />
                 <Route
@@ -59,9 +64,11 @@ export default function App() {
                 <Route
                   path="/donate"
                   element={
-                    <Suspense fallback={null}>
-                      <Donate />
-                    </Suspense>
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={null}>
+                        <Donate />
+                      </Suspense>
+                    </ChunkErrorBoundary>
                   }
                 />
               </Route>
@@ -70,9 +77,11 @@ export default function App() {
             <KeyboardShortcuts />
             <Toaster />
             {settingsOpen && (
-              <Suspense fallback={null}>
-                <SettingsModal onClose={closeSettings} />
-              </Suspense>
+              <ChunkErrorBoundary>
+                <Suspense fallback={null}>
+                  <SettingsModal onClose={closeSettings} />
+                </Suspense>
+              </ChunkErrorBoundary>
             )}
           </PlayerProvider>
         </SettingsProvider>

@@ -266,11 +266,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("timeupdate", () => {
       setState((s) => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
       if ("mediaSession" in navigator && audioRef.current) {
-        navigator.mediaSession.setPositionState({
-          duration: audioRef.current.duration || 0,
-          playbackRate: audioRef.current.playbackRate,
-          position: audioRef.current.currentTime,
-        });
+        try {
+          const duration = audioRef.current.duration;
+          const position = audioRef.current.currentTime;
+          if (isFinite(duration) && isFinite(position)) {
+            navigator.mediaSession.setPositionState({
+              duration,
+              playbackRate: audioRef.current.playbackRate,
+              position,
+            });
+          }
+        } catch {
+          // setPositionState may throw on some browsers
+        }
       }
     }, opts);
     audio.addEventListener("loadedmetadata", () => {

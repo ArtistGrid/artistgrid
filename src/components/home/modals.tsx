@@ -154,7 +154,7 @@ export const InfoModal = memo(
               GitHub
             </a>
             <a
-              href="https://discord.gg/RdBeMZ2m8S"
+              href="https://discord.gg/YuwTae6QC4"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-white"

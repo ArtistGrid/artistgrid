@@ -139,7 +139,7 @@ export default function ArtistGallery() {
     return () => controller.abort();
   }, []);
   const sortArtistsByTrends = useCallback((artists: Artist[], trends: Map<string, number>): Artist[] => {
-    return artists.toSorted((a, b) => {
+    return artists.slice().sort((a, b) => {
       const aV = trends.get(a.name) || 0;
       const bV = trends.get(b.name) || 0;
       const getGroup = (artist: Artist, v: number) => {
