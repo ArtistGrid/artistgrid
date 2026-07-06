@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
@@ -56,14 +57,26 @@ export function ArtGallery({
             )}
             <div className="flex-1 min-w-0">
               <h3 className="text-base sm:text-lg font-bold text-white truncate">{era.name || key}</h3>
-              {era.extra && <p className="text-xs sm:text-sm text-white/40 truncate">{era.extra}</p>}
+              <p className="text-xs sm:text-sm text-white/40">
+                {era.extra && <>{era.extra} · </>}
+                {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
+              </p>
             </div>
             <ChevronDown
               className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
             />
           </button>
-          {expandedEras.has(key) && era.data && (
-            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <AnimatePresence initial={false}>
+            {expandedEras.has(key) && era.data && (
+              <motion.div
+                key={`art-era-${key}`}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5">
               {Object.entries(era.data).map(([cat, items]) => (
                 <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
                   {cat !== "Default" && (
@@ -127,8 +140,10 @@ export function ArtGallery({
                   </div>
                 </div>
               ))}
-            </div>
-          )}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ))}
     </div>

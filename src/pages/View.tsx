@@ -44,6 +44,10 @@ import {
   Trash2,
   Music2,
   FileSpreadsheet,
+  Layers,
+  Plus,
+  Pencil,
+  X as XIcon,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -69,6 +73,7 @@ import { useSettings } from "@/src/hooks/use-settings";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/App";
 import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks, toggleEraFavourite, isEraFavourited } from "@/src/lib/favourites";
+import { getCustomViews, addCustomView, deleteCustomView, mergeTabData, type CustomView } from "@/src/lib/custom-views";
 import {
   PlayButton,
   PauseButton,
@@ -79,6 +84,7 @@ import {
   type FilterOptions,
   type PlayableTrackData,
 } from "@/src/components/view/track-item";
+import { CustomViewManager } from "@/src/components/view/custom-view-manager";
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
@@ -148,10 +154,14 @@ function TrackerViewContent({ trackerId: propTrackerId }: { trackerId?: string }
   } | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
   const [favourites, setFavourites] = useState<string[]>(() => getFavourites(trackerId));
+  const [customViews, setCustomViews] = useState<CustomView[]>(() => getCustomViews(trackerId));
+  const [activeCustomView, setActiveCustomView] = useState<CustomView | null>(null);
   const isFavouritesTab = currentTab === "Favourites";
+  const isCustomTab = currentTab === "Custom";
   const displayTabs = useMemo(() => {
     const tabs = [...tabsList];
     if (!tabs.includes("Favourites")) tabs.push("Favourites");
+    if (!tabs.includes("Custom")) tabs.push("Custom");
     return tabs;
   }, [tabsList]);
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
@@ -490,12 +500,71 @@ const handleLoad = useCallback(() => {
         setCurrentTab("Favourites");
         return;
       }
+      if (tabName === "Custom") {
+        setCurrentTab("Custom");
+        return;
+      }
       const slug = tabSlugsRef.current[tabName] ?? tabName;
       setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
       loadTrackerData(trackerId, slug);
     },
     [trackerId, currentTab, loadTrackerData]
+  );
+  const loadCustomView = useCallback(
+    async (view: CustomView) => {
+      if (!trackerId) return;
+      setActiveCustomView(view);
+      setResolvedUrls(new Map());
+      setHighlightedTrackUrl(null);
+      setStatus("tab-loading");
+      setTabError(false);
+      setTabEmpty(false);
+      fetchBaseEraImages(trackerId);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      try {
+        const responses = await Promise.all(
+          view.tabs.map(async (tabName) => {
+            const slug = tabSlugsRef.current[tabName] ?? tabName;
+            const cached = getCache(trackerId, slug);
+            if (cached) return cached.data;
+            const endpoint = `/sh/${trackerId}/tab/${encodeURIComponent(slug)}`;
+            const res = await fetchWithFallback(endpoint, { signal: controller.signal });
+            if (!res.ok) return null;
+            const v3: V3Response = await res.json();
+            const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
+            const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
+            if (!hasFlatTracks && !hasEras) return null;
+            const json = hasFlatTracks ? adaptV3FlatResponse(v3) : adaptV3Response(v3);
+            setCache(trackerId, json, {}, slug);
+            return json;
+          })
+        );
+        if (controller.signal.aborted) return;
+        const valid = responses.filter((r): r is TrackerResponse => r !== null);
+        if (valid.length === 0) {
+          setData(null);
+          setTabEmpty(true);
+          setStatus("success");
+          return;
+        }
+        const merged = mergeTabData(valid);
+        setData(merged);
+        setCurrentTab("Custom");
+        setStatus("success");
+        hasLoadedRef.current = true;
+        setHasLoaded(true);
+        if (valid.length > 0 && valid[0].tabs?.length) setTabsList(valid[0].tabs);
+        if (valid.length > 0 && valid[0].tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...valid[0].tabSlugs };
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        console.error("[tracker] custom view load failed", e);
+        setTabError(true);
+        setStatus("success");
+      }
+    },
+    [trackerId]
   );
   const toggleEra = useCallback((eraKey: string) => {
     setExpandedEras((prev) => {
@@ -1043,6 +1112,7 @@ const handleLoad = useCallback(() => {
                     }`}
                   >
                     {tab === "Favourites" && <Heart className={`w-3 h-3 ${favourites.length > 0 ? "fill-current" : ""}`} />}
+                    {tab === "Custom" && <Layers className="w-3 h-3" />}
                     {tab}
                   </button>
                 ))}
@@ -1279,6 +1349,257 @@ const handleLoad = useCallback(() => {
                   </div>
                 )}
               </motion.div>
+            ) : isCustomTab ? (
+              <motion.div
+                key="custom-view"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <CustomViewManager
+                  trackerId={trackerId}
+                  customViews={customViews}
+                  setCustomViews={setCustomViews}
+                  activeCustomView={activeCustomView}
+                  setActiveCustomView={setActiveCustomView}
+                  onSelect={loadCustomView}
+                  tabsList={tabsList}
+                  tabSlugs={tabSlugsRef.current}
+                />
+                {activeCustomView && filteredData && Object.keys(filteredData).length > 0 && (
+                  <div className="space-y-4 sm:space-y-5 mt-4">
+                    {Object.entries(filteredData).map(([key, era]) => {
+                      const eraPlayableCount = era.data
+                        ? Object.values(era.data)
+                            .flat()
+                            .filter((t) => {
+                              const url = getTrackUrl(t);
+                              return url && resolvedUrls.get(url);
+                            }).length
+                        : 0;
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-2xl overflow-hidden border border-white/[0.1]"
+                          style={{
+                            background: era.backgroundColor
+                              ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 82%)`
+                              : "rgba(255,255,255,0.055)",
+                            backdropFilter: "blur(8px)",
+                            WebkitBackdropFilter: "blur(8px)",
+                            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3)",
+                          }}
+                        >
+                          <div className="flex items-center">
+                            <button
+                              type="button"
+                              className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
+                              onClick={() => toggleEra(key)}
+                            >
+                              {era.image ? (
+                                <img
+                                  src={era.image}
+                                  alt={era.name}
+                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
+                                  style={{
+                                    background: era.backgroundColor
+                                      ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                                      : "rgba(255,255,255,0.07)",
+                                  }}
+                                  referrerPolicy="no-referrer"
+                                  crossOrigin="anonymous"
+                                />
+                              ) : (
+                                <div
+                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex-shrink-0"
+                                  style={{
+                                    background: era.backgroundColor
+                                      ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                                      : "rgba(255,255,255,0.07)",
+                                  }}
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h3
+                                  style={{
+                                    color: era.textColor
+                                      ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)`
+                                      : "white",
+                                  }}
+                                  className="text-base sm:text-lg font-bold truncate"
+                                >
+                                  {era.name || key}
+                                </h3>
+                                <p className="text-xs sm:text-sm text-white/40">
+                                  {era.extra && <>{era.extra} · </>}
+                                  {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
+                                  {eraPlayableCount > 0 && <> | {eraPlayableCount} playable</>}
+                                </p>
+                              </div>
+                              <ChevronDown
+                                className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
+                              />
+                            </button>
+                            {eraPlayableCount > 0 && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-white/30 hover:text-white hover:bg-white/10 mr-2 h-9 w-9 flex-shrink-0 rounded-xl"
+                                  >
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1"
+                                >
+                                  <DropdownMenuItem onClick={() => handleToggleEraFavourite(era)} className="cursor-pointer rounded-xl">
+                                    <Heart className={`w-4 h-4 mr-2 ${isEraFavourited(trackerId, era) ? "fill-current text-red-400" : ""}`} />
+                                    {isEraFavourited(trackerId, era) ? "Unfavourite Era" : "Favourite Era"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-neutral-800" />
+                                  <DropdownMenuItem onClick={() => downloadTracker(key)} className="cursor-pointer rounded-xl">
+                                    <FolderDown className="w-4 h-4 mr-2" />
+                                    Download Era ({eraPlayableCount})
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+                          <AnimatePresence initial={false}>
+                            {expandedEras.has(key) && (
+                              <motion.div
+                                key={`era-content-${key}`}
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                                className="overflow-hidden"
+                              >
+                                <div className="px-3 pb-3 sm:px-5 sm:pb-5">
+                                  {era.description && (
+                                    <p className="text-xs sm:text-sm text-white/45 p-3 sm:p-4 bg-black/20 rounded-xl mb-3 sm:mb-5">
+                                      {era.description}
+                                    </p>
+                                  )}
+                                  {era.data &&
+                                    Object.entries(era.data).map(([cat, tracks]) => (
+                                      <div key={cat} className="mb-4 sm:mb-5 last:mb-0">
+                                        {cat.toLowerCase() !== "default" && (
+                                          <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
+                                            <h4 className="text-xs sm:text-sm font-semibold text-white/50">{cat}</h4>
+                                            {(tracks as TALeak[]).some(t => { const u = getTrackUrl(t); return u ? !!resolvedUrls.get(u) : false; }) && (
+                                              <button
+                                                type="button"
+                                                onClick={() => downloadTracker(key, cat)}
+                                                className="text-white/25 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
+                                                title={`Download ${cat}`}
+                                              >
+                                                <FolderDown className="w-3.5 h-3.5" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                        <div className="space-y-1.5 sm:space-y-2">
+                                          {(tracks as TALeak[]).map((track, i) => {
+                                            const trackKey = `custom-${key}-${cat}-${i}`;
+                                            const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(track);
+                                            return (
+                                              <div
+                                                key={trackKey}
+                                                ref={isHighlighted ? highlightedTrackRef : null}
+                                                className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+                                              >
+                                                <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
+                                                  {isPlayable
+                                                    ? isCurrentlyPlaying
+                                                      ? <PauseButton onPlay={() => handlePlayTrack(track, era)} />
+                                                      : <PlayButton onPlay={() => handlePlayTrack(track, era)} />
+                                                    : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
+                                                  }
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="font-semibold text-white text-xs sm:text-sm truncate">
+                                                      {track.name || "Unknown"}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
+                                                      {track.extra && (
+                                                        <span className="text-xs text-neutral-500 truncate max-w-[120px] sm:max-w-none">
+                                                          {track.extra}
+                                                        </span>
+                                                      )}
+                                                      <div className="flex items-center gap-1 sm:hidden">
+                                                        {track.type && track.type !== "Unknown" && track.type !== "N/A" && (
+                                                          <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">
+                                                            {track.type}
+                                                          </span>
+                                                        )}
+                                                        {track.track_length &&
+                                                          track.track_length !== "N/A" &&
+                                                          track.track_length !== "?:??" && (
+                                                            <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">
+                                                              {track.track_length}
+                                                            </span>
+                                                          )}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <TrackItemActions track={track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={url ? favourites.includes(url) : false} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
+                                                    {url && (
+                                                      <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
+                                                        <Share className="w-4 h-4 mr-2" />
+                                                        Share Track
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {isPlayable && (
+                                                      <>
+                                                        <DropdownMenuItem onClick={() => handlePlayNext(track, era)} className="cursor-pointer">
+                                                          <SkipForward className="w-4 h-4 mr-2" />
+                                                          Play Next
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer">
+                                                          <ListPlus className="w-4 h-4 mr-2" />
+                                                          Add to Queue
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator className="bg-neutral-800" />
+                                                        <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer">
+                                                          <Download className="w-4 h-4 mr-2" />
+                                                          Download
+                                                        </DropdownMenuItem>
+                                                      </>
+                                                    )}
+                                                    <DropdownMenuSeparator className="bg-neutral-800" />
+                                                    {url && (
+                                                      <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
+                                                        <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
+                                                        {favourites.includes(url) ? "Unfavourite" : "Favourite"}
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer">
+                                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                                      Open Original URL
+                                                    </DropdownMenuItem>
+                                                  </TrackItemActions>
+                                                </div>
+                                                <TrackDescription description={description} />
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
             ) : isArtTab && filteredData ? (
               <motion.div
                 key="art"
@@ -1450,7 +1771,11 @@ const handleLoad = useCallback(() => {
                             >
                               {era.name || key}
                             </h3>
-                            {era.extra && <p className="text-xs sm:text-sm text-white/40 truncate">{era.extra}</p>}
+                            <p className="text-xs sm:text-sm text-white/40">
+                              {era.extra && <>{era.extra} · </>}
+                              {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
+                              {eraPlayableCount > 0 && <> | {eraPlayableCount} playable</>}
+                            </p>
                           </div>
                           <ChevronDown
                             className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(key) ? "rotate-180" : ""}`}
@@ -1484,8 +1809,17 @@ const handleLoad = useCallback(() => {
                           </DropdownMenu>
                         )}
                       </div>
-                      {expandedEras.has(key) && (
-                        <div className="px-3 pb-3 sm:px-5 sm:pb-5">
+                      <AnimatePresence initial={false}>
+                        {expandedEras.has(key) && (
+                          <motion.div
+                            key={`era-content-${key}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-3 pb-3 sm:px-5 sm:pb-5">
                           {era.description && (
                             <p className="text-xs sm:text-sm text-white/45 p-3 sm:p-4 bg-black/20 rounded-xl mb-3 sm:mb-5">
                               {era.description}
@@ -1596,8 +1930,10 @@ const handleLoad = useCallback(() => {
                                 </div>
                               </div>
                             ))}
-                        </div>
-                      )}
+                          </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
