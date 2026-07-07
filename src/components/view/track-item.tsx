@@ -22,8 +22,8 @@ export interface PlayableTrackData {
   playableUrl: string;
 }
 
-function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource }: {
-  source: Track["source"]; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean;
+function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource, artUsed }: {
+  source: Track["source"]; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean; artUsed?: boolean;
 }) {
   return (
     <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
@@ -31,6 +31,11 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource 
       {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{type}</span>}
       {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{quality}</span>}
       {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{trackLength}</span>}
+      {artUsed && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
+          ✓ Used
+        </span>
+      )}
     </div>
   );
 }
@@ -74,7 +79,7 @@ export function TrackItemActions({ track, source, shouldShowSource, url, onOpenU
 }) {
   return (
     <>
-      <TrackMetaBadges source={source} type={track.type} quality={track.quality} trackLength={track.track_length} shouldShowSource={shouldShowSource} />
+      <TrackMetaBadges source={source} type={track.type} quality={track.quality} trackLength={track.track_length} shouldShowSource={shouldShowSource} artUsed={track.art_used} />
       {onToggleFavourite && (
         <button
           type="button"

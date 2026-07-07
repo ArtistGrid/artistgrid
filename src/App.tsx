@@ -23,12 +23,12 @@ export function useSettingsModal() {
 }
 
 function ShTrackerView() {
-  const { trackerId } = useParams<{ trackerId: string }>();
+  const { trackerId, tabSlug } = useParams<{ trackerId: string; tabSlug: string }>();
 
   return (
     <ChunkErrorBoundary>
       <Suspense fallback={null}>
-        <View trackerId={trackerId || ""} />
+        <View trackerId={trackerId || ""} initialTab={tabSlug ? decodeURIComponent(tabSlug) : undefined} />
       </Suspense>
     </ChunkErrorBoundary>
   );
@@ -58,7 +58,7 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/sh/:trackerId"
+                  path="/sh/:trackerId/:tabSlug?"
                   element={<ShTrackerView />}
                 />
                 <Route

@@ -1,4 +1,4 @@
-import type { Era, TrackerResponse } from "@/src/types";
+import type { Era, EraDate, TrackerResponse } from "@/src/types";
 
 export interface CustomView {
   id: string;
@@ -58,9 +58,24 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
     current_tab: "Custom View",
     eras: {},
     isFlat: false,
+    credits: responses[0]?.credits ?? '',
+    era_dates: [],
+    discord: responses[0]?.discord,
   };
 
+  const seenDates = new Set<string>();
+
   for (const res of responses) {
+    if (res.era_dates?.length) {
+      for (const ed of res.era_dates) {
+        const key = `${ed.era}|${ed.date}|${ed.event}`;
+        if (!seenDates.has(key)) {
+          seenDates.add(key);
+          merged.era_dates!.push(ed);
+        }
+      }
+    }
+
     for (const [key, era] of Object.entries(res.eras)) {
       if (key === "_flat") {
         if (!merged.eras._flat) {
@@ -93,6 +108,15 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
         if (era.image && !existing.image) existing.image = era.image;
         if (era.extra && !existing.extra) existing.extra = era.extra;
         if (era.description && !existing.description) existing.description = era.description;
+        if (era.era_dates?.length) {
+          if (!existing.era_dates) existing.era_dates = [];
+          for (const ed of era.era_dates) {
+            const edKey = `${ed.date}|${ed.event}`;
+            if (!existing.era_dates.some((e) => `${e.date}|${e.event}` === edKey)) {
+              existing.era_dates.push(ed);
+            }
+          }
+        }
       } else {
         merged.eras[key] = { ...era };
       }

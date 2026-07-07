@@ -24,7 +24,7 @@ export function ArtGallery({
   onImageClick,
 }: {
   eras: Record<string, Era>;
-  onImageClick: (url: string, name: string) => void;
+  onImageClick: (imageUrl: string, name: string, description?: string, linkUrl?: string) => void;
 }) {
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set([Object.keys(eras)[0] || ""]));
   const toggleEra = (eraKey: string) => {
@@ -124,7 +124,7 @@ export function ArtGallery({
                           key={stableKey}
                           type="button"
                           className="group glass-flat rounded-xl overflow-hidden transition-all cursor-pointer text-left w-full"
-                          onClick={() => onImageClick(clickTarget, item.name)}
+                          onClick={() => onImageClick(ownImageSrc || era.image || "", item.name, item.description, url)}
                         >
                           {cardContent}
                         </button>
@@ -154,24 +154,19 @@ export function ImageLightbox({
   src,
   alt,
   originalUrl,
+  description,
   onClose,
 }: {
   src: string;
   alt: string;
   originalUrl: string;
+  description?: string;
   onClose: () => void;
 }) {
   useKeyPress("Escape", onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4">
-      <button
-        type="button"
-        className="absolute inset-0"
-        onClick={onClose}
-        aria-label="Close lightbox"
-        tabIndex={-1}
-      />
-      <div className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4" onClick={onClose}>
+      <div className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           className="max-w-full max-h-full p-0 bg-transparent border-0"
@@ -181,11 +176,14 @@ export function ImageLightbox({
           <img
             src={src}
             alt={alt}
-            className="max-w-full max-h-full object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+            className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
           />
         </button>
+        {description && (
+          <p className="mt-3 text-sm text-white/60 text-center max-w-lg">{description}</p>
+        )}
         <Button
           variant="ghost"
           size="icon"

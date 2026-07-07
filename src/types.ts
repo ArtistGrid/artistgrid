@@ -25,6 +25,11 @@ export interface Track {
   eraName?: string;
   artistName?: string;
 }
+export interface EraDate {
+  date: string;
+  event: string;
+  era: string;
+}
 export interface Era {
   name: string;
   extra?: string;
@@ -35,6 +40,7 @@ export interface Era {
   backgroundColor?: string;
   description?: string;
   data?: Record<string, TALeak[]>;
+  era_dates?: EraDate[];
 }
 export interface TALeak {
   name: string;
@@ -54,14 +60,19 @@ export interface TALeak {
   eraName?: string;
   eraColor?: string;
   eraTextColor?: string;
+  art_used?: boolean;
 }
 export interface TrackerResponse {
   name: string | null | undefined;
   tabs: string[];
   tabSlugs?: Record<string, string>;
+  tabGids?: Record<string, string>;
   current_tab: string;
   eras: Record<string, Era>;
   isFlat?: boolean;
+  credits?: string;
+  era_dates?: EraDate[];
+  discord?: string;
 }
 export interface Artist {
   name: string;

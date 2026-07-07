@@ -1,4 +1,4 @@
-import type { Era, TALeak, TrackerResponse } from "@/src/types";
+import type { Era, EraDate, TALeak, TrackerResponse } from "@/src/types";
 import { isUrl } from "./track-utils";
 
 const API_BASE = "https://trackerapi.artistgrid.cx";
@@ -69,6 +69,7 @@ interface V3Track {
   image?: string;
   type?: string;
   sub_era?: string;
+  art_used?: boolean;
 }
 interface V3FlatTrack extends V3Track {
   era: string;
@@ -91,21 +92,34 @@ interface V3Tab {
   slug: string;
   gid: string;
 }
+export interface V3EraDate {
+  date: string;
+  event: string;
+  era: string;
+}
 export interface V3Response {
   name: string;
   tab: V3Tab;
   tabs: V3Tab[];
   eras?: V3Era[];
   tracks?: V3FlatTrack[];
+  era_dates: V3EraDate[];
+  credits: string;
+  discord?: string | string[];
 }
 
-function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<TrackerResponse, "tabs" | "tabSlugs" | "current_tab"> {
+function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<TrackerResponse, "tabs" | "tabSlugs" | "tabGids" | "current_tab"> {
   const tabNames = v3.tabs.map((t) => t.name);
   if (!tabNames.includes(v3.tab.name)) tabNames.unshift(v3.tab.name);
   const tabSlugs: Record<string, string> = {};
-  for (const t of v3.tabs) tabSlugs[t.name] = t.slug;
+  const tabGids: Record<string, string> = {};
+  for (const t of v3.tabs) {
+    tabSlugs[t.name] = t.slug;
+    tabGids[t.name] = t.gid;
+  }
   if (!tabSlugs[v3.tab.name]) tabSlugs[v3.tab.name] = v3.tab.slug;
-  return { tabs: tabNames, tabSlugs, current_tab: v3.tab.name };
+  if (!tabGids[v3.tab.name]) tabGids[v3.tab.name] = v3.tab.gid;
+  return { tabs: tabNames, tabSlugs, tabGids, current_tab: v3.tab.name };
 }
 
 function adaptV3Track(v3Track: V3Track): TALeak {
@@ -123,6 +137,7 @@ function adaptV3Track(v3Track: V3Track): TALeak {
     url: links[0],
     urls: links,
     image: v3Track.image,
+    ...(v3Track.art_used !== undefined ? { art_used: v3Track.art_used } : {}),
   };
 }
 
@@ -148,7 +163,28 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
       data: Object.keys(grouped).length > 0 ? grouped : undefined,
     };
   }
-  return { name: v3.name, eras, ...buildTabMeta(v3) };
+
+  const result: TrackerResponse = { name: v3.name, eras, ...buildTabMeta(v3) };
+
+  result.era_dates = v3.era_dates ?? [];
+  result.credits = v3.credits ?? '';
+  if (v3.discord) {
+    result.discord = Array.isArray(v3.discord) ? (v3.discord[0] || undefined) : v3.discord;
+  }
+
+  if (v3.era_dates?.length) {
+    const datesByEra = new Map<string, EraDate[]>();
+    for (const ed of v3.era_dates) {
+      if (!datesByEra.has(ed.era)) datesByEra.set(ed.era, []);
+      datesByEra.get(ed.era)!.push(ed);
+    }
+    for (const key of Object.keys(result.eras)) {
+      const era = result.eras[key]!;
+      era.era_dates = datesByEra.get(era.name) ?? [];
+    }
+  }
+
+  return result;
 }
 
 export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
@@ -170,5 +206,14 @@ export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
     flat.push(taLeak);
   }
   const eras: Record<string, Era> = { _flat: { name: "", data: { Default: flat } } };
-  return { name: v3.name, eras, isFlat: true, ...buildTabMeta(v3) };
+
+  const result: TrackerResponse = { name: v3.name, eras, isFlat: true, ...buildTabMeta(v3) };
+
+  result.era_dates = v3.era_dates ?? [];
+  result.credits = v3.credits ?? '';
+  if (v3.discord) {
+    result.discord = Array.isArray(v3.discord) ? (v3.discord[0] || undefined) : v3.discord;
+  }
+
+  return result;
 }
