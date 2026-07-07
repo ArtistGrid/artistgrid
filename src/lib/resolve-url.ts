@@ -38,7 +38,7 @@ export function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/music\.froste\.lol\/song\//.test(normalized)) return "froste";
   if (/https?:\/\/(?:www\.|music\.)?youtube\.com\/|https?:\/\/youtu\.be\//.test(normalized)) return "youtube";
   if (/https?:\/\/krakenfiles\.com\/view\//.test(normalized)) return "krakenfiles";
-  if (/https?:\/\/pixeldrain.com\/d\//.test(normalized)) return "pixeldrain";
+  if (/https?:\/\/pixeldrain.com\/[du]\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
   if (/https?:\/\/files\.yetracker\.org\/f\//.test(normalized)) return "yetracker";
@@ -56,22 +56,26 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
         return match ? `https://api.pillows.su/api/download/${match[1]}` : null;
       }
       case "pixeldrain": {
-        const match = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
-        if (!match) return null;
-        try {
-          const resolvedUrl = await Promise.any(
-            PIXELDRAIN_APIS.map(async (base) => {
-              const res = await fetch(`${base}/goy/dl/${match[1]}`);
-              if (!res.ok) throw new Error("not ok");
-              const data = await res.json();
-              if (!data?.url) throw new Error("no url");
-              return data.url as string;
-            })
-          );
-          return resolvedUrl;
-        } catch {
-          return null;
+        const downloadMatch = normalized.match(/pixeldrain\.com\/d\/([a-zA-Z0-9]+)/);
+        if (downloadMatch) {
+          try {
+            const resolvedUrl = await Promise.any(
+              PIXELDRAIN_APIS.map(async (base) => {
+                const res = await fetch(`${base}/goy/dl/${downloadMatch[1]}`);
+                if (!res.ok) throw new Error("not ok");
+                const data = await res.json();
+                if (!data?.url) throw new Error("no url");
+                return data.url as string;
+              })
+            );
+            return resolvedUrl;
+          } catch {
+            return null;
+          }
         }
+        const uploadMatch = normalized.match(/pixeldrain\.com\/u\/([a-zA-Z0-9]+)/);
+        if (uploadMatch) return `https://fuck-unvaulted.artistgrid.cx/${uploadMatch[1]}`;
+        return null;
       }
       case "froste":
         return null;
