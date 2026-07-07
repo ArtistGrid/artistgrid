@@ -64,7 +64,7 @@ import {
   TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
-import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
+import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
 import { LastFMModal } from "@/src/components/lastfm-modal";
@@ -161,7 +161,6 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   const isCustomTab = currentTab === "Custom";
   const pageTabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
   const pageTabPart = pageTabSlug ? `/${pageTabSlug}` : "";
-  usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/sh/${trackerId}${pageTabPart}?artist=${encodeURIComponent(artistNameFromUrl || "")}` });
   const displayTabs = useMemo(() => {
     const tabs = [...tabsList];
     if (!tabs.includes("Favourites")) tabs.push("Favourites");
@@ -169,6 +168,8 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     return tabs;
   }, [tabsList]);
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
+  const cleanArtistName = useMemo(() => artistNameFromUrl ? getCleanArtistName(artistNameFromUrl) : "", [artistNameFromUrl]);
+  usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/sh/${trackerId}${pageTabPart}?artist=${encodeURIComponent(cleanArtistName || "")}` });
   const getEraImage = useCallback(
     (era: Era): string | undefined => {
       if (era.image) return era.image;
@@ -492,11 +493,11 @@ const handleLoad = useCallback(() => {
       toast({ title: "Invalid input", description: "Could not extract tracker ID from URL" });
       return;
     }
-    const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+    const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
     navigate(`/sh/${trackerId}${artistQs}`);
   }, [inputValue, navigate, toast, artistNameFromUrl]);
   const handleShare = useCallback(() => {
-    const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+    const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
     const tabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
     const tabPart = tabSlug ? `/${tabSlug}` : "";
     const url = `${window.location.origin}/sh/${trackerId}${tabPart}${artistQs}`;
@@ -505,7 +506,7 @@ const handleLoad = useCallback(() => {
   }, [trackerId, artistNameFromUrl, currentTab, isFavouritesTab, isCustomTab, toast]);
   const handleShareTrack = useCallback(
     (trackUrl: string, trackName: string) => {
-      const artistQs = artistNameFromUrl ? `&artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+      const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
       const tabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
       const tabPart = tabSlug ? `/${tabSlug}` : "";
       const encodedTrack = encodeTrackForUrl(trackUrl);
@@ -518,7 +519,7 @@ const handleLoad = useCallback(() => {
   const handleTabChange = useCallback(
     (tabName: string) => {
       if (!trackerId || tabName === currentTab) return;
-      const artistQs = artistNameFromUrl ? `?artist=${encodeURIComponent(artistNameFromUrl)}` : "";
+      const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
       if (tabName === "Favourites") {
         setCurrentTab("Favourites");
         navigate(`/sh/${trackerId}${artistQs}`, { replace: true });

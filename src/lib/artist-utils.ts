@@ -51,8 +51,5 @@ export function artistsEqual(a: Artist[], b: Artist[]): boolean {
   return true;
 }
 export function getCleanArtistName(name: string): string {
-  let cleanName = name.trim();
-  const altMatch = cleanName.match(/^(.+?)\s*\[Alt.*?\]$/i);
-  if (altMatch) cleanName = altMatch[1].trim();
-  return cleanName;
+  return name.replace(/\s*[\(\[\{][^\)\]\}]*[\)\]\}]\s*/g, "").trim();
 }
