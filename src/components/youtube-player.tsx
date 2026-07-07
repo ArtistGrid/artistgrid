@@ -84,7 +84,7 @@ export function YouTubePlayer({ url, onClose }: { url: string; onClose: () => vo
         height="180"
         allow="autoplay; encrypted-media; fullscreen"
         allowFullScreen
-        sandbox="allow-scripts allow-popups allow-presentation"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
         className="block"
         title="YouTube video"
       />
