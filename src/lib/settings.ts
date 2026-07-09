@@ -20,6 +20,7 @@ export interface Settings {
     rememberSearch: boolean;
     openInNewTab: boolean;
     sheetsHtmlview: boolean;
+    showEmojis: boolean;
   };
 }
 
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
     rememberSearch: false,
     openInNewTab: true,
     sheetsHtmlview: false,
+    showEmojis: true,
   },
 };
 

@@ -135,7 +135,7 @@ const QueueModal = ({
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Up Next</p>
               {queue.map((track, index) => (
                 <div
-                  key={`${track.id}-${index}`}
+                  key={track.id || `${index}`}
                   draggable
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}

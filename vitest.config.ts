@@ -17,5 +17,25 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}", "lib/**/*.{test,spec}.{ts,tsx}", "hooks/**/*.{test,spec}.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "json", "lcov"],
+      include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "hooks/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/__tests__/**",
+        "**/*.test.{ts,tsx}",
+        "**/*.config.*",
+        "src/main.tsx",
+        "src/polyfills.ts",
+        "src/providers.tsx",
+      ],
+      thresholds: {
+        lines: 14,
+        functions: 11,
+        branches: 8,
+        statements: 14,
+      },
+    },
   },
 });

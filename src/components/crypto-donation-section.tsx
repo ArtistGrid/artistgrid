@@ -62,9 +62,12 @@ function CryptoDonationSection({ onShowQr }: CryptoDonationSectionProps) {
     <div className="space-y-4">
       {DONATION_OPTIONS.CRYPTO.map((option) => (
         <div key={option.name}>
-          <label className="text-sm font-medium text-neutral-300 mb-1 block">{option.name}</label>
+          <label htmlFor={`crypto-${option.name}`} className="text-sm font-medium text-neutral-300 mb-1 block">
+            {option.name}
+          </label>
           <div className="flex items-center gap-2">
             <Input
+              id={`crypto-${option.name}`}
               readOnly
               value={option.value}
               className="bg-neutral-900 border-neutral-700 text-neutral-400 font-mono truncate text-xs rounded-lg"

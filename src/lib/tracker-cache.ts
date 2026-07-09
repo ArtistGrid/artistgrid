@@ -77,8 +77,11 @@ export function setCache(
   persistToIDB();
 }
 
-export function clearAllCache(): void {
-  memCache.clear();
-  idbPending.clear();
+export function clearCache(trackerId?: string, tab?: string): void {
+  if (trackerId) {
+    memCache.delete(key(trackerId, tab));
+  } else {
+    memCache.clear();
+  }
   idbClear().catch(() => {});
 }

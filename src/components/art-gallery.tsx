@@ -26,7 +26,7 @@ export function ArtGallery({
   eras: Record<string, Era>;
   onImageClick: (imageUrl: string, name: string, description?: string, linkUrl?: string) => void;
 }) {
-  const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set([Object.keys(eras)[0] || ""]));
+  const [expandedEras, setExpandedEras] = useState<Set<string>>(() => new Set([Object.keys(eras)[0] || ""]));
   const toggleEra = (eraKey: string) => {
     setExpandedEras((prev) => {
       const next = new Set(prev);
@@ -70,11 +70,10 @@ export function ArtGallery({
             {expandedEras.has(key) && era.data && (
               <motion.div
                 key={`art-era-${key}`}
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               >
                 <div className="px-4 pb-4 sm:px-5 sm:pb-5">
               {Object.entries(era.data).map(([cat, items]) => (
@@ -165,7 +164,17 @@ export function ImageLightbox({
 }) {
   useKeyPress("Escape", onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image preview"
+      tabIndex={-1}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <div className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"

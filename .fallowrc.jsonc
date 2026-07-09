@@ -36,6 +36,8 @@
   },
   "ignorePatterns": ["functions/_middleware.js"],
   "ignoreExports": [
-    { "file": "src/lib/track-utils.ts", "exports": ["TRACKER_ID_LENGTH"] }
-  ]
+    { "file": "src/lib/track-utils.ts", "exports": ["TRACKER_ID_LENGTH"] },
+    { "file": "src/lib/custom-views.ts", "exports": ["saveCustomViews"] }
+  ],
+  "ignoreDependencies": ["tailwindcss", "@lit/react"]
 }

@@ -106,6 +106,7 @@ export interface V3Response {
   era_dates: V3EraDate[];
   credits: string;
   discord?: string | string[];
+  last_updated?: number;
 }
 
 function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<TrackerResponse, "tabs" | "tabSlugs" | "tabGids" | "current_tab"> {
@@ -168,6 +169,7 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
 
   result.era_dates = v3.era_dates ?? [];
   result.credits = v3.credits ?? '';
+  result.lastUpdated = v3.last_updated ? new Date(v3.last_updated * 1000).toISOString() : undefined;
   if (v3.discord) {
     result.discord = Array.isArray(v3.discord) ? (v3.discord[0] || undefined) : v3.discord;
   }
@@ -211,6 +213,7 @@ export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
 
   result.era_dates = v3.era_dates ?? [];
   result.credits = v3.credits ?? '';
+  result.lastUpdated = v3.last_updated ? new Date(v3.last_updated * 1000).toISOString() : undefined;
   if (v3.discord) {
     result.discord = Array.isArray(v3.discord) ? (v3.discord[0] || undefined) : v3.discord;
   }

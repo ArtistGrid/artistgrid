@@ -83,6 +83,7 @@ export default defineConfig({
             "@radix-ui/react-slot",
             "@radix-ui/react-toast",
           ],
+          "motion-vendor": ["framer-motion"],
         },
       },
     },

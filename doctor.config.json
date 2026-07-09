@@ -11,6 +11,9 @@
     "react-doctor/no-cascading-set-state": "off",
     "react-doctor/no-event-handler": "off",
     "react-doctor/js-set-map-lookups": "off",
-    "react-doctor/no-derived-state": "off"
+    "react-doctor/no-derived-state": "off",
+    "react-doctor/use-lazy-motion": "off",
+    "react-doctor/prefer-html-dialog": "off",
+    "react-doctor/no-many-boolean-props": "off"
   }
 }

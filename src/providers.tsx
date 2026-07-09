@@ -3,7 +3,8 @@ import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
-export type RepeatMode = "off" | "one" | "all";
+import { stripEmojis } from "@/lib/utils";
+type RepeatMode = "off" | "one" | "all";
 
 interface PlayerState {
   currentTrack: Track | null;
@@ -86,7 +87,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const updateMediaSession = useCallback(
     async (track: Track, isPlaying: boolean) => {
       if (!("mediaSession" in navigator)) return;
+      const settings = loadSettings();
       const artist = getScrobbleArtist(track);
+      const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
       const artwork: MediaImage[] = [];
       if (track.eraImage) {
         try {
@@ -100,7 +103,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.name,
+        title,
         artist,
         album: track.eraName || "",
         artwork,
@@ -145,9 +148,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!lastfmSession?.key || hasScrobbledRef.current) return;
       try {
         const artist = getScrobbleArtist(track);
+        const settings = loadSettings();
+        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
         const params: Record<string, string> = {
           artist,
-          track: track.name,
+          track: trackName,
           timestamp: Math.floor(Date.now() / 1000).toString(),
         };
         if (track.eraName) params.album = track.eraName;
@@ -164,7 +169,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!lastfmSession?.key) return;
       try {
         const artist = getScrobbleArtist(track);
-        const params: Record<string, string> = { artist, track: track.name };
+        const settings = loadSettings();
+        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+        const params: Record<string, string> = { artist, track: trackName };
         if (track.eraName) params.album = track.eraName;
         await makeLastFMRequest("track.updateNowPlaying", params, true);
       } catch (e) {
@@ -325,11 +332,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               new Notification(next.name, { body: artist, icon: next.eraImage || undefined });
             }
             try {
-              const raw = localStorage.getItem("artistgrid-history");
+              const raw = localStorage.getItem("artistgrid-history:v1");
               const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
               hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
               if (hist.length > 200) hist.splice(0, hist.length - 200);
-              localStorage.setItem("artistgrid-history", JSON.stringify(hist));
+              localStorage.setItem("artistgrid-history:v1", JSON.stringify(hist));
             } catch {}
             return { ...s, currentTrack: next, queue: rest, isPlaying: true };
           }
@@ -391,11 +398,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         new Notification(track.name, { body: artist, icon: track.eraImage || undefined });
       }
       try {
-        const raw = localStorage.getItem("artistgrid-history");
+        const raw = localStorage.getItem("artistgrid-history:v1");
         const history: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
         history.push({ name: track.name, artist: track.artistName || track.eraName || "", time: Date.now() });
         if (history.length > 200) history.splice(0, history.length - 200);
-        localStorage.setItem("artistgrid-history", JSON.stringify(history));
+        localStorage.setItem("artistgrid-history:v1", JSON.stringify(history));
       } catch {}
     },
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]

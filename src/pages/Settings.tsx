@@ -12,6 +12,9 @@ import { useSettings } from "@/src/hooks/use-settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { clearCache } from "@/src/lib/tracker-cache";
+import { Database } from "lucide-react";
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -60,6 +63,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close settings"
             className="text-white/40 hover:text-white hover:bg-white/10 h-8 w-8 rounded-xl flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
@@ -161,6 +165,12 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     onCheckedChange={(v) => update("behavior", "notifications", v)}
                   />
                 </SettingRow>
+                <SettingRow label="Show Emojis" description="Keep emojis in track names for MediaSession, Last.fm scrobbling, and downloads">
+                  <Switch
+                    checked={settings.behavior.showEmojis}
+                    onCheckedChange={(v) => update("behavior", "showEmojis", v)}
+                  />
+                </SettingRow>
               </Section>
 
               <Section icon={Search} title="Navigation & Search">
@@ -184,6 +194,14 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     checked={settings.behavior.sheetsHtmlview}
                     onCheckedChange={(v) => update("behavior", "sheetsHtmlview", v)}
                   />
+                </SettingRow>
+              </Section>
+
+              <Section icon={Database} title="Cache">
+                <SettingRow label="Clear Tracker Cache" description="Remove cached tracker data and free up local storage">
+                  <Button variant="outline" size="sm" onClick={() => clearCache()}>
+                    Clear
+                  </Button>
                 </SettingRow>
               </Section>
             </TabsContent>

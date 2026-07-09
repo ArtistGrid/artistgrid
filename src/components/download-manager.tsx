@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
 import { loadSettings } from "@/src/lib/settings";
+import { stripEmojis } from "@/lib/utils";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
@@ -66,8 +67,10 @@ function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch:
   });
 }
 function sanitizeFilename(name: string): string {
+  const settings = loadSettings();
+  const cleaned = settings.behavior.showEmojis ? name : stripEmojis(name);
   return (
-    name
+    cleaned
       .replace(/[<>:"/\\|?*]/g, "_")
       .replace(/\s+/g, " ")
       .trim() || "unknown"

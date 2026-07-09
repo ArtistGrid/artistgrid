@@ -1,160 +1,130 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import { useCallback, useRef, useEffect, useState, memo, createElement } from "react";
+import { Client } from "lrclib-api";
 import { usePlayer } from "@/src/providers";
 import { useSettings } from "@/src/hooks/use-settings";
-import { fetchLyrics, parseSyncedLyrics, findCurrentLineIndex, type LyricsData } from "@/src/lib/lyrics";
-import type { LyricLine } from "lrclib-api";
+import { toTTML, type LyricsData } from "@/src/lib/lyrics";
 
-const FONT_SIZES = { small: "text-[10px]", medium: "text-[11px]", large: "text-[13px]" };
-const FONT_SIZES_ACTIVE = { small: "text-[12px]", medium: "text-[13px]", large: "text-[15px]" };
-const ALIGNMENTS = { left: "text-left", center: "text-center", right: "text-right" };
+// Import the side-effect to register the custom element
+import "@uimaxbai/am-lyrics/am-lyrics.js";
+
+interface AmLyricsElement extends HTMLElement {
+  songTitle: string;
+  songArtist: string;
+  query: string;
+  ttml: string;
+  highlightColor: string;
+  autoScroll: boolean;
+  interpolate: boolean;
+  currentTime: number;
+  fetchLyrics(): Promise<void>;
+}
+
+const lrclibClient = new Client();
+
+function buildQuery(name: string, artist: string, extra?: string): string {
+  const clean = (s: string) => s.replace(/\s*[\(\[].*?[\)\]]/g, "").replace(/\s+/g, " ").trim();
+  const title = clean(name);
+  const artistName = clean(artist);
+  const parts = [title, artistName].filter(Boolean);
+  const base = parts.join(" - ");
+  const extraClean = extra ? clean(extra) : "";
+  return extraClean && !base.toLowerCase().includes(extraClean.toLowerCase()) ? `${base} - ${extraClean}` : base;
+}
+
+async function fetchFromLRCLIB(name: string, artist: string): Promise<string | null> {
+  try {
+    const results = await lrclibClient.searchLyrics({ track_name: name, artist_name: artist });
+    if (!results.length) return null;
+
+    const first = results[0];
+    if (first.instrumental) return null;
+
+    const lyricsData: LyricsData = {
+      plainLyrics: first.plainLyrics,
+      syncedLyrics: first.syncedLyrics
+        ? first.syncedLyrics.split("\n").flatMap((line) => {
+            if (!line.trim()) return [];
+            const match = line.match(/^\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)/);
+            if (!match) return [];
+            const ms = parseInt(match[1]) * 60000 + parseInt(match[2]) * 1000 + parseInt(match[3].padEnd(3, "0"));
+            return [{ text: match[4].trim(), startTime: ms }];
+          })
+        : null,
+      instrumental: false,
+      trackName: name,
+      artistName: artist,
+      albumName: first.albumName || "",
+      duration: first.duration || 0,
+    };
+
+    if (!lyricsData.plainLyrics && (!lyricsData.syncedLyrics || lyricsData.syncedLyrics.length === 0)) return null;
+
+    return toTTML(lyricsData);
+  } catch {
+    return null;
+  }
+}
 
 export const LyricsPanel = memo(function LyricsPanel() {
   const { state } = usePlayer();
   const { currentTrack, currentTime } = state;
   const { settings } = useSettings();
-  const [lyrics, setLyrics] = useState<LyricsData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const ref = useRef<AmLyricsElement>(null);
+  const [ttml, setTtml] = useState<string | null>(null);
 
-  const syncedLines = useMemo<LyricLine[] | null>(() => {
-    if (lyrics?.syncedLyrics && lyrics.syncedLyrics.length > 0) return lyrics.syncedLyrics;
-    if (!settings.lyrics.syncedOnly && lyrics?.plainLyrics) return parseSyncedLyrics(lyrics.plainLyrics);
-    return null;
-  }, [lyrics, settings.lyrics.syncedOnly]);
+  const handleLineClick = useCallback((e: Event) => {
+    const audio = document.querySelector("audio");
+    const detail = (e as CustomEvent<{ timestamp: number }>).detail;
+    if (audio && typeof detail?.timestamp === "number") {
+      audio.currentTime = detail.timestamp / 1000;
+    }
+  }, []);
 
-  const plainLines = useMemo(() => {
-    if (!lyrics?.plainLyrics) return [];
-    return lyrics.plainLyrics.split("\n").filter((l) => l.trim());
-  }, [lyrics]);
-
-  const hasSynced = !!syncedLines && syncedLines.length > 0;
-  const currentTimeMs = currentTime * 1000;
-
-  const currentLineIndex = useMemo(() => {
-    if (!hasSynced || !syncedLines) return -1;
-    return findCurrentLineIndex(syncedLines, currentTimeMs);
-  }, [hasSynced, syncedLines, currentTimeMs]);
-
-  const doFetch = useCallback(() => {
+  useEffect(() => {
     if (!currentTrack) return;
-    let cancelled = false;
-    setLoading(true);
-    setLyrics(null);
-    lineRefs.current = [];
-    fetchLyrics(
-      currentTrack.name,
-      currentTrack.artistName || "Unknown",
-      currentTrack.extra
-    ).then((data) => {
-      if (!cancelled) {
-        setLyrics(data);
-        setLoading(false);
-      }
-    });
-    return () => { cancelled = true; };
+    setTtml(null);
+
+    const artist = currentTrack.artistName || "Unknown";
+    fetchFromLRCLIB(currentTrack.name, artist).then(setTtml);
   }, [currentTrack]);
 
   useEffect(() => {
-    if (!currentTrack) {
-      setLyrics(null);
-      return;
+    const el = ref.current;
+    if (!el || !currentTrack) return;
+
+    const artist = currentTrack.artistName || "Unknown";
+    const query = buildQuery(currentTrack.name, artist, currentTrack.extra);
+
+    el.songTitle = currentTrack.name;
+    el.songArtist = artist;
+    el.query = query;
+    el.highlightColor = "#ffffff";
+    el.autoScroll = !settings.lyrics.syncedOnly;
+    el.interpolate = true;
+
+    if (ttml) {
+      el.ttml = ttml;
     }
-    const cleanup = doFetch();
-    return cleanup;
-  }, [currentTrack?.name, currentTrack?.artistName]);
+
+    el.fetchLyrics();
+  }, [currentTrack, settings.lyrics.syncedOnly, ttml]);
 
   useEffect(() => {
-    if (currentLineIndex >= 0 && lineRefs.current[currentLineIndex] && containerRef.current) {
-      const container = containerRef.current;
-      const line = lineRefs.current[currentLineIndex];
-      const containerRect = container.getBoundingClientRect();
-      const lineRect = line.getBoundingClientRect();
-      const offset = lineRect.top - containerRect.top - containerRect.height / 2 + lineRect.height / 2;
-      container.scrollBy({ top: offset, behavior: "smooth" });
-    }
-  }, [currentLineIndex]);
+    const el = ref.current;
+    if (!el) return;
+    el.currentTime = Math.floor(currentTime * 1000);
+  }, [currentTime]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("line-click", handleLineClick);
+    return () => el.removeEventListener("line-click", handleLineClick);
+  }, [handleLineClick]);
 
   if (!currentTrack) return null;
 
-  const showPlain = !settings.lyrics.syncedOnly;
-  const displayLines: Array<{ text: string; startTime?: number }> = hasSynced
-    ? syncedLines!
-    : showPlain
-    ? plainLines.map((text) => ({ text }))
-    : [];
-  const hasLyrics = !!lyrics && (lyrics.plainLyrics || lyrics.syncedLyrics);
-
-  const fontSize = settings.lyrics.fontSize;
-  const alignment = settings.lyrics.alignment;
-
-  return (
-    <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto no-scrollbar scroll-smooth px-1"
-        style={{
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)",
-        }}
-      >
-        <div className={`py-3 space-y-0.5 ${ALIGNMENTS[alignment]}`}>
-          {loading && (
-            <div className="text-center py-6">
-              <div className="inline-flex items-center gap-2 text-white/30 text-[11px]">
-                <div className="w-2.5 h-2.5 border-[1.5px] border-white/20 border-t-white/60 rounded-full animate-spin" />
-                <span>Loading...</span>
-              </div>
-            </div>
-          )}
-          {!loading && lyrics && lyrics.instrumental && (
-            <div className="text-center py-6">
-              <p className={`${FONT_SIZES[fontSize]} text-white/30 italic`}>Instrumental</p>
-            </div>
-          )}
-          {!loading && hasLyrics && displayLines.length === 0 && (
-            <div className="text-center py-6">
-              <p className={`${FONT_SIZES[fontSize]} text-white/20`}>No lyrics available</p>
-            </div>
-          )}
-          {!loading && !lyrics && (
-            <div className="text-center py-6 flex flex-col items-center gap-2">
-              <p className={`${FONT_SIZES[fontSize]} text-white/20`}>No lyrics found</p>
-              <button
-                type="button"
-                onClick={doFetch}
-                className={`${FONT_SIZES[fontSize]} text-white/40 hover:text-white px-2.5 py-1 rounded-md glass-flat transition-colors`}
-              >
-                Search again
-              </button>
-            </div>
-          )}
-          {!loading && hasLyrics && displayLines.length > 0 && displayLines.map((line, i) => {
-            const isActive = hasSynced && i === currentLineIndex;
-            return (
-              <div
-                key={i}
-                ref={(el) => { lineRefs.current[i] = el; }}
-                className={`py-0.5 px-1.5 rounded transition-all duration-300 cursor-pointer hover:bg-white/[0.05] ${
-                  isActive
-                    ? `text-white ${FONT_SIZES_ACTIVE[fontSize]} font-semibold`
-                    : hasSynced && currentLineIndex >= 0 && i < currentLineIndex
-                    ? `text-white/20 ${FONT_SIZES[fontSize]}`
-                    : `text-white/40 ${FONT_SIZES[fontSize]}`
-                }`}
-                onClick={() => {
-                  if (hasSynced && line.startTime !== undefined) {
-                    const audio = document.querySelector("audio");
-                    if (audio) audio.currentTime = line.startTime / 1000;
-                  }
-                }}
-              >
-                {line.text}
-              </div>
-            );
-          })}
-          <div className="h-4" />
-        </div>
-      </div>
-    </div>
+  return createElement("div", { className: "flex-1 min-h-0 overflow-hidden flex flex-col" },
+    createElement("am-lyrics", { ref, className: "h-full w-full" })
   );
 });

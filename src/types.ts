@@ -73,6 +73,7 @@ export interface TrackerResponse {
   credits?: string;
   era_dates?: EraDate[];
   discord?: string;
+  lastUpdated?: string;
 }
 export interface Artist {
   name: string;

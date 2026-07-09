@@ -37,14 +37,6 @@ export function addCustomView(trackerId: string, view: Omit<CustomView, "id">): 
   return newView;
 }
 
-export function updateCustomView(trackerId: string, id: string, patch: Partial<Omit<CustomView, "id">>): void {
-  const views = getCustomViews(trackerId);
-  const idx = views.findIndex((v) => v.id === id);
-  if (idx === -1) return;
-  views[idx] = { ...views[idx], ...patch };
-  saveCustomViews(trackerId, views);
-}
-
 export function deleteCustomView(trackerId: string, id: string): void {
   const views = getCustomViews(trackerId).filter((v) => v.id !== id);
   saveCustomViews(trackerId, views);
@@ -61,6 +53,11 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
     credits: responses[0]?.credits ?? '',
     era_dates: [],
     discord: responses[0]?.discord,
+    lastUpdated: responses.reduce((latest, r) => {
+      if (!r.lastUpdated) return latest;
+      if (!latest) return r.lastUpdated;
+      return r.lastUpdated > latest ? r.lastUpdated : latest;
+    }, undefined as string | undefined),
   };
 
   const seenDates = new Set<string>();
