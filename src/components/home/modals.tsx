@@ -48,6 +48,40 @@ export const AnnouncementModal = memo(
             Please consider donating.
           </button>
         )}
+        <p className="text-neutral-300 mb-2">
+          <a
+            href="https://instagram.com/edideaur"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors"
+          >
+            Follow me on Instagram
+          </a>
+          .
+        </p>
+        <p className="text-neutral-300 mb-2">
+          <a
+            href="https://discord.gg/YuwTae6QC4"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors"
+          >
+            Join the Discord
+          </a>
+        </p>
+        <br />
+        <p className="text-neutral-300 mb-2">
+          P.S. Our friend Crave launched{" "}
+          <a
+            href="https://urnlsd.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors"
+          >
+            urnlsd.app
+          </a>
+          , check it out
+        </p>
         <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">
           Got it!
         </Button>
