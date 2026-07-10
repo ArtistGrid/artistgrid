@@ -7,7 +7,6 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Link } from "react-router-dom";
@@ -30,7 +29,7 @@ export const FilterControls = memo(
     onFilterChange: (key: keyof ArtistFilterOptions, value: boolean) => void;
   }) => {
     const hasActiveFilter =
-      options.showWorking || options.showUpdated || options.showStarred || !options.showAlts || options.sortByTrends;
+      options.showWorking || options.showUpdated || options.showStarred || !options.showAlts;
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -76,17 +75,7 @@ export const FilterControls = memo(
           >
             Show alt trackers
           </DropdownMenuCheckboxItem>
-          <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-          <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
-            Sort
-          </DropdownMenuLabel>
-          <DropdownMenuCheckboxItem
-            checked={options.sortByTrends}
-            onCheckedChange={(c) => onFilterChange("sortByTrends", !!c)}
-            className="rounded-xl"
-          >
-            Sort by popularity
-          </DropdownMenuCheckboxItem>
+
         </DropdownMenuContent>
       </DropdownMenu>
     );

@@ -16,7 +16,7 @@ import {
 import {
   LOCAL_STORAGE_KEYS,
   ARTISTS_CSV,
-  TRENDS_API,
+
   HOME_CACHE_EXPIRY,
   DEFAULT_FILTER_OPTIONS,
   ANNOUNCEMENT_MESSAGE,
@@ -75,8 +75,7 @@ export default function ArtistGallery() {
     const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
     return storedHash !== currentHash ? "announcement" : null;
   });
-  const [trendsData, setTrendsData] = useState<Map<string, number>>(new Map());
-  const [trendsLoaded, setTrendsLoaded] = useState(false);
+
   const [filterOptions, setFilterOptions] = useLocalStorage<ArtistFilterOptions>(
     LOCAL_STORAGE_KEYS.FILTER_OPTIONS,
     DEFAULT_FILTER_OPTIONS
@@ -103,58 +102,7 @@ export default function ArtistGallery() {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) trackEvent("Search", { query: deferredQuery });
     prevQueryRef.current = deferredQuery;
   }, [deferredQuery]);
-  useEffect(() => {
-    const controller = new AbortController();
-    const loadTrends = async () => {
-      const cacheKey = LOCAL_STORAGE_KEYS.TRENDS_CACHE;
-      const cached = getCachedData<{
-        results: {
-          name: string;
-          visitors: number;
-        }[];
-      }>(cacheKey);
-      if (cached?.data) {
-        const map = new Map<string, number>();
-        cached.data.results?.forEach((item) => map.set(item.name, item.visitors || 0));
-        setTrendsData(map);
-        setTrendsLoaded(true);
-      }
-      if (isCacheExpired(cached, HOME_CACHE_EXPIRY)) {
-        try {
-          const response = await fetch(TRENDS_API, { signal: controller.signal, cache: "no-store" });
-          if (response.ok) {
-            const data = await response.json();
-            setCachedData(cacheKey, data);
-            const map = new Map<string, number>();
-            data.results?.forEach((item: { name: string; visitors: number }) => map.set(item.name, item.visitors || 0));
-            setTrendsData(map);
-          }
-        } catch (e) {
-          if (e instanceof Error && e.name !== "AbortError") console.warn("Failed to load trends:", e);
-        }
-      }
-      setTrendsLoaded(true);
-    };
-    loadTrends();
-    return () => controller.abort();
-  }, []);
-  const sortArtistsByTrends = useCallback((artists: Artist[], trends: Map<string, number>): Artist[] => {
-    return artists.slice().sort((a, b) => {
-      const aV = trends.get(a.name) || 0;
-      const bV = trends.get(b.name) || 0;
-      const getGroup = (artist: Artist, v: number) => {
-        if (artist.isStarred && v > 0) return 1;
-        if (artist.isStarred) return 2;
-        if (v > 0) return 3;
-        return 4;
-      };
-      const aG = getGroup(a, aV),
-        bG = getGroup(b, bV);
-      if (aG !== bG) return aG - bG;
-      if ((aG === 1 || aG === 3) && aV !== bV) return bV - aV;
-      return a.name.localeCompare(b.name);
-    });
-  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     const loadData = async () => {
@@ -227,10 +175,7 @@ export default function ArtistGallery() {
     loadVisitorCount();
     return () => controller.abort();
   }, []);
-  const sortedArtists = useMemo(() => {
-    if (!filterOptions.sortByTrends || !trendsLoaded || allArtists.length === 0) return allArtists;
-    return sortArtistsByTrends(allArtists, trendsData);
-  }, [allArtists, filterOptions.sortByTrends, trendsLoaded, trendsData, sortArtistsByTrends]);
+  const sortedArtists = allArtists;
   const handleFilterChange = useCallback(
     (key: keyof ArtistFilterOptions, value: boolean) => {
       trackEvent("Filter Change", { filter: key, enabled: value });

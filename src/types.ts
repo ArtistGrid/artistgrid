@@ -87,7 +87,6 @@ export interface ArtistFilterOptions {
   showUpdated: boolean;
   showStarred: boolean;
   showAlts: boolean;
-  sortByTrends: boolean;
 }
 export interface LastFMClientInfo {
   isAuthenticated: boolean;

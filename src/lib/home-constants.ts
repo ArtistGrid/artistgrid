@@ -16,11 +16,11 @@ export const LOCAL_STORAGE_KEYS = {
   FILTER_OPTIONS: "artistGridFilterOptions",
   CSV_CACHE_REMOTE: "artistGridCsvCache_remote",
   CSV_CACHE_LOCAL: "artistGridCsvCache_local",
-  TRENDS_CACHE: "artistGridTrendsCache",
+
   MESSAGE_HASH: "artistGridMessageHash",
 } as const;
 export const ARTISTS_CSV = "https://artists.artistgrid.cx/artists.csv";
-export const TRENDS_API = "https://trends.artistgrid.cx/";
+
 export const HOME_CACHE_EXPIRY = 1000 * 60 * 30;
 export const DONATION_OPTIONS = {
   URL: [
@@ -62,7 +62,7 @@ export const DEFAULT_FILTER_OPTIONS: ArtistFilterOptions = {
   showUpdated: false,
   showStarred: false,
   showAlts: true,
-  sortByTrends: true,
+
 };
 export const ANNOUNCEMENT_MESSAGE = `# Hi.
 
