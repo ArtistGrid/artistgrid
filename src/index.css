@@ -31,6 +31,22 @@ body {
       0 1px 0 rgba(0, 0, 0, 0.8);
   }
 
+  .glass-bar {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-elevated,
+  .glass-bar {
+    background: rgba(18, 18, 20, 0.94);
+  }
+}
+
   .glass-flat {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -45,6 +61,24 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Mirror Tailwind's backdrop-blur utilities with the -webkit- prefix so the
+     glass effect works on WebKit engines (e.g. Tauri) that require it. */
+  .backdrop-blur-sm {
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .backdrop-blur-lg {
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(24px);
+  }
+  .backdrop-blur-2xl {
+    -webkit-backdrop-filter: blur(40px);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;

@@ -23,7 +23,7 @@ export function useHeaderSlots(center: ReactNode, right?: ReactNode) {
 export function Layout() {
   return (
     <>
-      <header className="sticky top-0 z-30 py-3.5 bg-black/40 backdrop-blur-2xl border-b border-white/[0.08]">
+      <header className="sticky top-0 z-30 py-3.5 glass-bar">
         <div className="max-w-7xl mx-auto flex items-center gap-3 px-4 sm:px-6 h-11">
           <Link
             to="/"
