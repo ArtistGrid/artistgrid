@@ -69,19 +69,6 @@ export const AnnouncementModal = memo(
             Join the Discord
           </a>
         </p>
-        <br />
-        <p className="text-neutral-300 mb-2">
-          P.S. Our friend Crave launched{" "}
-          <a
-            href="https://urnlsd.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors"
-          >
-            urnlsd.app
-          </a>
-          , check it out
-        </p>
         <Button onClick={onClose} className="w-full mt-4 bg-white text-black hover:bg-neutral-200">
           Got it!
         </Button>
