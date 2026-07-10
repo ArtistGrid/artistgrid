@@ -9,7 +9,7 @@
       "developerName": "ArtistGrid",
       "version": "0.1.0",
       "versionDate": "2026-01-01T00:00:00Z",
-      "downloadURL": "https://github.com/artistgrid/apps/releases/latest/download/ArtistGrid-unsigned.ipa",
+      "downloadURL": "https://github.com/artistgrid/apps/releases/latest/download/artistgrid.ipa",
       "localizedDescription": "Unreleased Music",
       "iconURL": "https://raw.githubusercontent.com/artistgrid/apps/main/src-tauri/icons/icon.png",
       "tintColor": "000000",
