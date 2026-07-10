@@ -83,24 +83,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (track.artistName) return track.artistName;
     return track.eraName || "Unknown Artist";
   }, []);
-  const artworkBlobUrlRef = useRef<string | null>(null);
   const updateMediaSession = useCallback(
-    async (track: Track, isPlaying: boolean) => {
+    (track: Track, isPlaying: boolean) => {
       if (!("mediaSession" in navigator)) return;
       const settings = loadSettings();
       const artist = getScrobbleArtist(track);
       const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
       const artwork: MediaImage[] = [];
       if (track.eraImage) {
-        try {
-          const res = await fetch(track.eraImage, { referrerPolicy: "no-referrer" });
-          const blob = await res.blob();
-          if (artworkBlobUrlRef.current) URL.revokeObjectURL(artworkBlobUrlRef.current);
-          artworkBlobUrlRef.current = URL.createObjectURL(blob);
-          artwork.push({ src: artworkBlobUrlRef.current, sizes: "512x512", type: blob.type || "image/jpeg" });
-        } catch {
-          artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
-        }
+        artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
       }
       navigator.mediaSession.metadata = new MediaMetadata({
         title,
