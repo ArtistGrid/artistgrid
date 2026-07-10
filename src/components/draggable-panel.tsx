@@ -65,7 +65,7 @@ export function DraggablePanel({
       >
         <GripHorizontal className="w-3.5 h-3.5 text-white/30" />
         <span className="text-xs font-medium text-white/50">{label}</span>
-        <Button variant="ghost" size="icon" onClick={onClose} className="ml-auto h-6 w-6 text-white/30 hover:text-white hover:bg-white/10 rounded-lg">
+        <Button variant="ghost" size="icon" onClick={onClose} className="ml-auto h-6 w-6 text-white/30 hover:text-white hover:bg-white/10 rounded-lg" aria-label="Close player">
           <X className="w-3 h-3" />
         </Button>
       </button>

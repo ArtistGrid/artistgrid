@@ -198,6 +198,7 @@ export function ImageLightbox({
           size="icon"
           onClick={onClose}
           className="absolute top-3 right-3 text-white glass rounded-xl w-9 h-9"
+          aria-label="Close lightbox"
         >
           <X className="w-4 h-4" />
         </Button>

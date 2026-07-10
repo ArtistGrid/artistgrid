@@ -152,6 +152,7 @@ function DownloadFloatingUI() {
               size="icon"
               onClick={clearCompleted}
               className="h-6 w-6 text-neutral-500 hover:text-white"
+              aria-label="Clear completed downloads"
             >
               <X className="w-3 h-3" />
             </Button>
@@ -161,6 +162,7 @@ function DownloadFloatingUI() {
             size="icon"
             onClick={() => setIsMinimized(!isMinimized)}
             className="h-6 w-6 text-neutral-500 hover:text-white"
+            aria-label={isMinimized ? "Expand downloads" : "Minimize downloads"}
           >
             {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
           </Button>
@@ -194,6 +196,7 @@ function DownloadFloatingUI() {
                       size="icon"
                       onClick={() => dismissJob(job.id)}
                       className="h-5 w-5 text-neutral-500 hover:text-white flex-shrink-0"
+                      aria-label="Dismiss download"
                     >
                       <X className="w-3 h-3" />
                     </Button>
@@ -275,18 +278,20 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       if (result) {
         let finalBlob = result.blob;
         const s = loadSettings();
+        const format = s.downloads.format || "original";
         if (s.downloads.embedMetadata) {
           try {
             const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
             finalBlob = await embedMetadata(result.blob, {
               title: item.trackName,
               artist: item.artistName,
-            });
+            }, format);
           } catch (e) {
             console.error("Metadata embedding failed for batch download:", e);
           }
         }
-        const ext = getFileExtension(item.playableUrl, result.contentType);
+        const formatExtMap: Record<string, string> = { mp3: "mp3", opus: "opus", ogg: "ogg", flac: "flac", wav: "wav" };
+        const ext = format !== "original" && formatExtMap[format] ? formatExtMap[format] : getFileExtension(item.playableUrl, result.contentType);
         if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
         zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: finalBlob, ext });
         setJobs((prev) =>

@@ -1,3 +1,6 @@
+export type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
+export type TagPreset = "default" | "minimal" | "full";
+
 export interface Settings {
   lyrics: {
     syncedOnly: boolean;
@@ -7,12 +10,27 @@ export interface Settings {
   downloads: {
     useOgFilename: boolean;
     embedMetadata: boolean;
+    format: DownloadFormat;
+    tagPreset: TagPreset;
   };
   player: {
     miniPlayer: boolean;
     showAlbumArt: boolean;
     showNextSong: boolean;
     startupShuffle: boolean;
+  };
+  scrobbling: {
+    lastfm: {
+      customServer: boolean;
+      apiUrl: string;
+      apiKey: string;
+      apiSecret: string;
+    };
+    listenbrainz: {
+      enabled: boolean;
+      token: string;
+      apiUrl: string;
+    };
   };
   behavior: {
     detailedErrors: boolean;
@@ -40,6 +58,19 @@ export const DEFAULT_SETTINGS: Settings = {
     showNextSong: false,
     startupShuffle: false,
   },
+  scrobbling: {
+    lastfm: {
+      customServer: false,
+      apiUrl: "",
+      apiKey: "",
+      apiSecret: "",
+    },
+    listenbrainz: {
+      enabled: false,
+      token: "",
+      apiUrl: "https://api.listenbrainz.org",
+    },
+  },
   behavior: {
     detailedErrors: false,
     notifications: false,
@@ -61,6 +92,10 @@ export function loadSettings(): Settings {
       lyrics: { ...DEFAULT_SETTINGS.lyrics, ...parsed.lyrics },
       downloads: { ...DEFAULT_SETTINGS.downloads, ...parsed.downloads },
       player: { ...DEFAULT_SETTINGS.player, ...parsed.player },
+      scrobbling: {
+        lastfm: { ...DEFAULT_SETTINGS.scrobbling.lastfm, ...parsed.scrobbling?.lastfm },
+        listenbrainz: { ...DEFAULT_SETTINGS.scrobbling.listenbrainz, ...parsed.scrobbling?.listenbrainz },
+      },
       behavior: { ...DEFAULT_SETTINGS.behavior, ...parsed.behavior },
     };
   } catch {

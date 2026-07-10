@@ -52,10 +52,6 @@ describe("getTrackSource", () => {
     expect(getTrackSource("https://soundcloud.com/artist/track")).toBe("soundcloud");
   });
 
-  it("identifies qobuz URLs", () => {
-    expect(getTrackSource("https://open.qobuz.com/track/12345")).toBe("qobuz");
-  });
-
   it("identifies froste URLs", () => {
     expect(getTrackSource("https://music.froste.lol/song/abc")).toBe("froste");
   });
@@ -64,8 +60,8 @@ describe("getTrackSource", () => {
     expect(getTrackSource("https://juicewrldapi.com/juicewrld/something")).toBe("juicewrldapi");
   });
 
-  it("identifies yetracker URLs", () => {
-    expect(getTrackSource("https://files.yetracker.org/f/abc123")).toBe("yetracker");
+  it("identifies Google Drive URLs", () => {
+    expect(getTrackSource("https://drive.google.com/file/d/1LaQlf07pASxx7mebC-WEpfxBcAxNOR7Z/view")).toBe("googledrive");
   });
 
   it("returns unknown for unrecognized URLs", () => {
@@ -77,7 +73,6 @@ describe("isNetworkSource", () => {
   it("returns true for network sources", () => {
     expect(isNetworkSource("krakenfiles")).toBe(true);
     expect(isNetworkSource("imgur")).toBe(true);
-    expect(isNetworkSource("qobuz")).toBe(true);
     expect(isNetworkSource("pixeldrain")).toBe(true);
   });
 

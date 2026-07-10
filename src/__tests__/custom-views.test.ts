@@ -4,8 +4,8 @@ import {
   saveCustomViews,
   addCustomView,
   deleteCustomView,
-  mergeTabData,
 } from "../lib/custom-views";
+import { mergeTabData } from "../lib/merge-tab-data";
 import type { TrackerResponse, Era, TALeak } from "../types";
 
 const track = (name: string): TALeak => ({ name });

@@ -93,13 +93,13 @@ export function TrackItemActions({ track, source, shouldShowSource, url, onOpenU
         </button>
       )}
       {url && (
-        <Button variant="ghost" size="icon" onClick={onOpenUrl} className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95">
+        <Button variant="ghost" size="icon" onClick={onOpenUrl} className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95" aria-label="Open URL">
           <ExternalLink className="w-4 h-4" />
         </Button>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95">
+          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95" aria-label="Track actions">
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>

@@ -3,13 +3,13 @@ import { normalizePillowsUrl } from "./resolve-url";
 export const TRACKER_ID_LENGTH = 44;
 export const SUPPORTED_SOURCES: Track["source"][] = [
   "pillows",
+  "froste",
   "youtube",
   "krakenfiles",
   "pixeldrain",
   "imgur",
-  "yetracker",
   "soundcloud",
-  "qobuz",
+  "googledrive",
 ];
 export function generateTrackId(url: string): string {
   let hash = 0;
@@ -68,9 +68,8 @@ export function getSourceDisplayName(source: Track["source"]): string {
     imgur: "Imgur",
     pixeldrain: "Pixeldrain",
     soundcloud: "SoundCloud",
-    qobuz: "Qobuz",
-    yetracker: "YeTracker",
     youtube: "YouTube",
+    googledrive: "Google Drive",
     unknown: "Unknown",
   };
   return names[source];

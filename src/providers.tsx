@@ -1,7 +1,7 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
 import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
-import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL } from "@/src/lib/config";
+import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
 import { stripEmojis } from "@/lib/utils";
 type RepeatMode = "off" | "one" | "all";
@@ -112,21 +112,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [getScrobbleArtist]
   );
-  const generateSignature = useCallback((params: Record<string, string>): string => {
+  const generateSignature = useCallback((params: Record<string, string>, secret: string): string => {
     const filteredParams = { ...params };
     delete filteredParams.format;
     delete filteredParams.callback;
     const sortedKeys = Object.keys(filteredParams).sort();
-    const signatureString = sortedKeys.map((key) => `${key}${filteredParams[key]}`).join("") + LASTFM_API_SIG;
+    const signatureString = sortedKeys.map((key) => `${key}${filteredParams[key]}`).join("") + secret;
     return SparkMD5.hash(signatureString);
+  }, []);
+  const getLastFmConfig = useCallback(() => {
+    const settings = loadSettings();
+    const lf = settings.scrobbling.lastfm;
+    if (lf.customServer && lf.apiUrl) {
+      return { url: lf.apiUrl.replace(/\/$/, ""), key: lf.apiKey || LASTFM_KEY, secret: lf.apiSecret || LASTFM_API_SIG };
+    }
+    return { url: LASTFM_API_URL, key: LASTFM_KEY, secret: LASTFM_API_SIG };
   }, []);
   const makeLastFMRequest = useCallback(
     async <T = unknown>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> => {
-      const requestParams: Record<string, string> = { method, api_key: LASTFM_KEY, ...params };
+      const cfg = getLastFmConfig();
+      const requestParams: Record<string, string> = { method, api_key: cfg.key, ...params };
       if (requiresAuth && lastfmSession?.key) requestParams.sk = lastfmSession.key;
-      const signature = generateSignature(requestParams);
+      const signature = generateSignature(requestParams, cfg.secret);
       const formData = new URLSearchParams({ ...requestParams, api_sig: signature, format: "json" });
-      const response = await fetch(LASTFM_API_URL, {
+      const response = await fetch(cfg.url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
@@ -135,7 +144,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (data.error) throw new Error(data.error.message || "Last.fm API error");
       return data as T;
     },
-    [generateSignature, lastfmSession]
+    [generateSignature, getLastFmConfig, lastfmSession]
   );
   const clearScrobbleTimer = useCallback(() => {
     if (scrobbleTimerRef.current) {
@@ -143,26 +152,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       scrobbleTimerRef.current = null;
     }
   }, []);
+  const scrobbleListenBrainz = useCallback(async (track: Track) => {
+    const settings = loadSettings();
+    const lb = settings.scrobbling.listenbrainz;
+    if (!lb.enabled || !lb.token) return;
+    try {
+      const artist = getScrobbleArtist(track);
+      const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+      const base = (lb.apiUrl || LISTENBRAINZ_API_URL).replace(/\/$/, "");
+      const listen: Record<string, unknown> = {
+        listened_at: Math.floor(Date.now() / 1000),
+        track_metadata: {
+          artist_name: artist,
+          track_name: trackName,
+          ...(track.eraName ? { release_name: track.eraName } : {}),
+        },
+      };
+      await fetch(`${base}/1/submit-listens`, {
+        method: "POST",
+        headers: { Authorization: `Token ${lb.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ listen_type: "single", payload: [listen] }),
+      });
+    } catch (e) {
+      console.error("Failed to scrobble to ListenBrainz:", e);
+    }
+  }, [getScrobbleArtist]);
   const scrobbleTrack = useCallback(
     async (track: Track) => {
-      if (!lastfmSession?.key || hasScrobbledRef.current) return;
-      try {
-        const artist = getScrobbleArtist(track);
-        const settings = loadSettings();
-        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
-        const params: Record<string, string> = {
-          artist,
-          track: trackName,
-          timestamp: Math.floor(Date.now() / 1000).toString(),
-        };
-        if (track.eraName) params.album = track.eraName;
-        await makeLastFMRequest("track.scrobble", params, true);
-        hasScrobbledRef.current = true;
-      } catch (e) {
-        console.error("Failed to scrobble:", e);
+      if (hasScrobbledRef.current) return;
+      hasScrobbledRef.current = true;
+      if (lastfmSession?.key) {
+        try {
+          const artist = getScrobbleArtist(track);
+          const settings = loadSettings();
+          const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+          const params: Record<string, string> = {
+            artist,
+            track: trackName,
+            timestamp: Math.floor(Date.now() / 1000).toString(),
+          };
+          if (track.eraName) params.album = track.eraName;
+          await makeLastFMRequest("track.scrobble", params, true);
+        } catch (e) {
+          console.error("Failed to scrobble:", e);
+        }
       }
+      await scrobbleListenBrainz(track);
     },
-    [lastfmSession, makeLastFMRequest, getScrobbleArtist]
+    [lastfmSession, makeLastFMRequest, getScrobbleArtist, scrobbleListenBrainz]
   );
   const updateNowPlaying = useCallback(
     async (track: Track) => {

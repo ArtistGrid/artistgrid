@@ -74,7 +74,9 @@ import { useSettings } from "@/src/hooks/use-settings";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/components/settings-modal-context";
 import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks, toggleEraFavourite, isEraFavourited } from "@/src/lib/favourites";
-import { getCustomViews, addCustomView, deleteCustomView, mergeTabData, type CustomView } from "@/src/lib/custom-views";
+import { getCustomViews, addCustomView, deleteCustomView, type CustomView } from "@/src/lib/custom-views";
+import { mergeTabData } from "@/src/lib/merge-tab-data";
+import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
 import {
   PlayButton,
   PauseButton,
@@ -86,54 +88,12 @@ import {
   type PlayableTrackData,
 } from "@/src/components/view/track-item";
 import { CustomViewManager } from "@/src/components/view/custom-view-manager";
+import { FlatTrackCard, FlatTrackList } from "@/src/components/view/flat-track-card";
+import { TrackRow } from "@/src/components/view/track-row";
+import { EraCard } from "@/src/components/view/era-card";
 const ART_TABS = ["Art"];
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
-function forEachEraTrack(eras: Record<string, Era>, cb: (track: TALeak, era: Era) => boolean | void): void {
-  for (const era of Object.values(eras)) {
-    if (!era.data) continue;
-    for (const tracks of Object.values(era.data)) {
-      if (!Array.isArray(tracks)) continue;
-      for (const track of tracks) {
-        if (cb(track, era) === false) return;
-      }
-    }
-  }
-}
-function mergeAndCache(
-  id: string,
-  cacheKey: string | undefined,
-  trackerData: TrackerResponse,
-  newResolved: Record<string, string | null>
-): void {
-  const existing = getCache(id, cacheKey)?.resolvedUrls || {};
-  setCache(id, trackerData, { ...existing, ...newResolved }, cacheKey);
-}
-const VIDEO_EXTENSIONS = /\.(mp4|webm|mkv|mov|avi|flv|wmv|m4v|ogv|ogm)(\?|$)/i;
-function isVideoUrl(url: string): boolean {
-  try {
-    const pathname = new URL(url).pathname;
-    return VIDEO_EXTENSIONS.test(pathname);
-  } catch {
-    return VIDEO_EXTENSIONS.test(url);
-  }
-}
-
-function formatRelativeTime(isoString: string): string {
-  const then = new Date(isoString).getTime();
-  if (Number.isNaN(then)) return "";
-  const seconds = Math.floor((Date.now() - then) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  return `${months}mo ago`;
-}
-
 function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialTab }: { trackerId?: string; initialTab?: string } = {}) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -394,6 +354,12 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   }, []);
   const loadTrackerData = useCallback(
     async (id: string, tab?: string, overrideTabName?: string) => {
+      const virtualTabs = ["Favourites", "Custom"];
+      const tabName = overrideTabName || tab;
+      if (tab && virtualTabs.includes(tabName || tab)) {
+        setCurrentTab(tabName || tab);
+        return;
+      }
       abortRef.current?.abort();
       if (!tab) {
         setData(null);
@@ -953,6 +919,7 @@ const handleLoad = useCallback(() => {
           size="icon"
           className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-white/30 hover:text-white hover:bg-transparent"
           onClick={() => setInputValue("")}
+          aria-label="Clear input"
         >
           <X className="w-3.5 h-3.5" />
         </Button>
@@ -965,6 +932,7 @@ const handleLoad = useCallback(() => {
           size="icon"
           onClick={handleShare}
           className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
+          aria-label="Share tracker"
         >
           <Share2 className="w-4 h-4" />
         </Button>
@@ -1276,6 +1244,7 @@ const handleLoad = useCallback(() => {
                         variant="ghost"
                         size="icon"
                         className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
+                        aria-label="Filter tracks"
                       >
                         <Filter className="w-4 h-4" />
                       </Button>
@@ -1362,33 +1331,7 @@ const handleLoad = useCallback(() => {
                 >
                   <Loader2 className="w-6 h-6 animate-spin text-white/40" />
                 </motion.div>
-              ) : tabError ? (
-                <motion.div
-                  key="tab-error"
-                  className="text-center py-12 sm:py-20 flex flex-col items-center"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.25 }}
-                >
-                <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
-                <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
-              </motion.div>
-            ) : tabEmpty ? (
-              <motion.div
-                key="tab-empty"
-                className="text-center py-12 sm:py-20 flex flex-col items-center"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
-              >
-                <Music2 className="w-12 h-12 sm:w-14 sm:h-14 text-neutral-700 mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-white/60">No Tracks in This Tab</h3>
-                <p className="text-sm sm:text-base text-white/30 mt-1">This tab doesn't have any tracks yet</p>
-              </motion.div>
-            ) : isFavouritesTab ? (
+              ) : isFavouritesTab ? (
               <motion.div
                 key="favourites"
                 initial={{ opacity: 0, y: 8 }}
@@ -1497,6 +1440,32 @@ const handleLoad = useCallback(() => {
                   </div>
                 )}
               </motion.div>
+            ) : tabError ? (
+              <motion.div
+                key="tab-error"
+                className="text-center py-12 sm:py-20 flex flex-col items-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
+                <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
+              </motion.div>
+            ) : tabEmpty ? (
+              <motion.div
+                key="tab-empty"
+                className="text-center py-12 sm:py-20 flex flex-col items-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Music2 className="w-12 h-12 sm:w-14 sm:h-14 text-neutral-700 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-white/60">No Tracks in This Tab</h3>
+                <p className="text-sm sm:text-base text-neutral-500 mt-1">This tab doesn&apos;t have any tracks yet</p>
+              </motion.div>
             ) : isArtTab && filteredData ? (
               <motion.div
                 key="art"
@@ -1594,514 +1563,6 @@ const handleLoad = useCallback(() => {
         </div>
       </main>
     </motion.div>
-  );
-}
-interface FlatTrackCardProps {
-  t: TALeak;
-  fakeEra: Era;
-  url: string | null;
-  source: TrackSource;
-  isPlayable: boolean;
-  isCurrentlyPlaying: boolean;
-  description: string | undefined;
-  shouldShowSource: boolean;
-  playableUrl: string | null;
-  handlePlayTrack: (t: TALeak, era: Era) => void;
-  handleOpenUrl: (url: string) => void;
-  handleToggleFavourite: (url: string) => void;
-  handleOpenOriginal: (t: TALeak) => void;
-  handleDownload: (t: TALeak) => void;
-  handleAddToQueue: (t: TALeak, era: Era) => void;
-  favourites: string[];
-  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => any;
-  clearQueue: () => void;
-  playTrack: (t: any) => void;
-}
-function FlatTrackCard({ t, fakeEra, url, source, isPlayable, isCurrentlyPlaying, description, shouldShowSource, playableUrl, handlePlayTrack, handleOpenUrl, handleToggleFavourite, handleOpenOriginal, handleDownload, handleAddToQueue, favourites, createTrackObject, clearQueue, playTrack }: FlatTrackCardProps) {
-  return (
-    <>
-      <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
-        {isPlayable
-          ? isCurrentlyPlaying
-            ? <PauseButton onPlay={() => handlePlayTrack(t, fakeEra)} />
-            : <PlayButton onPlay={() => handlePlayTrack(t, fakeEra)} />
-          : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
-        }
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-white text-xs sm:text-sm truncate">{t.name || "Unknown"}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
-            {t.eraName && (
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
-                style={{
-                  background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
-                  color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
-                }}
-              >
-                {t.eraName}
-              </span>
-            )}
-            {t.extra && <span className="text-xs text-neutral-500 truncate">{t.extra}</span>}
-          </div>
-        </div>
-        <TrackItemActions track={t} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={url ? favourites.includes(url) : false} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
-            {isPlayable && (
-              <>
-                <DropdownMenuItem onClick={() => handlePlayTrack(t, fakeEra)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { const pt = createTrackObject(t, fakeEra, url!, playableUrl!); clearQueue(); playTrack(pt); }} className="cursor-pointer"><Radio className="w-4 h-4 mr-2" />Play Track Only</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddToQueue(t, fakeEra)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-neutral-800" />
-                <DropdownMenuItem onClick={() => handleDownload(t)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuSeparator className="bg-neutral-800" />
-            {url && (
-              <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
-                <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
-                {favourites.includes(url) ? "Unfavourite" : "Favourite"}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => handleOpenOriginal(t)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
-        </TrackItemActions>
-      </div>
-      <TrackDescription description={description} />
-    </>
-  );
-}
-interface FlatTrackListProps {
-  tracks: TALeak[];
-  computeTrackState: (t: TALeak) => { url: string | null; source: TrackSource; isPlayable: boolean; isCurrentlyPlaying: boolean; isCurrentTrack: boolean; isHighlighted: boolean; description: string | undefined; shouldShowSource: boolean; playableUrl: string | null };
-  handlePlayTrack: (t: TALeak, era: Era) => void;
-  handleAddToQueue: (t: TALeak, era: Era) => void;
-  handleOpenUrl: (url: string) => void;
-  handleOpenOriginal: (t: TALeak) => void;
-  handleToggleFavourite: (url: string) => void;
-  handleDownload: (t: TALeak) => void;
-  favourites: string[];
-  highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
-  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => any;
-  clearQueue: () => void;
-  playTrack: (t: any) => void;
-}
-function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, handleAddToQueue, handleOpenUrl, handleOpenOriginal, handleToggleFavourite, handleDownload, favourites, highlightedTrackRef, createTrackObject, clearQueue, playTrack }: FlatTrackListProps) {
-  const parentRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: tracks.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 56,
-    overscan: 15,
-  });
-  return (
-    <div ref={parentRef} className="h-[calc(100vh-220px)] overflow-auto rounded-xl">
-      <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const t = tracks[virtualRow.index];
-          const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
-          const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
-          return (
-            <div
-              key={virtualRow.key}
-              ref={(node) => {
-                virtualizer.measureElement(node);
-                if (isHighlighted) (highlightedTrackRef as any).current = node;
-              }}
-              data-index={virtualRow.index}
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
-              className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
-            >
-              <FlatTrackCard t={t} fakeEra={fakeEra} url={url} source={source} isPlayable={isPlayable} isCurrentlyPlaying={isCurrentlyPlaying} description={description} shouldShowSource={shouldShowSource} playableUrl={playableUrl} handlePlayTrack={handlePlayTrack} handleOpenUrl={handleOpenUrl} handleToggleFavourite={handleToggleFavourite} handleOpenOriginal={handleOpenOriginal} handleDownload={handleDownload} handleAddToQueue={handleAddToQueue} favourites={favourites} createTrackObject={createTrackObject} clearQueue={clearQueue} playTrack={playTrack} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-interface TrackRowProps {
-  track: TALeak;
-  era: Era;
-  computeTrackState: (t: TALeak) => { url: string | null; source: TrackSource; isPlayable: boolean; isCurrentlyPlaying: boolean; isCurrentTrack: boolean; isHighlighted: boolean; description: string | undefined; shouldShowSource: boolean; playableUrl: string | null };
-  handlePlayTrack: (t: TALeak, era: Era) => void;
-  handleOpenUrl: (url: string) => void;
-  handleShareTrack: (url: string, name: string) => void;
-  handlePlayNext: (t: TALeak, era: Era) => void;
-  handleAddToQueue: (t: TALeak, era: Era) => void;
-  handleDownload: (t: TALeak) => void;
-  handleToggleFavourite: (url: string) => void;
-  handleOpenOriginal: (t: TALeak) => void;
-  favourites: string[];
-  highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
-}
-function TrackRow({
-  track,
-  era,
-  computeTrackState,
-  handlePlayTrack,
-  handleOpenUrl,
-  handleShareTrack,
-  handlePlayNext,
-  handleAddToQueue,
-  handleDownload,
-  handleToggleFavourite,
-  handleOpenOriginal,
-  favourites,
-  highlightedTrackRef,
-}: TrackRowProps) {
-  const {
-    url,
-    source,
-    isPlayable,
-    isCurrentlyPlaying,
-    isCurrentTrack,
-    isHighlighted,
-    description,
-    shouldShowSource,
-  } = computeTrackState(track);
-  return (
-    <div
-      ref={isHighlighted ? highlightedTrackRef : null}
-      className={`rounded-xl transition-all ${
-        isHighlighted
-          ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20"
-          : isCurrentTrack
-            ? "bg-white/[0.08] border border-white/[0.15]"
-            : "glass-flat"
-      }`}
-    >
-      <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
-        {isPlayable ? (
-          isCurrentlyPlaying ? (
-            <PauseButton onPlay={() => handlePlayTrack(track, era)} />
-          ) : (
-            <PlayButton onPlay={() => handlePlayTrack(track, era)} />
-          )
-        ) : (
-          <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white text-xs sm:text-sm truncate">{track.name || "Unknown"}</div>
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
-            {track.extra && (
-              <span className="text-xs text-neutral-500 truncate max-w-[120px] sm:max-w-none">{track.extra}</span>
-            )}
-            <div className="flex items-center gap-1 sm:hidden">
-              {track.type && track.type !== "Unknown" && track.type !== "N/A" && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.type}</span>
-              )}
-              {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.track_length}</span>
-              )}
-              {track.art_used && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
-                  ✓ Used
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <TrackItemActions
-          track={track}
-          source={source}
-          shouldShowSource={shouldShowSource}
-          url={url}
-          onOpenUrl={url ? () => handleOpenUrl(url) : () => {}}
-          isFavourited={url ? favourites.includes(url) : false}
-          onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}
-        >
-          {url && (
-            <DropdownMenuItem onClick={() => handleShareTrack(url, track.name || "Track")} className="cursor-pointer">
-              <Share className="w-4 h-4 mr-2" />
-              Share Track
-            </DropdownMenuItem>
-          )}
-          {isPlayable && (
-            <>
-              <DropdownMenuItem onClick={() => handlePlayNext(track, era)} className="cursor-pointer">
-                <SkipForward className="w-4 h-4 mr-2" />
-                Play Next
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAddToQueue(track, era)} className="cursor-pointer">
-                <ListPlus className="w-4 h-4 mr-2" />
-                Add to Queue
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-neutral-800" />
-              <DropdownMenuItem onClick={() => handleDownload(track)} className="cursor-pointer">
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </DropdownMenuItem>
-            </>
-          )}
-          <DropdownMenuSeparator className="bg-neutral-800" />
-          {url && (
-            <DropdownMenuItem onClick={() => handleToggleFavourite(url)} className="cursor-pointer">
-              <Heart className={`w-4 h-4 mr-2 ${favourites.includes(url) ? "fill-current text-red-400" : ""}`} />
-              {favourites.includes(url) ? "Unfavourite" : "Favourite"}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => handleOpenOriginal(track)} className="cursor-pointer">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Open Original URL
-          </DropdownMenuItem>
-        </TrackItemActions>
-      </div>
-      <TrackDescription description={description} />
-    </div>
-  );
-}
-
-function EraCategoryHeader({
-  cat,
-  tracks,
-  resolvedUrls,
-  onDownload,
-}: {
-  cat: string;
-  tracks: TALeak[];
-  resolvedUrls: Map<string, string | null>;
-  onDownload: () => void;
-}) {
-  if (cat.toLowerCase() === "default") return null;
-  const hasResolved = tracks.some((t) => {
-    const u = getTrackUrl(t);
-    return u ? !!resolvedUrls.get(u) : false;
-  });
-  return (
-    <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
-      <h4 className="text-xs sm:text-sm font-semibold text-white/50">{cat}</h4>
-      {hasResolved && (
-        <button
-          type="button"
-          onClick={onDownload}
-          aria-label={`Download ${cat}`}
-          className="text-white/25 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
-          title={`Download ${cat}`}
-        >
-          <FolderDown className="w-3.5 h-3.5" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-type EraCardTrackState = {
-  url: string | null;
-  source: TrackSource;
-  isPlayable: boolean;
-  isCurrentlyPlaying: boolean;
-  isCurrentTrack: boolean;
-  isHighlighted: boolean;
-  description: string | undefined;
-  shouldShowSource: boolean;
-  playableUrl: string | null;
-};
-
-interface EraCardProps {
-  eraKey: string;
-  era: Era;
-  resolvedUrls: Map<string, string | null>;
-  trackerId: string;
-  expandedEras: Set<string>;
-  toggleEra: (key: string) => void;
-  computeTrackState: (t: TALeak) => EraCardTrackState;
-  handlePlayTrack: (t: TALeak, era: Era) => void;
-  handleOpenUrl: (url: string) => void;
-  handleShareTrack: (url: string, name: string) => void;
-  handlePlayNext: (t: TALeak, era: Era) => void;
-  handleAddToQueue: (t: TALeak, era: Era) => void;
-  handleDownload: (t: TALeak) => void;
-  handleToggleFavourite: (url: string) => void;
-  handleOpenOriginal: (t: TALeak) => void;
-  handleToggleEraFavourite: (era: Era) => void;
-  isEraFavourited: (trackerId: string, era: Era) => boolean;
-  downloadTracker: (eraKey?: string, cat?: string) => void;
-  favourites: string[];
-  highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function EraCard({
-  eraKey,
-  era,
-  resolvedUrls,
-  trackerId,
-  expandedEras,
-  toggleEra,
-  computeTrackState,
-  handlePlayTrack,
-  handleOpenUrl,
-  handleShareTrack,
-  handlePlayNext,
-  handleAddToQueue,
-  handleDownload,
-  handleToggleFavourite,
-  handleOpenOriginal,
-  handleToggleEraFavourite,
-  isEraFavourited,
-  downloadTracker,
-  favourites,
-  highlightedTrackRef,
-}: EraCardProps) {
-  const eraPlayableCount = era.data
-    ? Object.values(era.data)
-        .flat()
-        .filter((t) => {
-          const url = getTrackUrl(t);
-          return url && resolvedUrls.get(url);
-        }).length
-    : 0;
-  return (
-    <div
-      key={eraKey}
-      className="rounded-2xl overflow-hidden border border-white/[0.1]"
-      style={{
-        background: era.backgroundColor
-          ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 82%)`
-          : "rgba(255,255,255,0.055)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3)",
-      }}
-    >
-      <div className="flex items-center">
-        <button
-          type="button"
-          className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
-          onClick={() => toggleEra(eraKey)}
-        >
-          {era.image ? (
-            <img
-              src={era.image}
-              alt={era.name}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
-              style={{
-                background: era.backgroundColor
-                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
-                  : "rgba(255,255,255,0.07)",
-              }}
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-            />
-          ) : (
-            <div
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex-shrink-0"
-              style={{
-                background: era.backgroundColor
-                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
-                  : "rgba(255,255,255,0.07)",
-              }}
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <h3
-              style={{
-                color: era.textColor
-                  ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)`
-                  : "white",
-              }}
-              className="text-base sm:text-lg font-bold truncate"
-            >
-              {era.name || eraKey}
-            </h3>
-            <p className="text-xs sm:text-sm text-white/40">
-              {era.extra && <>{era.extra} · </>}
-              {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
-              {eraPlayableCount > 0 && <> | {eraPlayableCount} playable</>}
-            </p>
-          </div>
-          <ChevronDown
-            className={`w-4 h-4 text-white/30 transition-transform flex-shrink-0 ${expandedEras.has(eraKey) ? "rotate-180" : ""}`}
-          />
-        </button>
-        {eraPlayableCount > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white/30 hover:text-white hover:bg-white/10 mr-2 h-9 w-9 flex-shrink-0 rounded-xl"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1"
-            >
-              <DropdownMenuItem onClick={() => handleToggleEraFavourite(era)} className="cursor-pointer rounded-xl">
-                <Heart className={`w-4 h-4 mr-2 ${isEraFavourited(trackerId, era) ? "fill-current text-red-400" : ""}`} />
-                {isEraFavourited(trackerId, era) ? "Unfavourite Era" : "Favourite Era"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-neutral-800" />
-              <DropdownMenuItem onClick={() => downloadTracker(eraKey)} className="cursor-pointer rounded-xl">
-                <FolderDown className="w-4 h-4 mr-2" />
-                Download Era ({eraPlayableCount})
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-      <AnimatePresence initial={false}>
-        {expandedEras.has(eraKey) && (
-          <motion.div
-            key={`era-content-${eraKey}`}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <div className="px-3 pb-3 sm:px-5 sm:pb-5">
-              {era.description && (
-                <p className="text-xs sm:text-sm text-white/45 p-3 sm:p-4 bg-black/20 rounded-xl mb-3 sm:mb-5">
-                  {era.description}
-                </p>
-              )}
-              {era.era_dates && era.era_dates.length > 0 && (
-                <div className="mb-3 px-1">
-                  {era.era_dates.map((ed, i) => (
-                    <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/40 mb-0.5 last:mb-0">
-                      {ed.date}{ed.event ? ` — ${ed.event}` : ""}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {era.data &&
-                Object.entries(era.data).map(([cat, tracks]) => (
-                  <div key={cat} className="mb-4 sm:mb-5 last:mb-0">
-                    <EraCategoryHeader
-                      cat={cat}
-                      tracks={tracks as TALeak[]}
-                      resolvedUrls={resolvedUrls}
-                      onDownload={() => downloadTracker(eraKey, cat)}
-                    />
-                    <div className="space-y-1.5 sm:space-y-2">
-                      {(tracks as TALeak[]).map((track, i) => (
-                        <TrackRow
-                          key={`${eraKey}-${cat}-${track.name || i}`}
-                          track={track}
-                          era={era}
-                          computeTrackState={computeTrackState}
-                          handlePlayTrack={handlePlayTrack}
-                          handleOpenUrl={handleOpenUrl}
-                          handleShareTrack={handleShareTrack}
-                          handlePlayNext={handlePlayNext}
-                          handleAddToQueue={handleAddToQueue}
-                          handleDownload={handleDownload}
-                          handleToggleFavourite={handleToggleFavourite}
-                          handleOpenOriginal={handleOpenOriginal}
-                          favourites={favourites}
-                          highlightedTrackRef={highlightedTrackRef}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }
 

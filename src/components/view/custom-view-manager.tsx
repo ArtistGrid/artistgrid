@@ -92,7 +92,7 @@ export function CustomViewManager({
       <div className="glass rounded-2xl p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-white">{editingView ? "Edit Custom View" : "New Custom View"}</h3>
-          <Button variant="ghost" size="sm" onClick={() => setEditorOpen(false)} className="text-white/40 hover:text-white h-7 w-7 p-0">
+          <Button variant="ghost" size="sm" onClick={() => setEditorOpen(false)} className="text-white/40 hover:text-white h-7 w-7 p-0" aria-label="Close editor">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -167,7 +167,7 @@ export function CustomViewManager({
             <span className="text-sm text-white/60 font-medium">{activeCustomView.name}</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white/30 hover:text-white h-7 px-2">
+                <Button variant="ghost" size="sm" className="text-white/30 hover:text-white h-7 px-2" aria-label="Edit view picker">
                   <Pencil className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -188,6 +188,7 @@ export function CustomViewManager({
                         size="sm"
                         className="h-5 w-5 p-0 hover:text-white"
                         onClick={(e) => { e.stopPropagation(); openEdit(v); }}
+                        aria-label={`Edit ${v.name}`}
                       >
                         <Pencil className="w-3 h-3" />
                       </Button>
@@ -196,6 +197,7 @@ export function CustomViewManager({
                         size="sm"
                         className="h-5 w-5 p-0 hover:text-red-400"
                         onClick={(e) => { e.stopPropagation(); handleDelete(v.id); }}
+                        aria-label={`Delete ${v.name}`}
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>

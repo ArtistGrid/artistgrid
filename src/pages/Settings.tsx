@@ -7,6 +7,7 @@ import {
   Settings,
   X,
   FileSpreadsheet,
+  Radio,
 } from "lucide-react";
 import { useSettings } from "@/src/hooks/use-settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -74,6 +75,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="lyrics"><Mic2 className="w-3 h-3 mr-1.5" />Lyrics</TabsTrigger>
               <TabsTrigger value="player"><Play className="w-3 h-3 mr-1.5" />Player</TabsTrigger>
+              <TabsTrigger value="scrobbling"><Radio className="w-3 h-3 mr-1.5" />Scrobbling</TabsTrigger>
               <TabsTrigger value="behavior"><Settings className="w-3 h-3 mr-1.5" />Behavior</TabsTrigger>
             </TabsList>
 
@@ -142,10 +144,99 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     onCheckedChange={(v) => update("downloads", "useOgFilename", v)}
                   />
                 </SettingRow>
-                <SettingRow label="Embed Metadata on Download" description="Embed title, artist, album, year, and cover art into downloaded MP3s">
+                <SettingRow label="Embed Metadata on Download" description="Embed title, artist, album, year, and cover art into downloaded files">
                   <Switch
                     checked={settings.downloads.embedMetadata}
                     onCheckedChange={(v) => update("downloads", "embedMetadata", v)}
+                  />
+                </SettingRow>
+                <SettingRow label="Download Format" description="Transcode to a specific format on download (requires metadata embedding)">
+                  <Select
+                    value={settings.downloads.format || "original"}
+                    onChange={(e) => update("downloads", "format", e.target.value as "original" | "mp3" | "opus" | "ogg" | "flac" | "wav")}
+                    options={[
+                      { value: "original", label: "Original" },
+                      { value: "mp3", label: "MP3" },
+                      { value: "opus", label: "Opus" },
+                      { value: "ogg", label: "OGG Vorbis" },
+                      { value: "flac", label: "FLAC (lossless)" },
+                      { value: "wav", label: "WAV (lossless)" },
+                    ]}
+                  />
+                </SettingRow>
+              </Section>
+            </TabsContent>
+
+            <TabsContent value="scrobbling" className="space-y-4">
+              <Section icon={Radio} title="Last.fm Scrobbling">
+                <SettingRow label="Enable Last.fm" description="Scrobble played tracks to your Last.fm account">
+                  <Switch
+                    checked={settings.scrobbling.lastfm.enabled}
+                    onCheckedChange={(v) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, enabled: v })}
+                  />
+                </SettingRow>
+                <SettingRow label="Custom API Server" description="Use a custom Last.fm-compatible API endpoint">
+                  <Switch
+                    checked={settings.scrobbling.lastfm.customServer}
+                    onCheckedChange={(v) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, customServer: v })}
+                  />
+                </SettingRow>
+                {settings.scrobbling.lastfm.customServer && (
+                  <>
+                    <SettingRow label="API URL" description="Base URL for the Last.fm-compatible API">
+                      <input
+                        type="text"
+                        value={settings.scrobbling.lastfm.apiUrl || ""}
+                        onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiUrl: e.target.value })}
+                        placeholder="https://ws.audioscrobbler.com/2.0/"
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
+                      />
+                    </SettingRow>
+                    <SettingRow label="API Key">
+                      <input
+                        type="password"
+                        value={settings.scrobbling.lastfm.apiKey || ""}
+                        onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiKey: e.target.value })}
+                        placeholder="Your Last.fm API key"
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
+                      />
+                    </SettingRow>
+                    <SettingRow label="API Secret">
+                      <input
+                        type="password"
+                        value={settings.scrobbling.lastfm.apiSecret || ""}
+                        onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiSecret: e.target.value })}
+                        placeholder="Your Last.fm API secret"
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
+                      />
+                    </SettingRow>
+                  </>
+                )}
+              </Section>
+
+              <Section icon={Radio} title="ListenBrainz">
+                <SettingRow label="Enable ListenBrainz" description="Scrobble played tracks to your ListenBrainz account">
+                  <Switch
+                    checked={settings.scrobbling.listenbrainz.enabled}
+                    onCheckedChange={(v) => update("scrobbling", "listenbrainz", { ...settings.scrobbling.listenbrainz, enabled: v })}
+                  />
+                </SettingRow>
+                <SettingRow label="Auth Token" description="Your ListenBrainz user token">
+                  <input
+                    type="password"
+                    value={settings.scrobbling.listenbrainz.token || ""}
+                    onChange={(e) => update("scrobbling", "listenbrainz", { ...settings.scrobbling.listenbrainz, token: e.target.value })}
+                    placeholder="Your ListenBrainz token"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
+                  />
+                </SettingRow>
+                <SettingRow label="Custom API URL" description="Override the ListenBrainz API endpoint">
+                  <input
+                    type="text"
+                    value={settings.scrobbling.listenbrainz.apiUrl || ""}
+                    onChange={(e) => update("scrobbling", "listenbrainz", { ...settings.scrobbling.listenbrainz, apiUrl: e.target.value })}
+                    placeholder="https://api.listenbrainz.org"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                   />
                 </SettingRow>
               </Section>

@@ -35,78 +35,105 @@ export interface MetadataInput {
   coverUrl?: string;
 }
 
+export type TranscodeFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
+
+function getTranscodeArgs(format: TranscodeFormat): { args: string[]; ext: string; mime: string } {
+  switch (format) {
+    case "mp3":   return { args: ["-c:a", "libmp3lame", "-q:a", "2"], ext: "mp3",  mime: "audio/mpeg" };
+    case "opus":  return { args: ["-c:a", "libopus", "-b:a", "128k"], ext: "opus", mime: "audio/opus" };
+    case "ogg":   return { args: ["-c:a", "libvorbis", "-q:a", "4"], ext: "ogg",  mime: "audio/ogg" };
+    case "flac":  return { args: ["-c:a", "flac"], ext: "flac", mime: "audio/flac" };
+    case "wav":   return { args: ["-c:a", "pcm_s16le"], ext: "wav", mime: "audio/wav" };
+    default:      return { args: ["-c:a", "copy"], ext: "", mime: "" };
+  }
+}
+
+function getAudioExtension(blob: Blob): string {
+  if (blob.type.includes("ogg")) return "ogg";
+  if (blob.type.includes("wav")) return "wav";
+  if (blob.type.includes("flac")) return "flac";
+  return "mp3";
+}
+
+function buildMetadataArgs(metadata: MetadataInput): string[] {
+  const args: string[] = [];
+  if (metadata.title) args.push("-metadata", `title=${metadata.title}`);
+  if (metadata.artist) args.push("-metadata", `artist=${metadata.artist}`);
+  if (metadata.album) args.push("-metadata", `album=${metadata.album}`);
+  if (metadata.year) args.push("-metadata", `date=${metadata.year}`);
+  return args;
+}
+
+async function fetchCoverArt(
+  ffmpeg: FFmpeg,
+  coverUrl: string
+): Promise<{ args: string[]; cleanup: () => Promise<void> }> {
+  const noop = async () => {};
+  try {
+    const res = await fetch(coverUrl, { referrerPolicy: "no-referrer" });
+    if (!res.ok) return { args: ["-c", "copy"], cleanup: noop };
+    const coverBlob = await res.blob();
+    if (!coverBlob.type.startsWith("image/")) return { args: ["-c", "copy"], cleanup: noop };
+
+    const coverExt = coverBlob.type.includes("png") ? "png" : "jpg";
+    const coverMime = coverExt === "png" ? "image/png" : "image/jpeg";
+    const coverData = new Uint8Array(await coverBlob.arrayBuffer());
+    await ffmpeg.writeFile(`cover.${coverExt}`, coverData);
+
+    return {
+      args: [
+        "-i", `cover.${coverExt}`,
+        "-map", "0:a:0",
+        "-map", "1:0",
+        "-c:a", "copy",
+        "-id3v2_version", "3",
+        "-metadata:s:v", `mime_type=${coverMime}`,
+      ],
+      cleanup: async () => {
+        try { await ffmpeg.deleteFile("cover.jpg"); } catch {}
+        try { await ffmpeg.deleteFile("cover.png"); } catch {}
+      },
+    };
+  } catch {
+    return { args: ["-c", "copy"], cleanup: noop };
+  }
+}
+
 export async function embedMetadata(
   audioBlob: Blob,
-  metadata: MetadataInput
+  metadata: MetadataInput,
+  format: TranscodeFormat = "original"
 ): Promise<Blob> {
   const ffmpeg = await getFFmpeg();
-
-  const audioExt = audioBlob.type.includes("ogg")
-    ? "ogg"
-    : audioBlob.type.includes("wav")
-    ? "wav"
-    : audioBlob.type.includes("flac")
-    ? "flac"
-    : "mp3";
-
-  const inputName = `input.${audioExt}`;
-  const outputName = `output.${audioExt}`;
+  const ext = getAudioExtension(audioBlob);
+  const inputName = `input.${ext}`;
+  const transcode = getTranscodeArgs(format);
+  const outputName = `output.${transcode.ext || ext}`;
 
   const audioData = new Uint8Array(await audioBlob.arrayBuffer());
   await ffmpeg.writeFile(inputName, audioData);
 
-  const args: string[] = ["-i", inputName];
+  const cover = metadata.coverUrl
+    ? await fetchCoverArt(ffmpeg, metadata.coverUrl)
+    : { args: ["-c", "copy"] as string[], cleanup: async () => {} };
 
-  const metadataArgs: string[] = [];
-  if (metadata.title) metadataArgs.push("-metadata", `title=${metadata.title}`);
-  if (metadata.artist) metadataArgs.push("-metadata", `artist=${metadata.artist}`);
-  if (metadata.album) metadataArgs.push("-metadata", `album=${metadata.album}`);
-  if (metadata.year) metadataArgs.push("-metadata", `date=${metadata.year}`);
-
-  let coverData: Uint8Array | null = null;
-  if (metadata.coverUrl) {
-    try {
-      const res = await fetch(metadata.coverUrl, { referrerPolicy: "no-referrer" });
-      if (res.ok) {
-        const coverBlob = await res.blob();
-        if (coverBlob.type.startsWith("image/")) {
-          coverData = new Uint8Array(await coverBlob.arrayBuffer());
-          const coverExt = coverBlob.type.includes("png") ? "png" : "jpg";
-          const coverMime = coverExt === "png" ? "image/png" : "image/jpeg";
-          await ffmpeg.writeFile(`cover.${coverExt}`, coverData);
-          args.push("-i", `cover.${coverExt}`);
-          args.push(
-            "-map", "0:a:0",
-            "-map", "1:0",
-            "-c:a", "copy",
-            "-id3v2_version", "3",
-            "-metadata:s:v", `mime_type=${coverMime}`
-          );
-        }
-      }
-    } catch {
-    }
-  }
-
-  if (!coverData) {
-    args.push("-c", "copy");
-  }
-
-  args.push(...metadataArgs, "-y", outputName);
+  const args = [
+    "-i", inputName,
+    ...cover.args,
+    ...transcode.args,
+    ...buildMetadataArgs(metadata),
+    "-y", outputName,
+  ];
 
   await ffmpeg.exec(args);
 
   const outputData = await ffmpeg.readFile(outputName);
-  const outputBlob = new Blob([new Uint8Array(outputData as Uint8Array)], {
-    type: audioBlob.type || "audio/mpeg",
-  });
+  const outputType = transcode.mime || audioBlob.type || "audio/mpeg";
+  const outputBlob = new Blob([new Uint8Array(outputData as Uint8Array)], { type: outputType });
 
   await ffmpeg.deleteFile(inputName);
   await ffmpeg.deleteFile(outputName);
-  if (coverData) {
-    try { await ffmpeg.deleteFile("cover.jpg"); } catch {}
-    try { await ffmpeg.deleteFile("cover.png"); } catch {}
-  }
+  await cover.cleanup();
 
   return outputBlob;
 }

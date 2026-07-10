@@ -41,6 +41,7 @@ export const Modal: FC<{
             size="icon"
             onClick={onClose}
             className="absolute top-3 right-3 text-white/40 hover:text-white hover:bg-white/10 h-8 w-8 rounded-xl"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </Button>

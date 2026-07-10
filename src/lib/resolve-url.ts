@@ -1,7 +1,6 @@
 import type { Track } from "@/src/types";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://imgur.gg/api/file/";
-const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
 const PIXELDRAIN_APIS = [
   "https://trackerapi-1.artistgrid.cx",
   "https://trackerapi-2.artistgrid.cx",
@@ -24,11 +23,7 @@ function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
 }
-function extractQobuzId(url: string): string | null {
-  const match = url.match(/(?:open\.)?qobuz\.com\/track\/(\d+)/);
-  return match ? match[1] : null;
-}
-const NETWORK_SOURCES = new Set<Track["source"]>(["krakenfiles", "imgur", "qobuz", "pixeldrain"]);
+const NETWORK_SOURCES = new Set<Track["source"]>(["krakenfiles", "imgur", "pixeldrain"]);
 export function isNetworkSource(source: Track["source"]): boolean {
   return NETWORK_SOURCES.has(source);
 }
@@ -41,9 +36,8 @@ export function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/pixeldrain.com\/[du]\//.test(normalized)) return "pixeldrain";
   if (/https?:\/\/juicewrldapi\.com\/juicewrld/.test(normalized)) return "juicewrldapi";
   if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
-  if (/https?:\/\/files\.yetracker\.org\/f\//.test(normalized)) return "yetracker";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
-  if (/https?:\/\/(open\.)?qobuz\.com\/track\//.test(normalized)) return "qobuz";
+  if (/https?:\/\/drive\.google\.com\/file\/d\//.test(normalized)) return "googledrive";
   return "unknown";
 }
 export async function resolvePlayableUrl(url: string): Promise<string | null> {
@@ -117,6 +111,10 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       }
       case "juicewrldapi":
         return url;
+      case "googledrive": {
+        const match = normalized.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+        return match ? `http://fuck-unvaulted.artistgrid.cx/gd/${match[1]}` : null;
+      }
       default:
         return null;
     }
