@@ -1,4 +1,4 @@
-export const LASTFM_KEY = "0fc32c426d943d34a662977b31b98b67";
-export const LASTFM_API_SIG = "53acf2466be726db021e7fdfd0ad1084";
+export const LASTFM_KEY = "0d25b8e31198eb90744eae6187f9e56a";
+export const LASTFM_API_SIG = "227169bb1f41ca20c69bd2158887b354";
 export const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 export const LISTENBRAINZ_API_URL = "https://api.listenbrainz.org";

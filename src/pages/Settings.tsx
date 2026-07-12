@@ -8,6 +8,7 @@ import {
   X,
   FileSpreadsheet,
   Radio,
+  Type,
 } from "lucide-react";
 import { useSettings } from "@/src/hooks/use-settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -284,6 +285,18 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                   <Switch
                     checked={settings.behavior.sheetsHtmlview}
                     onCheckedChange={(v) => update("behavior", "sheetsHtmlview", v)}
+                  />
+                </SettingRow>
+              </Section>
+
+              <Section icon={Type} title="Font">
+                <SettingRow label="Custom Font" description="Enter a font name to load from Coollabs Fonts (e.g. Inter, Roboto, Fira Code)">
+                  <input
+                    type="text"
+                    value={settings.font}
+                    onChange={(e) => update("font", "font", e.target.value)}
+                    placeholder="IBM Plex Sans"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                   />
                 </SettingRow>
               </Section>

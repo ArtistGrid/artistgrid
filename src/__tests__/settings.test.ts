@@ -47,6 +47,7 @@ describe("DEFAULT_SETTINGS", () => {
     expect(DEFAULT_SETTINGS).toHaveProperty("downloads");
     expect(DEFAULT_SETTINGS).toHaveProperty("player");
     expect(DEFAULT_SETTINGS).toHaveProperty("behavior");
+    expect(DEFAULT_SETTINGS).toHaveProperty("font");
   });
 
   it("has reasonable defaults", () => {

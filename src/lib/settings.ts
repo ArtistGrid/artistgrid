@@ -40,6 +40,7 @@ export interface Settings {
     sheetsHtmlview: boolean;
     showEmojis: boolean;
   };
+  font: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
     sheetsHtmlview: false,
     showEmojis: true,
   },
+  font: "IBM Plex Sans",
 };
 
 const STORAGE_KEY = "artistgrid-settings";
@@ -97,6 +99,7 @@ export function loadSettings(): Settings {
         listenbrainz: { ...DEFAULT_SETTINGS.scrobbling.listenbrainz, ...parsed.scrobbling?.listenbrainz },
       },
       behavior: { ...DEFAULT_SETTINGS.behavior, ...parsed.behavior },
+      font: DEFAULT_SETTINGS.font,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
