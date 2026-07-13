@@ -65,7 +65,7 @@ interface V3Track {
   leak_date?: string | null;
   available_length?: string;
   quality?: string;
-  links?: string[];
+  links?: { url: string; text?: string }[];
   image?: string;
   type?: string;
   sub_era?: string;
@@ -124,7 +124,7 @@ function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<Tra
 }
 
 function adaptV3Track(v3Track: V3Track): TALeak {
-  const links = (v3Track.links ?? []).filter(isUrl);
+  const links = (v3Track.links ?? []).map((l) => l.url).filter(isUrl);
   return {
     name: v3Track.name.title || v3Track.name.raw,
     extra: v3Track.name.credits?.length ? v3Track.name.credits.join(", ") : undefined,
