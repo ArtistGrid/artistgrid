@@ -51,13 +51,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const update = useCallback(
     (section: keyof Settings, key: string, value: unknown) => {
       setSettings((prev) => {
-        const next = {
-          ...prev,
-          [section]: {
-            ...(prev[section] as Record<string, unknown>),
-            [key]: value,
-          },
-        };
+        const current = prev[section];
+        const nextSection =
+          typeof current === "object" && current !== null
+            ? { ...(current as Record<string, unknown>), [key]: value }
+            : value;
+        const next = { ...prev, [section]: nextSection };
         saveSettings(next as Settings);
         return next as Settings;
       });

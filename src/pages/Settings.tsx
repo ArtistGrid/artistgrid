@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { clearCache } from "@/src/lib/tracker-cache";
-import { Database } from "lucide-react";
+import { Database, Globe } from "lucide-react";
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -285,6 +285,15 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                   <Switch
                     checked={settings.behavior.sheetsHtmlview}
                     onCheckedChange={(v) => update("behavior", "sheetsHtmlview", v)}
+                  />
+                </SettingRow>
+              </Section>
+
+              <Section icon={Globe} title="Images">
+                <SettingRow label="Use Image Proxy" description="Route images through i.edideaur.works for modern formats (JXL/WebP)">
+                  <Switch
+                    checked={settings.behavior.useImageProxy}
+                    onCheckedChange={(v) => update("behavior", "useImageProxy", v)}
                   />
                 </SettingRow>
               </Section>

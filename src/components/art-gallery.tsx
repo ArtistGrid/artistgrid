@@ -4,6 +4,7 @@ import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
 import type { Era, TALeak } from "@/src/types";
+import { useImageProxy } from "@/src/hooks/use-image-proxy";
 
 function getImageUrl(url: string): string | null {
   if (url.includes("ibb.co")) {
@@ -27,6 +28,7 @@ export function ArtGallery({
   onImageClick: (imageUrl: string, name: string, description?: string, linkUrl?: string) => void;
 }) {
   const [expandedEras, setExpandedEras] = useState<Set<string>>(() => new Set([Object.keys(eras)[0] || ""]));
+  const { proxyImageSrcSet } = useImageProxy();
   const toggleEra = (eraKey: string) => {
     setExpandedEras((prev) => {
       const next = new Set(prev);
@@ -45,13 +47,22 @@ export function ArtGallery({
             onClick={() => toggleEra(key)}
           >
             {era.image ? (
-              <img
-                src={era.image}
-                alt={era.name}
-                className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
-                referrerPolicy="no-referrer"
-                crossOrigin="anonymous"
-              />
+              (() => {
+                const srcs = proxyImageSrcSet(era.image);
+                return (
+                  <picture>
+                    <source type="image/jxl" srcSet={srcs.jxl} />
+                    <source type="image/webp" srcSet={srcs.webp} />
+                    <img
+                      src={srcs.original}
+                      alt={era.name}
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                    />
+                  </picture>
+                );
+              })()
             ) : (
               <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-white/[0.08] flex-shrink-0" />
             )}
@@ -91,19 +102,24 @@ export function ArtGallery({
                        const displaySrc = ownImageSrc || era.image || null;
                       const clickTarget = ownImageSrc || null;
                       const stableKey = item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
+                      const proxied = displaySrc ? proxyImageSrcSet(displaySrc) : null;
                       const cardContent = (
                         <>
                           <div className="aspect-square relative bg-white/[0.05] overflow-hidden">
-                            {displaySrc ? (
-                              <img
-                                src={displaySrc}
-                                alt={item.name}
-                                className={`w-full h-full object-cover transition-transform duration-300 ${
-                                  clickTarget ? "group-hover:scale-105" : "opacity-40"
-                                }`}
-                                referrerPolicy="no-referrer"
-                                crossOrigin="anonymous"
-                              />
+                            {proxied ? (
+                              <picture>
+                                <source type="image/jxl" srcSet={proxied.jxl} />
+                                <source type="image/webp" srcSet={proxied.webp} />
+                                <img
+                                  src={proxied.original}
+                                  alt={item.name}
+                                  className={`w-full h-full object-cover transition-transform duration-300 ${
+                                    clickTarget ? "group-hover:scale-105" : "opacity-40"
+                                  }`}
+                                  referrerPolicy="no-referrer"
+                                  crossOrigin="anonymous"
+                                />
+                              </picture>
                             ) : (
                               <div className="w-full h-full bg-white/[0.05]" />
                             )}
@@ -163,6 +179,8 @@ export function ImageLightbox({
   onClose: () => void;
 }) {
   useKeyPress("Escape", onClose);
+  const { proxyImageSrcSet } = useImageProxy();
+  const srcs = proxyImageSrcSet(src);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4"
@@ -182,13 +200,17 @@ export function ImageLightbox({
           onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")}
           title="Click to open original"
         >
-          <img
-            src={src}
-            alt={alt}
-            className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
-            referrerPolicy="no-referrer"
-            crossOrigin="anonymous"
-          />
+          <picture>
+            <source type="image/jxl" srcSet={srcs.jxl} />
+            <source type="image/webp" srcSet={srcs.webp} />
+            <img
+              src={srcs.original}
+              alt={alt}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+            />
+          </picture>
         </button>
         {description && (
           <p className="mt-3 text-sm text-white/60 text-center max-w-lg">{description}</p>

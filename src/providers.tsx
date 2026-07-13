@@ -3,6 +3,7 @@ import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
+import { proxyImageUrl } from "@/src/lib/image-proxy";
 import { stripEmojis } from "@/lib/utils";
 type RepeatMode = "off" | "one" | "all";
 
@@ -91,7 +92,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
       const artwork: MediaImage[] = [];
       if (track.eraImage) {
-        artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
+        artwork.push({ src: proxyImageUrl(track.eraImage), sizes: "512x512", type: "image/jpeg" });
       }
       navigator.mediaSession.metadata = new MediaMetadata({
         title,
@@ -357,7 +358,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const settings = loadSettings();
             if (settings.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
               const artist = next.artistName || next.eraName || "Unknown";
-              new Notification(next.name, { body: artist, icon: next.eraImage || undefined });
+              new Notification(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
             }
             try {
               const raw = localStorage.getItem("artistgrid-history:v1");
@@ -423,7 +424,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const s = loadSettings();
       if (s.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
         const artist = track.artistName || track.eraName || "Unknown";
-        new Notification(track.name, { body: artist, icon: track.eraImage || undefined });
+        new Notification(track.name, { body: artist, icon: track.eraImage ? proxyImageUrl(track.eraImage) : undefined });
       }
       try {
         const raw = localStorage.getItem("artistgrid-history:v1");

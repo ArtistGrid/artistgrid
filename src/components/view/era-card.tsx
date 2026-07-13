@@ -5,6 +5,7 @@ import { ChevronDown, MoreHorizontal, Heart, FolderDown } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import { getTrackUrl } from "@/src/lib/track-utils";
 import { TrackRow } from "@/src/components/view/track-row";
+import { useImageProxy } from "@/src/hooks/use-image-proxy";
 
 export type EraCardTrackState = {
   url: string | null;
@@ -94,6 +95,7 @@ export function EraCard({
   favourites,
   highlightedTrackRef,
 }: EraCardProps) {
+  const { proxyImageSrcSet } = useImageProxy();
   const eraPlayableCount = era.data
     ? Object.values(era.data)
         .flat()
@@ -122,18 +124,27 @@ export function EraCard({
           onClick={() => toggleEra(eraKey)}
         >
           {era.image ? (
-            <img
-              src={era.image}
-              alt={era.name}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
-              style={{
-                background: era.backgroundColor
-                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
-                  : "rgba(255,255,255,0.07)",
-              }}
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-            />
+            (() => {
+              const srcs = proxyImageSrcSet(era.image);
+              return (
+                <picture>
+                  <source type="image/jxl" srcSet={srcs.jxl} />
+                  <source type="image/webp" srcSet={srcs.webp} />
+                  <img
+                    src={srcs.original}
+                    alt={era.name}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
+                    style={{
+                      background: era.backgroundColor
+                        ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                        : "rgba(255,255,255,0.07)",
+                    }}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                  />
+                </picture>
+              );
+            })()
           ) : (
             <div
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex-shrink-0"
