@@ -29,6 +29,19 @@ export function getTrackUrl(track: TALeak): string | null {
   if (track.available_length && isUrl(track.available_length)) return normalizePillowsUrl(track.available_length);
   return null;
 }
+export function getAllTrackUrls(track: TALeak): string[] {
+  const urls: string[] = [];
+  if (track.urls) {
+    for (const u of track.urls) {
+      if (isUrl(u)) urls.push(normalizePillowsUrl(u));
+    }
+  }
+  if (urls.length === 0) {
+    const fallback = getTrackUrl(track);
+    if (fallback) urls.push(fallback);
+  }
+  return urls;
+}
 export function getTrackDescription(track: TALeak): string | null {
   return track.description || track.notes || track.info || null;
 }

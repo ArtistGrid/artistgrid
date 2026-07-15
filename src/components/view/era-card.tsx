@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from "@/components/ui/button";
 import { ChevronDown, MoreHorizontal, Heart, FolderDown } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
-import { getTrackUrl } from "@/src/lib/track-utils";
+import { getAllTrackUrls } from "@/src/lib/track-utils";
 import { TrackRow } from "@/src/components/view/track-row";
 import { useImageProxy } from "@/src/hooks/use-image-proxy";
 
@@ -28,10 +28,7 @@ interface EraCategoryHeaderProps {
 
 function EraCategoryHeader({ cat, tracks, resolvedUrls, onDownload }: EraCategoryHeaderProps) {
   if (cat.toLowerCase() === "default") return null;
-  const hasResolved = tracks.some((t) => {
-    const u = getTrackUrl(t);
-    return u ? !!resolvedUrls.get(u) : false;
-  });
+  const hasResolved = tracks.some((t) => getAllTrackUrls(t).some((u) => !!resolvedUrls.get(u)));
   return (
     <div className="flex items-center justify-between pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
       <h4 className="text-xs sm:text-sm font-semibold text-white/50">{cat}</h4>
@@ -99,10 +96,7 @@ export function EraCard({
   const eraPlayableCount = era.data
     ? Object.values(era.data)
         .flat()
-        .filter((t) => {
-          const url = getTrackUrl(t);
-          return url && resolvedUrls.get(url);
-        }).length
+        .filter((t) => getAllTrackUrls(t).some((u) => !!resolvedUrls.get(u))).length
     : 0;
   return (
     <div

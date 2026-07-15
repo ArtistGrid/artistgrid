@@ -56,6 +56,7 @@ import {
   generateTrackId,
   isUrl,
   getTrackUrl,
+  getAllTrackUrls,
   getTrackDescription,
   encodeTrackForUrl,
   decodeTrackFromUrl,
@@ -185,10 +186,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
         if (!Array.isArray(tracks)) continue;
         const sourceFilterSet = new Set(filters.sourceFilter);
         const filtered = tracks.filter((t) => {
-          const url = getTrackUrl(t);
-          const source = url ? getTrackSource(url) : "unknown";
-          const isSupported = url ? SUPPORTED_SOURCES_SET.has(source) : false;
-          if (filters.showPlayableOnly && !(url && resolvedUrls.get(url)) && !isSupported) return false;
+          const allUrls = getAllTrackUrls(t);
+          const source = allUrls.length ? getTrackSource(allUrls[0]) : "unknown";
+          const isSupported = SUPPORTED_SOURCES_SET.has(source);
+          const hasPlayableLink = allUrls.some((u) => resolvedUrls.get(u));
+          if (filters.showPlayableOnly && !hasPlayableLink && !isSupported) return false;
           if (
             filters.qualityFilter.length > 0 &&
             !filters.qualityFilter.some((q) => (t.quality?.toLowerCase() || "").includes(q.toLowerCase()))
@@ -215,8 +217,14 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
       for (const trackList of Object.values(era.data)) {
         if (!Array.isArray(trackList)) continue;
         for (const track of trackList) {
-          const url = getTrackUrl(track);
-          const playableUrl = url ? resolvedUrls.get(url) : null;
+          const allUrls = getAllTrackUrls(track);
+          let url: string | null = null;
+          let playableUrl: string | null = null;
+          for (const u of allUrls) {
+            const resolved = resolvedUrls.get(u);
+            if (resolved) { url = u; playableUrl = resolved; break; }
+            if (!url) url = u;
+          }
           if (url && playableUrl) tracks.push({ track, era, url, playableUrl });
         }
       }
@@ -236,10 +244,15 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     if (!data || favourites.length === 0) return [];
     return getFavouritedTracks(data, favourites)
       .map(({ track, era }) => {
-        const url = getTrackUrl(track);
-        if (!url) return null;
-        const playableUrl = resolvedUrls.get(url) ?? null;
-        if (!playableUrl) return null;
+        const allUrls = getAllTrackUrls(track);
+        let url: string | null = null;
+        let playableUrl: string | null = null;
+        for (const u of allUrls) {
+          const resolved = resolvedUrls.get(u);
+          if (resolved) { url = u; playableUrl = resolved; break; }
+          if (!url) url = u;
+        }
+        if (!url || !playableUrl) return null;
         return { track, era, url, playableUrl };
       })
       .filter((t): t is NonNullable<typeof t> => t !== null);
@@ -290,10 +303,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
       const trackUrl = pendingTrackUrlRef.current;
       pendingTrackUrlRef.current = null;
       forEachEraTrack(data.eras, (track, era) => {
-        const url = getTrackUrl(track);
-        if (url === trackUrl) {
-          const playableUrl = resolvedUrls.get(url);
-          if (playableUrl) playTrack(createTrackObject(track, era, url, playableUrl));
+        const allUrls = getAllTrackUrls(track);
+        const matched = allUrls.find((u) => u === trackUrl);
+        if (matched) {
+          const playableUrl = resolvedUrls.get(matched);
+          if (playableUrl) playTrack(createTrackObject(track, era, matched, playableUrl));
           return false;
         }
       });
@@ -438,8 +452,9 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
         if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
           const freeUrls: string[] = [];
           forEachEraTrack(json.eras, (t) => {
-            const url = getTrackUrl(t);
-            if (url && !isNetworkSource(getTrackSource(url))) freeUrls.push(url);
+            for (const u of getAllTrackUrls(t)) {
+              if (!isNetworkSource(getTrackSource(u)) && !freeUrls.includes(u)) freeUrls.push(u);
+            }
           });
           if (freeUrls.length > 0) {
             resolveUrls(freeUrls).then((resolved) => mergeAndCache(id, cacheKey, json, resolved));
@@ -647,26 +662,23 @@ const handleLoad = useCallback(() => {
   }, [trackerId, toast]);
   const handlePlayTrack = useCallback(
     async (rawTrack: TALeak, era: Era) => {
-      const url = getTrackUrl(rawTrack);
-      if (!url) return;
-      if (playerState.currentTrack?.url === url) {
-        togglePlayPause();
-        return;
+      const allUrls = getAllTrackUrls(rawTrack);
+      if (allUrls.length === 0) return;
+      const playingUrl = allUrls.find((u) => playerState.currentTrack?.url === u);
+      if (playingUrl) { togglePlayPause(); return; }
+      let resolvedUrl: string | null = null;
+      let chosenUrl: string | null = null;
+      for (const u of allUrls) {
+        const result = await resolvePlayableUrl(u);
+        if (result) { resolvedUrl = result; chosenUrl = u; break; }
       }
-      const playableUrl = await resolvePlayableUrl(url);
-      if (!playableUrl) {
-        handleOpenUrl(url);
-        return;
-      }
-      if (isVideoUrl(playableUrl)) {
-        setVideoUrl(playableUrl);
-        return;
-      }
-      const track = createTrackObject(rawTrack, era, url, playableUrl);
+      if (!resolvedUrl || !chosenUrl) { handleOpenUrl(allUrls[0]); return; }
+      if (isVideoUrl(resolvedUrl)) { setVideoUrl(resolvedUrl); return; }
+      const track = createTrackObject(rawTrack, era, chosenUrl, resolvedUrl);
       clearQueue();
       playTrack(track);
       const queueSource = isFavouritesTab ? favouriteTracks : allPlayableTracks;
-      const currentIdx = queueSource.findIndex((t) => t.url === url);
+      const currentIdx = queueSource.findIndex((t) => t.url === chosenUrl);
       if (currentIdx !== -1) {
         for (const t of queueSource.slice(currentIdx + 1))
           addToQueue(createTrackObject(t.track, t.era, t.url, t.playableUrl));
@@ -687,14 +699,19 @@ const handleLoad = useCallback(() => {
   );
   const handleQueueTrack = useCallback(
     async (rawTrack: TALeak, era: Era, mode: "next" | "queue") => {
-      const url = getTrackUrl(rawTrack);
-      if (!url) return;
-      const playableUrl = await resolvePlayableUrl(url);
-      if (!playableUrl) {
+      const allUrls = getAllTrackUrls(rawTrack);
+      if (allUrls.length === 0) return;
+      let resolvedUrl: string | null = null;
+      let chosenUrl: string | null = null;
+      for (const u of allUrls) {
+        const result = await resolvePlayableUrl(u);
+        if (result) { resolvedUrl = result; chosenUrl = u; break; }
+      }
+      if (!resolvedUrl || !chosenUrl) {
         toast({ title: "Cannot queue", description: "Track is not playable" });
         return;
       }
-      const track = createTrackObject(rawTrack, era, url, playableUrl);
+      const track = createTrackObject(rawTrack, era, chosenUrl, resolvedUrl);
       addToQueue(track);
       toast({ title: mode === "next" ? "Playing next" : "Added to queue", description: track.name });
     },
@@ -710,10 +727,19 @@ const handleLoad = useCallback(() => {
   );
   const handleDownload = useCallback(
     async (rawTrack: TALeak) => {
-      const url = getTrackUrl(rawTrack);
-      if (!url) return;
-      let playableUrl = resolvedUrls.get(url);
-      if (playableUrl === undefined) playableUrl = await resolvePlayableUrl(url);
+      const allUrls = getAllTrackUrls(rawTrack);
+      if (allUrls.length === 0) return;
+      let playableUrl: string | null = null;
+      for (const u of allUrls) {
+        const cached = resolvedUrls.get(u);
+        if (cached) { playableUrl = cached; break; }
+      }
+      if (!playableUrl) {
+        for (const u of allUrls) {
+          const result = await resolvePlayableUrl(u);
+          if (result) { playableUrl = result; break; }
+        }
+      }
       if (!playableUrl) {
         toast({ title: "Cannot download", description: "No playable URL available" });
         return;
@@ -789,15 +815,15 @@ const handleLoad = useCallback(() => {
           const catTracks = era?.data?.[catKey];
           if (Array.isArray(catTracks)) {
             for (const track of catTracks) {
-              const url = getTrackUrl(track);
-              if (url) c.push({ track, era, url });
+              const allUrls = getAllTrackUrls(track);
+              if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
             }
           }
         } else {
           const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
           forEachEraTrack(erasToDownload, (track, era) => {
-            const url = getTrackUrl(track);
-            if (url) c.push({ track, era, url });
+            const allUrls = getAllTrackUrls(track);
+            if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
           });
         }
         return c;
@@ -819,10 +845,11 @@ const handleLoad = useCallback(() => {
       };
       fireProbe();
       setTimeout(fireProbe, 100);
-      const unresolvedUrls = candidates.reduce((acc: string[], c: { url: string }) => {
-        const url = c.url;
-        if (resolvedUrls.get(url) === undefined && isNetworkSource(getTrackSource(url))) {
-          acc.push(url);
+      const unresolvedUrls = candidates.reduce((acc: string[], c: { track: TALeak; url: string }) => {
+        for (const u of getAllTrackUrls(c.track)) {
+          if (resolvedUrls.get(u) === undefined && isNetworkSource(getTrackSource(u)) && !acc.includes(u)) {
+            acc.push(u);
+          }
         }
         return acc;
       }, []);
@@ -833,8 +860,14 @@ const handleLoad = useCallback(() => {
         urlMap = new Map([...resolvedUrls, ...Object.entries(freshlyResolved)]);
       }
       const downloadItems = candidates
-        .map(({ track, era, url }) => ({ track, era, playableUrl: urlMap.get(url) }))
-        .filter((item): item is { track: TALeak; era: Era; playableUrl: string } => !!item.playableUrl);
+        .map(({ track, era }) => {
+          for (const u of getAllTrackUrls(track)) {
+            const playableUrl = urlMap.get(u);
+            if (playableUrl) return { track, era, playableUrl };
+          }
+          return null;
+        })
+        .filter((item): item is { track: TALeak; era: Era; playableUrl: string } => !!item && !!item.playableUrl);
       if (downloadItems.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
@@ -852,14 +885,26 @@ const handleLoad = useCallback(() => {
     [data, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab]
   );
   const computeTrackState = useCallback((track: TALeak) => {
-    const url = getTrackUrl(track);
+    const allUrls = getAllTrackUrls(track);
+    let url: string | null = null;
+    let playableUrl: string | null = null;
+    for (const u of allUrls) {
+      const resolved = resolvedUrls.get(u);
+      if (resolved) { url = u; playableUrl = resolved; break; }
+      if (!url && SUPPORTED_SOURCES_SET.has(getTrackSource(u))) url = u;
+    }
+    if (!url) url = allUrls[0] || null;
+    if (!playableUrl && url) playableUrl = resolvedUrls.get(url) || null;
     const source = url ? getTrackSource(url) : "unknown";
     const isSupported = SUPPORTED_SOURCES_SET.has(source);
-    const resolvedEntry = url ? resolvedUrls.get(url) : undefined;
-    const playableUrl = resolvedEntry || null;
-    const isPlayable = !!playableUrl || (isSupported && resolvedEntry === undefined);
-    const isCurrentlyPlaying = playerState.currentTrack?.url === url && playerState.isPlaying;
-    const isCurrentTrack = playerState.currentTrack?.url === url;
+    const isPlayable =
+      !!playableUrl ||
+      allUrls.some((u) => {
+        const r = resolvedUrls.get(u);
+        return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
+      });
+    const isCurrentlyPlaying = url ? (playerState.currentTrack?.url === url && playerState.isPlaying) : false;
+    const isCurrentTrack = url ? playerState.currentTrack?.url === url : false;
     const isHighlighted = url === highlightedTrackUrl;
     const description = getTrackDescription(track) || undefined;
     const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
@@ -880,7 +925,7 @@ const handleLoad = useCallback(() => {
   const sources = useMemo(() => {
     if (!data?.eras) return [];
     const set = new Set<Track["source"]>();
-    forEachEraTrack(data.eras, (t) => { const url = getTrackUrl(t); if (url) set.add(getTrackSource(url)); });
+    forEachEraTrack(data.eras, (t) => { for (const u of getAllTrackUrls(t)) set.add(getTrackSource(u)); });
     return Array.from(set).sort();
   }, [data]);
   const stats = useMemo(() => {
@@ -893,8 +938,11 @@ const handleLoad = useCallback(() => {
           if (Array.isArray(tracks)) {
             total += tracks.length;
             for (const t of tracks) {
-              const url = getTrackUrl(t);
-              if (url && resolvedUrls.get(url)) playable++;
+              const allUrls = getAllTrackUrls(t);
+              if (allUrls.some((u) => {
+                const r = resolvedUrls.get(u);
+                return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
+              })) playable++;
             }
           }
         }
