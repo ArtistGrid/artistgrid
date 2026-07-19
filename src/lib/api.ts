@@ -1,5 +1,5 @@
 import type { Era, EraDate, TALeak, TrackerResponse } from "@/src/types";
-import { isUrl } from "./track-utils";
+import { isUrl, generateTrackId } from "./track-utils";
 
 const API_BASE = "https://trackerapi.artistgrid.cx";
 
@@ -141,6 +141,7 @@ function adaptV3Track(v3Track: V3Track): TALeak {
     url: links[0],
     urls: links,
     image: v3Track.image,
+    id: links[0] ? generateTrackId(links[0]) : generateTrackId(v3Track.name.title || v3Track.name.raw || Math.random().toString()),
     ...(v3Track.art_used !== undefined ? { art_used: v3Track.art_used } : {}),
   };
 }

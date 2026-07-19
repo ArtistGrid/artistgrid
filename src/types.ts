@@ -46,6 +46,7 @@ export interface Era {
 export interface TALeak {
   name: string;
   extra?: string;
+  id?: string;
   description?: string;
   track_length?: string;
   leak_date?: string;

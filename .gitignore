@@ -30,3 +30,4 @@ next-env.d.ts
 .zed
 
 dist
+coverage

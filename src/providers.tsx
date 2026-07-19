@@ -3,9 +3,18 @@ import SparkMD5 from "spark-md5";
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
+import { logError } from "@/src/lib/logger";
 import { proxyImageUrl } from "@/src/lib/image-proxy";
 import { stripEmojis } from "@/lib/utils";
-type RepeatMode = "off" | "one" | "all";
+import {
+  addToQueue as addTrackToQueue,
+  removeFromQueue as removeTrackFromQueue,
+  clearQueue as emptyQueue,
+  reorderQueue as reorderTrackQueue,
+  cycleRepeatMode,
+  toggleShuffleState,
+} from "@/src/lib/player-queue";
+import type { RepeatMode } from "@/src/lib/player-queue";
 
 interface PlayerState {
   currentTrack: Track | null;
@@ -168,17 +177,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ listen_type: "single", payload: [listen] }),
       });
     } catch (e) {
-      console.error("Failed to scrobble to ListenBrainz:", e);
+      logError("Failed to scrobble to ListenBrainz:", e);
     }
   }, [getScrobbleArtist]);
   const scrobbleTrack = useCallback(
     async (track: Track) => {
       if (hasScrobbledRef.current) return;
       hasScrobbledRef.current = true;
-      if (lastfmSession?.key) {
+      const settings = loadSettings();
+      if (settings.scrobbling.lastfm.enabled && lastfmSession?.key) {
         try {
           const artist = getScrobbleArtist(track);
-          const settings = loadSettings();
           const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
           const params: Record<string, string> = {
             artist,
@@ -188,7 +197,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (track.eraName) params.album = track.eraName;
           await makeLastFMRequest("track.scrobble", params, true);
         } catch (e) {
-          console.error("Failed to scrobble:", e);
+          logError("Failed to scrobble:", e);
         }
       }
       await scrobbleListenBrainz(track);
@@ -197,16 +206,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
   const updateNowPlaying = useCallback(
     async (track: Track) => {
-      if (!lastfmSession?.key) return;
+      const settings = loadSettings();
+      if (!settings.scrobbling.lastfm.enabled || !lastfmSession?.key) return;
       try {
         const artist = getScrobbleArtist(track);
-        const settings = loadSettings();
         const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
         const params: Record<string, string> = { artist, track: trackName };
         if (track.eraName) params.album = track.eraName;
         await makeLastFMRequest("track.updateNowPlaying", params, true);
       } catch (e) {
-        console.error("Failed to update now playing:", e);
+        logError("Failed to update now playing:", e);
       }
     },
     [lastfmSession, makeLastFMRequest, getScrobbleArtist]
@@ -327,7 +336,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("waiting", () => setState((s) => ({ ...s, isBuffering: true })), opts);
     audio.addEventListener("canplay", () => setState((s) => ({ ...s, isBuffering: false })), opts);
     audio.addEventListener("error", (e) => {
-      console.error("Audio error:", e);
+      logError("Audio error:", e);
       setState((s) => ({ ...s, isBuffering: false }));
     }, opts);
     audio.addEventListener("ended", () => {
@@ -450,26 +459,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const clampedTime = Math.max(seekableStart, Math.min(time, seekableEnd));
       if (Math.abs(audio.currentTime - clampedTime) > 0.1) audio.currentTime = clampedTime;
     } catch (error) {
-      console.error("Seek failed:", error);
+      logError("Seek failed:", error);
     }
   }, []);
   const setVolume = useCallback((volume: number) => {
     if (audioRef.current) audioRef.current.volume = volume;
     setState((s) => ({ ...s, volume }));
   }, []);
-  const addToQueue = useCallback((track: Track) => setState((s) => ({ ...s, queue: [...s.queue, track] })), []);
+  const addToQueue = useCallback((track: Track) => setState((s) => ({ ...s, queue: addTrackToQueue(s.queue, track) })), []);
   const removeFromQueue = useCallback(
-    (index: number) => setState((s) => ({ ...s, queue: s.queue.filter((_, i) => i !== index) })),
+    (index: number) => setState((s) => ({ ...s, queue: removeTrackFromQueue(s.queue, index) })),
     []
   );
-  const clearQueue = useCallback(() => setState((s) => ({ ...s, queue: [] })), []);
+  const clearQueue = useCallback(() => setState((s) => ({ ...s, queue: emptyQueue() })), []);
   const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
-    setState((s) => {
-      const newQueue = [...s.queue];
-      const [removed] = newQueue.splice(fromIndex, 1);
-      newQueue.splice(toIndex, 0, removed);
-      return { ...s, queue: newQueue };
-    });
+    setState((s) => ({ ...s, queue: reorderTrackQueue(s.queue, fromIndex, toIndex) }));
   }, []);
   const playFromQueue = useCallback(
     (index: number) => {
@@ -488,25 +492,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const toggleShuffle = useCallback(() => {
-    setState((s) => {
-      const newShuffled = !s.isShuffled;
-      if (newShuffled && s.queue.length > 1) {
-        const shuffled = [...s.queue];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return { ...s, isShuffled: true, queue: shuffled };
-      }
-      return { ...s, isShuffled: newShuffled };
-    });
+    setState((s) => ({ ...s, ...toggleShuffleState({ queue: s.queue, isShuffled: s.isShuffled }) }));
   }, []);
   const toggleRepeat = useCallback(() => {
-    setState((s) => {
-      const modes: RepeatMode[] = ["off", "all", "one"];
-      const next = modes[(modes.indexOf(s.repeatMode) + 1) % modes.length];
-      return { ...s, repeatMode: next };
-    });
+    setState((s) => ({ ...s, repeatMode: cycleRepeatMode(s.repeatMode) }));
   }, []);
   const closePlayer = useCallback(() => {
     if (audioRef.current) {

@@ -1,4 +1,5 @@
 import type { Track } from "@/src/types";
+import { logError } from "./logger";
 const KRAKENFILES_API = "https://info.artistgrid.cx/kf/?id=";
 const IMGUR_API = "https://imgur.gg/api/file/";
 const QOBUZ_API = "https://qobuz.squid.wtf/api/download-music";
@@ -70,7 +71,12 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
               })
             );
             return resolvedUrl;
-          } catch {
+          } catch (error) {
+            console.error(
+              `pixeldrain resolution failed for ${downloadMatch[1]}:`,
+              error,
+              (error as AggregateError)?.errors
+            );
             return null;
           }
         }
@@ -126,7 +132,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
         return null;
     }
   } catch (error) {
-    console.error(`Error resolving ${source} URL:`, error);
+    logError(`Error resolving ${source} URL:`, error);
     return null;
   }
 }

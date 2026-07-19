@@ -101,7 +101,7 @@ export function ArtGallery({
                       const ownImageSrc = item.image || urlAsImage;
                        const displaySrc = ownImageSrc || era.image || null;
                       const clickTarget = ownImageSrc || null;
-                       const stableKey = item.url ? `${cat}-${item.url}` : item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
+                       const stableKey = item.id ? `${cat}-${item.id}` : item.url ? `${cat}-${item.url}` : item.name ? `${cat}-${item.name}` : `${cat}-${i}`;
                       const proxied = displaySrc ? proxyImageSrcSet(displaySrc) : null;
                       const cardContent = (
                         <>

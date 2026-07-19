@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
 import { loadSettings } from "@/src/lib/settings";
+import { logError } from "@/src/lib/logger";
 import { stripEmojis } from "@/lib/utils";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
@@ -123,7 +124,7 @@ async function downloadFileAsBlob(
     const contentType = response.headers.get("content-type") || "";
     return { blob, contentType };
   } catch (error) {
-    console.error("Download error:", error);
+    logError("Download error:", error);
     return null;
   }
 }
@@ -285,7 +286,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               artist: item.artistName,
             }, format);
           } catch (e) {
-            console.error("Metadata embedding failed for batch download:", e);
+            logError("Metadata embedding failed for batch download:", e);
           }
         }
         const formatExtMap: Record<string, string> = { mp3: "mp3", opus: "opus", ogg: "ogg", flac: "flac", wav: "wav" };
@@ -305,7 +306,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         markItemFailed(item);
       }
     } catch (error) {
-      console.error("Download failed:", error);
+      logError("Download failed:", error);
       markItemFailed(item);
     }
     activeDownloadsRef.current--;
@@ -405,7 +406,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             zipDataRef.current!.delete(job.id);
             creatingZipsRef.current!.delete(job.id);
           } catch (error) {
-            console.error("ZIP creation failed:", error);
+            logError("ZIP creation failed:", error);
             setJobs((prev) =>
               prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
             );

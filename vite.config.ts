@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "auto",
       manifest: {
         name: "ArtistGrid",
         short_name: "ArtistGrid",
@@ -38,6 +39,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globIgnores: ["coverage/**"],
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/trackerapi\.artistgrid\.cx\//,
@@ -61,6 +65,15 @@ export default defineConfig({
             options: {
               cacheName: "artist-images",
               expiration: { maxEntries: 1000, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: ({ request, url }) =>
+              request.mode === "navigate" && !url.pathname.startsWith("/coverage"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "app-shell",
+              expiration: { maxEntries: 10 },
             },
           },
         ],

@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Play, Pause, Radio, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
-import type { Era, TALeak, TrackSource } from "@/src/types";
+import type { Era, TALeak, Track, TrackSource } from "@/src/types";
 import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, TrackItemActions } from "@/src/components/view/track-item";
 
 export interface FlatTrackCardProps {
@@ -22,9 +22,9 @@ export interface FlatTrackCardProps {
   handleDownload: (t: TALeak) => void;
   handleAddToQueue: (t: TALeak, era: Era) => void;
   favourites: string[];
-  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => any;
+  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => Track;
   clearQueue: () => void;
-  playTrack: (t: any) => void;
+  playTrack: (t: Track) => void;
 }
 
 export function FlatTrackCard({ t, fakeEra, url, source, isPlayable, isCurrentlyPlaying, description, shouldShowSource, playableUrl, handlePlayTrack, handleOpenUrl, handleToggleFavourite, handleOpenOriginal, handleDownload, handleAddToQueue, favourites, createTrackObject, clearQueue, playTrack }: FlatTrackCardProps) {
@@ -93,9 +93,9 @@ export interface FlatTrackListProps {
   handleDownload: (t: TALeak) => void;
   favourites: string[];
   highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
-  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => any;
+  createTrackObject: (t: TALeak, era: Era, url: string, playableUrl: string) => Track;
   clearQueue: () => void;
-  playTrack: (t: any) => void;
+  playTrack: (t: Track) => void;
 }
 
 export function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, handleAddToQueue, handleOpenUrl, handleOpenOriginal, handleToggleFavourite, handleDownload, favourites, highlightedTrackRef, createTrackObject, clearQueue, playTrack }: FlatTrackListProps) {
@@ -118,7 +118,7 @@ export function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, hand
               key={virtualRow.key}
               ref={(node) => {
                 virtualizer.measureElement(node);
-                if (isHighlighted) (highlightedTrackRef as any).current = node;
+                if (isHighlighted) highlightedTrackRef.current = node;
               }}
               data-index={virtualRow.index}
               style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
