@@ -124,7 +124,10 @@ function buildTabMeta(v3: { name: string; tab: V3Tab; tabs: V3Tab[] }): Pick<Tra
 }
 
 function adaptV3Track(v3Track: V3Track): TALeak {
-  const links = (v3Track.links ?? []).map((l) => l.url).filter(isUrl);
+  const links: string[] = [];
+  for (const l of v3Track.links ?? []) {
+    if (isUrl(l.url)) links.push(l.url);
+  }
   return {
     name: v3Track.name.title || v3Track.name.raw,
     extra: v3Track.name.credits?.length ? v3Track.name.credits.join(", ") : undefined,

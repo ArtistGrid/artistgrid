@@ -235,7 +235,7 @@ export function EraCard({
                     <div className="space-y-1.5 sm:space-y-2">
                       {(tracks as TALeak[]).map((track, i) => (
                         <TrackRow
-                          key={`${eraKey}-${cat}-${track.name || i}`}
+                          key={`${eraKey}-${cat}-${track.url || track.name || i}`}
                           track={track}
                           era={era}
                           computeTrackState={computeTrackState}

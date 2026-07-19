@@ -15,7 +15,7 @@ describe("loadSettings", () => {
     const partial = JSON.stringify({
       lyrics: { syncedOnly: true },
     });
-    localStorage.setItem("artistgrid-settings", partial);
+    localStorage.setItem("artistgrid-settings:v1", partial);
     const settings = loadSettings();
     expect(settings.lyrics.syncedOnly).toBe(true);
     expect(settings.lyrics.alignment).toBe(DEFAULT_SETTINGS.lyrics.alignment);
@@ -23,7 +23,7 @@ describe("loadSettings", () => {
   });
 
   it("returns defaults for invalid JSON", () => {
-    localStorage.setItem("artistgrid-settings", "bad-json");
+    localStorage.setItem("artistgrid-settings:v1", "bad-json");
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 });
@@ -36,7 +36,7 @@ describe("saveSettings", () => {
   it("persists settings to localStorage", () => {
     const settings = { ...DEFAULT_SETTINGS, lyrics: { ...DEFAULT_SETTINGS.lyrics, syncedOnly: true } };
     saveSettings(settings);
-    const stored = JSON.parse(localStorage.getItem("artistgrid-settings")!);
+    const stored = JSON.parse(localStorage.getItem("artistgrid-settings:v1")!);
     expect(stored.lyrics.syncedOnly).toBe(true);
   });
 });

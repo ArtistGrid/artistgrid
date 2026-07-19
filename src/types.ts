@@ -8,6 +8,8 @@ export type TrackSource =
   | "soundcloud"
   | "youtube"
   | "googledrive"
+  | "yetracker"
+  | "qobuz"
   | "unknown";
 export interface Track {
   id: string;

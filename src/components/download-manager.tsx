@@ -245,13 +245,11 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const activeDownloadsRef = useRef(0);
   const downloadQueueRef = useRef<DownloadQueueItem[]>([]);
-  const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>> | null>(null);
-  if (!zipDataRef.current) zipDataRef.current = new Map();
+  const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>>>(new Map());
   const processQueueRef = useRef<() => void>(() => {});
-  const creatingZipsRef = useRef<Set<string> | null>(null);
-  if (!creatingZipsRef.current) creatingZipsRef.current = new Set();
-  const downloadUrlsRef = useRef<Map<string, string> | null>(null);
-  if (!downloadUrlsRef.current) downloadUrlsRef.current = new Map();
+  const creatingZipsRef = useRef<Set<string>>(new Set());
+  const downloadUrlsRef = useRef<Map<string, string>>(new Map());
+  const zipTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const markItemFailed = useCallback((item: DownloadQueueItem) => {
     setJobs((prev) =>
       prev.map((job) => {
@@ -321,9 +319,11 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       downloadSingleItem(item);
     }
   }, [downloadSingleItem]);
-  processQueueRef.current = processQueue;
   useEffect(() => {
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    processQueueRef.current = processQueue;
+  }, [processQueue]);
+  useEffect(() => {
+    let cancelled = false;
     const checkAndCreateZips = async () => {
       const readyJobs = jobs.filter((job) => {
         if (job.status !== "active" || creatingZipsRef.current!.has(job.id)) return false;
@@ -383,6 +383,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               const downloadUrl = URL.createObjectURL(content);
               if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
               const t1 = setTimeout(() => {
+                if (cancelled) return;
                 const link = document.createElement("a");
                 link.href = downloadUrl;
                 link.download = zipName;
@@ -390,9 +391,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
                 document.body.appendChild(link);
                 link.click();
                 const t2 = setTimeout(() => document.body.removeChild(link), 100);
-                timeouts.push(t2);
+                zipTimersRef.current.push(t2);
               }, i * 600);
-              timeouts.push(t1);
+              zipTimersRef.current.push(t1);
             }
             setJobs((prev) =>
               prev.map((j) =>
@@ -414,7 +415,11 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       );
     };
     checkAndCreateZips();
-    return () => timeouts.forEach(clearTimeout);
+    return () => {
+      cancelled = true;
+      zipTimersRef.current.forEach(clearTimeout);
+      zipTimersRef.current = [];
+    };
   }, [jobs]);
   useEffect(() => {
     const ref = downloadUrlsRef;

@@ -1412,7 +1412,7 @@ const handleLoad = useCallback(() => {
                       const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t.track);
                       return (
                         <div
-                          key={`fav-${t.track.name || i}`}
+                          key={`fav-${t.url}`}
                           ref={isHighlighted ? highlightedTrackRef : null}
                           className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                         >
@@ -1551,7 +1551,7 @@ const handleLoad = useCallback(() => {
               ) : (
                 <div className="space-y-1.5 sm:space-y-2">
                   {flatTracks.map((t, i) => {
-                    const flatKey = `flat-${t.name || i}`;
+                    const flatKey = `flat-${t.url || t.name || i}`;
                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
                     const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
                     return (

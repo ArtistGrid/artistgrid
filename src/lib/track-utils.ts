@@ -83,6 +83,8 @@ export function getSourceDisplayName(source: Track["source"]): string {
     soundcloud: "SoundCloud",
     youtube: "YouTube",
     googledrive: "Google Drive",
+    yetracker: "YeTracker",
+    qobuz: "Qobuz",
     unknown: "Unknown",
   };
   return names[source];

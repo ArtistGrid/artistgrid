@@ -17,23 +17,26 @@ export function DraggablePanel({
     y: window.innerHeight - 260,
   }));
   const posRef = useRef(pos);
-  posRef.current = pos;
+  useEffect(() => {
+    posRef.current = pos;
+  }, [pos]);
 
   const onMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
   const onMouseUpRef = useRef<() => void>(() => {});
 
-  onMouseMoveRef.current = useCallback((e: MouseEvent) => {
-    if (!dragState.current) return;
-    const dx = e.clientX - dragState.current.startX;
-    const dy = e.clientY - dragState.current.startY;
-    setPos({
-      x: Math.max(0, Math.min(window.innerWidth - 320, dragState.current.origX + dx)),
-      y: Math.max(0, Math.min(window.innerHeight - 220, dragState.current.origY + dy)),
-    });
-  }, []);
-
-  onMouseUpRef.current = useCallback(() => {
-    dragState.current = null;
+  useEffect(() => {
+    onMouseMoveRef.current = (e: MouseEvent) => {
+      if (!dragState.current) return;
+      const dx = e.clientX - dragState.current.startX;
+      const dy = e.clientY - dragState.current.startY;
+      setPos({
+        x: Math.max(0, Math.min(window.innerWidth - 320, dragState.current.origX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 220, dragState.current.origY + dy)),
+      });
+    };
+    onMouseUpRef.current = () => {
+      dragState.current = null;
+    };
   }, []);
 
   useEffect(() => {

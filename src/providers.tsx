@@ -65,6 +65,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isBuffering: false,
     };
   });
+  const stateRef = useRef<PlayerState | null>(null);
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [history, setHistory] = useState<Track[]>([]);
   const historyRef = useRef<Track[]>([]);
   useEffect(() => { historyRef.current = history; }, [history]);
@@ -219,22 +221,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearScrobbleTimer, scrobbleTrack]
   );
   const playNext = useCallback(() => {
-    setState((s) => {
-      if (s.queue.length === 0) return s;
-      const [next, ...rest] = s.queue;
-      if (audioRef.current && next.playableUrl) {
-        clearScrobbleTimer();
-        hasScrobbledRef.current = false;
-        currentTrackRef.current = next;
-        audioRef.current.src = next.playableUrl;
-        audioRef.current.play().catch(console.error);
-        setHistory((h) => [...h, next]);
-        if (lastfmSession?.key) updateNowPlaying(next);
-        updateMediaSession(next, true);
-        return { ...s, currentTrack: next, queue: rest, isPlaying: true };
-      }
-      return s;
-    });
+    const queue = queueRef.current;
+    if (queue.length === 0) return;
+    const [next, ...rest] = queue;
+    if (audioRef.current && next.playableUrl) {
+      clearScrobbleTimer();
+      hasScrobbledRef.current = false;
+      currentTrackRef.current = next;
+      audioRef.current.src = next.playableUrl;
+      audioRef.current.play().catch(console.error);
+      setHistory((h) => [...h, next]);
+      if (lastfmSession?.key) updateNowPlaying(next);
+      updateMediaSession(next, true);
+      setState((s) => ({ ...s, currentTrack: next, queue: rest, isPlaying: true }));
+    }
   }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
   const playPrevious = useCallback(() => {
     const h = historyRef.current;
@@ -332,64 +332,63 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, opts);
     audio.addEventListener("ended", () => {
       clearScrobbleTimer();
-      setState((s) => {
-        if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
-          audio.currentTime = 0;
-          audio.play().catch(console.error);
-          return { ...s, isPlaying: true };
-        }
-        if (s.queue.length > 0) {
-          const [next, ...rest] = s.queue;
-          if (audio && next.playableUrl) {
-            const prefetched = prefetchRef.current;
-            if (prefetched && prefetched.src === next.playableUrl) {
-              audio.src = next.playableUrl;
-              audio.play().catch(console.error);
-              prefetchRef.current = null;
-            } else {
-              audio.src = next.playableUrl;
-              audio.play().catch(console.error);
-            }
-            setHistory((h) => [...h, next]);
-            currentTrackRef.current = next;
-            prefetchNext(rest);
-            if (lastfmSession?.key) updateNowPlaying(next);
-            updateMediaSession(next, true);
-            const settings = loadSettings();
-            if (settings.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
-              const artist = next.artistName || next.eraName || "Unknown";
-              new Notification(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
-            }
-            try {
-              const raw = localStorage.getItem("artistgrid-history:v1");
-              const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
-              hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
-              if (hist.length > 200) hist.splice(0, hist.length - 200);
-              localStorage.setItem("artistgrid-history:v1", JSON.stringify(hist));
-            } catch {}
-            return { ...s, currentTrack: next, queue: rest, isPlaying: true };
+      const s = stateRef.current;
+      if (!s) return;
+      if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
+        audio.currentTime = 0;
+        audio.play().catch(console.error);
+        setState((prev) => ({ ...prev, isPlaying: true }));
+        return;
+      }
+      if (s.queue.length > 0) {
+        const [next, ...rest] = s.queue;
+        if (audio && next.playableUrl) {
+          const prefetched = prefetchRef.current;
+          if (prefetched && prefetched.src === next.playableUrl) {
+            audio.src = next.playableUrl;
+            audio.play().catch(console.error);
+            prefetchRef.current = null;
+          } else {
+            audio.src = next.playableUrl;
+            audio.play().catch(console.error);
           }
+          setHistory((h) => [...h, next]);
+          currentTrackRef.current = next;
+          prefetchNext(rest);
+          if (lastfmSession?.key) updateNowPlaying(next);
+          updateMediaSession(next, true);
+          const settings = loadSettings();
+          if (settings.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
+            const artist = next.artistName || next.eraName || "Unknown";
+            new Notification(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
+          }
+          try {
+            const raw = localStorage.getItem("artistgrid-history:v1");
+            const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+            hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
+            if (hist.length > 200) hist.splice(0, hist.length - 200);
+            localStorage.setItem("artistgrid-history:v1", JSON.stringify(hist));
+          } catch {}
+          setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
+          return;
         }
-        if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
-          audio.currentTime = 0;
-          audio.play().catch(console.error);
-          return { ...s, isPlaying: true };
-        }
-        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
-        return { ...s, isPlaying: false };
-      });
+      }
+      if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
+        audio.currentTime = 0;
+        audio.play().catch(console.error);
+        setState((prev) => ({ ...prev, isPlaying: true }));
+        return;
+      }
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
+      setState((prev) => ({ ...prev, isPlaying: false }));
     }, opts);
     audio.addEventListener("play", () => {
-      setState((s) => {
-        if (s.currentTrack) updateMediaSession(s.currentTrack, true);
-        return { ...s, isPlaying: true };
-      });
+      if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, true);
+      setState((prev) => ({ ...prev, isPlaying: true }));
     }, opts);
     audio.addEventListener("pause", () => {
-      setState((s) => {
-        if (s.currentTrack) updateMediaSession(s.currentTrack, false);
-        return { ...s, isPlaying: false };
-      });
+      if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, false);
+      setState((prev) => ({ ...prev, isPlaying: false }));
       clearScrobbleTimer();
     }, opts);
     return () => controller.abort();
@@ -474,19 +473,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
   const playFromQueue = useCallback(
     (index: number) => {
-      setState((s) => {
-        if (index >= s.queue.length) return s;
-        const track = s.queue[index];
-        const newQueue = s.queue.slice(index + 1);
-        if (audioRef.current && track.playableUrl) {
-          beginPlayback(track);
-          prefetchNext(newQueue);
-          if (lastfmSession?.key) updateNowPlaying(track);
-          updateMediaSession(track, true);
-          return { ...s, currentTrack: track, queue: newQueue, isPlaying: true };
-        }
-        return s;
-      });
+      const queue = queueRef.current;
+      if (index >= queue.length) return;
+      const track = queue[index];
+      const newQueue = queue.slice(index + 1);
+      if (audioRef.current && track.playableUrl) {
+        beginPlayback(track);
+        prefetchNext(newQueue);
+        if (lastfmSession?.key) updateNowPlaying(track);
+        updateMediaSession(track, true);
+        setState((s) => ({ ...s, currentTrack: track, queue: newQueue, isPlaying: true }));
+      }
     },
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
   );

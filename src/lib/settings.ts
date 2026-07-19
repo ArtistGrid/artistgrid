@@ -21,6 +21,7 @@ export interface Settings {
   };
   scrobbling: {
     lastfm: {
+      enabled: boolean;
       customServer: boolean;
       apiUrl: string;
       apiKey: string;
@@ -53,6 +54,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloads: {
     useOgFilename: false,
     embedMetadata: false,
+    format: "original",
+    tagPreset: "default",
   },
   player: {
     miniPlayer: true,
@@ -62,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   scrobbling: {
     lastfm: {
+      enabled: false,
       customServer: false,
       apiUrl: "",
       apiKey: "",
@@ -85,7 +89,7 @@ export const DEFAULT_SETTINGS: Settings = {
   font: "IBM Plex Sans",
 };
 
-const STORAGE_KEY = "artistgrid-settings";
+const STORAGE_KEY = "artistgrid-settings:v1";
 
 export function loadSettings(): Settings {
   try {
