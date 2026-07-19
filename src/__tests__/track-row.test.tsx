@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { TrackRow } from "@/src/components/view/track-row";
 import type { TALeak, Era, TrackSource } from "@/src/types";
 
@@ -91,5 +92,53 @@ describe("TrackRow", () => {
   it("renders favourite state when favourited", () => {
     render(<TrackRow {...makeProps({ favourites: ["https://x.com/a"] })} />);
     expect(screen.getByLabelText("Remove from favourites")).toBeInTheDocument();
+  });
+
+  it("opens the actions menu and triggers share / play next / add to queue / download", async () => {
+    const handleShareTrack = vi.fn();
+    const handlePlayNext = vi.fn();
+    const handleAddToQueue = vi.fn();
+    const handleDownload = vi.fn();
+    const { rerender } = render(
+      <TrackRow
+        {...makeProps({ handleShareTrack, handlePlayNext, handleAddToQueue, handleDownload })}
+      />
+    );
+    const reopen = () =>
+      userEvent.click(screen.getByLabelText("Track actions"));
+
+    await reopen();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Share Track/i }));
+    await reopen();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Play Next/i }));
+    await reopen();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Add to Queue/i }));
+    await reopen();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Download/i }));
+    rerender(
+      <TrackRow
+        {...makeProps({ handleShareTrack, handlePlayNext, handleAddToQueue, handleDownload })}
+      />
+    );
+    expect(handleShareTrack).toHaveBeenCalledWith("https://x.com/a", "Song");
+    expect(handlePlayNext).toHaveBeenCalledWith(track, era);
+    expect(handleAddToQueue).toHaveBeenCalledWith(track, era);
+    expect(handleDownload).toHaveBeenCalledWith(track);
+  });
+
+  it("opens original and toggles favourite from the menu", async () => {
+    const handleOpenOriginal = vi.fn();
+    const handleToggleFavourite = vi.fn();
+    render(
+      <TrackRow
+        {...makeProps({ handleOpenOriginal, handleToggleFavourite })}
+      />
+    );
+    await userEvent.click(screen.getByLabelText("Track actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Open Original URL/i }));
+    await userEvent.click(screen.getByLabelText("Track actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Favourite/i }));
+    expect(handleOpenOriginal).toHaveBeenCalledWith(track);
+    expect(handleToggleFavourite).toHaveBeenCalledWith("https://x.com/a");
   });
 });

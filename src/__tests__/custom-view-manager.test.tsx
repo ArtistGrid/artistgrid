@@ -62,4 +62,37 @@ describe("CustomViewManager", () => {
     await userEvent.click(screen.getByText("View1"));
     expect(onSelect).toHaveBeenCalledWith(views[0]);
   });
+
+  it("edits an existing view name and tabs", async () => {
+    const setCustomViews = vi.fn();
+    const views: CustomView[] = [{ id: "1", name: "View1", tabs: ["Tab A"] }];
+    render(<CustomViewManager {...makeProps({ customViews: views, setCustomViews, activeCustomView: views[0] })} />);
+    await userEvent.click(screen.getByLabelText("Edit view picker"));
+    fireEvent.click(screen.getByLabelText("Edit View1"));
+    fireEvent.change(screen.getByPlaceholderText("View name..."), { target: { value: "Renamed" } });
+    fireEvent.click(screen.getByText("Tab B"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(setCustomViews).toHaveBeenCalled();
+    const saved = JSON.parse(localStorage.getItem("artistgrid-custom-views_tid")!);
+    expect(saved[0].name).toBe("Renamed");
+    expect(saved[0].tabs).toContain("Tab B");
+  });
+
+  it("deletes an existing view", async () => {
+    const setCustomViews = vi.fn();
+    const views: CustomView[] = [{ id: "1", name: "View1", tabs: ["Tab A"] }];
+    render(<CustomViewManager {...makeProps({ customViews: views, setCustomViews, activeCustomView: views[0] })} />);
+    await userEvent.click(screen.getByLabelText("Edit view picker"));
+    fireEvent.click(screen.getByLabelText("Delete View1"));
+    expect(setCustomViews).toHaveBeenCalledWith([]);
+  });
+
+  it("toggles a tab off in the create editor", () => {
+    render(<CustomViewManager {...makeProps()} />);
+    fireEvent.click(screen.getByText("Create Custom View"));
+    fireEvent.click(screen.getByText("Tab A"));
+    fireEvent.click(screen.getByText("Tab A"));
+    expect(screen.getByText("Create")).toBeDisabled();
+    expect(localStorage.getItem("artistgrid-custom-views_tid")).toBeNull();
+  });
 });

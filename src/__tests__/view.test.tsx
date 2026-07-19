@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import TrackerViewPage from "@/src/pages/View";
 import { PlayerProvider } from "@/src/providers";
@@ -67,5 +67,43 @@ describe("TrackerViewPage", () => {
     await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Era1"));
     await waitFor(() => expect(screen.getByText("T1")).toBeInTheDocument());
+  });
+
+  it("shows the loading skeleton before data arrives", async () => {
+    let resolveFetch: (v: unknown) => void = () => {};
+    globalThis.fetch = vi.fn().mockReturnValue(
+      new Promise((res) => {
+        resolveFetch = res;
+      })
+    ) as unknown as typeof fetch;
+    render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
+    expect(screen.getByText(/Loading tracker data/i)).toBeInTheDocument();
+    await act(async () => {
+      resolveFetch({
+        ok: true,
+        status: 200,
+        json: async () => V3,
+        text: async () => JSON.stringify(V3),
+        clone: () => ({ ok: true, status: 200, text: async () => JSON.stringify(V3) }),
+      });
+    });
+    await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
+  });
+
+  it("shows an error state when the fetch fails", async () => {
+    mockFetch({ error: "boom" }, false);
+    render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
+    await waitFor(() => expect(screen.getByText(/Unable to Load Tracker/i)).toBeInTheDocument(), { timeout: 2000 });
+  });
+
+  it("filters tracks by the search query", async () => {
+    render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
+    await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Era1"));
+    await waitFor(() => expect(screen.getByText("T1")).toBeInTheDocument());
+    fireEvent.change(screen.getByPlaceholderText("Search tracks..."), { target: { value: "zzzznotfound" } });
+    expect((screen.getByPlaceholderText("Search tracks...") as HTMLInputElement).value).toBe("zzzznotfound");
+    fireEvent.change(screen.getByPlaceholderText("Search tracks..."), { target: { value: "T1" } });
+    expect((screen.getByPlaceholderText("Search tracks...") as HTMLInputElement).value).toBe("T1");
   });
 });
