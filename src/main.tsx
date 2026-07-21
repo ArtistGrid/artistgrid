@@ -22,6 +22,8 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "The operation is insecure",
   "__firefox__",
   "window.ethereum",
+  "SCDynimacBridge",
+  "contentScriptData",
   "NotReadableError",
   "AbortError",
   "signal is aborted",
@@ -55,7 +57,7 @@ Sentry.init({
   dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
   tracesSampleRate: 0.01,
   beforeSend(event) {
-    const value = event.exception?.values?.[0]?.value ?? "";
+    const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
     const type = event.exception?.values?.[0]?.type ?? "";
     if (shouldDropError(value, type)) {
       return null;

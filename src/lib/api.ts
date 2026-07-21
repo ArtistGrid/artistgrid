@@ -92,7 +92,7 @@ interface V3Tab {
   slug: string;
   gid: string;
 }
-export interface V3EraDate {
+interface V3EraDate {
   date: string;
   event: string;
   era: string;

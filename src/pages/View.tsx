@@ -634,8 +634,6 @@ const handleLoad = useCallback(() => {
           const link = document.createElement("a");
           link.href = blobUrl;
           link.download = filename;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -649,8 +647,6 @@ const handleLoad = useCallback(() => {
       const link = document.createElement("a");
       link.href = playableUrl;
       link.download = filename;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

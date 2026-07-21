@@ -1,5 +1,5 @@
-export type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
-export type TagPreset = "default" | "minimal" | "full";
+type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
+type TagPreset = "default" | "minimal" | "full";
 
 export interface Settings {
   lyrics: {
