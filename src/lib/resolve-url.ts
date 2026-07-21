@@ -112,7 +112,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       }
       case "soundcloud": {
         const path = extractSoundcloudPath(normalized);
-        return path ? `https://sc.maid.zone/_/restream/${path}` : null;
+        return path ? `https://sc.monochrome.tf/_/restream/${path}` : null;
       }
       case "qobuz": {
         const id = extractQobuzId(normalized);
@@ -139,7 +139,7 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
 export function transformUrlForOpening(url: string): string {
   if (url.includes("soundcloud.com/")) {
     const path = extractSoundcloudPath(url);
-    if (path) return `https://sc.maid.zone/${path}`;
+    if (path) return `https://sc.monochrome.tf/${path}`;
   }
   return url;
 }

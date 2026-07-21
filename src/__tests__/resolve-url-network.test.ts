@@ -55,7 +55,7 @@ describe("resolvePlayableUrl network sources", () => {
 
   it("resolves soundcloud restream", async () => {
     const r = await resolvePlayableUrl("https://soundcloud.com/artist/track-name");
-    expect(r).toBe("https://sc.maid.zone/_/restream/artist/track-name");
+    expect(r).toBe("https://sc.monochrome.tf/_/restream/artist/track-name");
   });
 
   it("resolves googledrive", async () => {
