@@ -678,7 +678,7 @@ const handleLoad = useCallback(() => {
             }
           }
         } else {
-          const erasToDownload = eraKey ? { [eraKey]: data.eras[eraKey] } : data.eras;
+          const erasToDownload = eraKey ? { [eraKey]: (filteredData ?? data.eras)[eraKey] ?? data.eras[eraKey] } : (filteredData ?? data.eras);
           forEachEraTrack(erasToDownload, (track, era) => {
             const allUrls = getAllTrackUrls(track);
             if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
@@ -740,7 +740,7 @@ const handleLoad = useCallback(() => {
         items: downloadItems,
       });
     },
-    [data, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab]
+    [data, filteredData, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab]
   );
   const computeTrackState = useCallback((track: TALeak) => {
     const allUrls = getAllTrackUrls(track);

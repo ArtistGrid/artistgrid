@@ -324,7 +324,6 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     processQueueRef.current = processQueue;
   }, [processQueue]);
   useEffect(() => {
-    const controller = new AbortController();
     const checkAndCreateZips = async () => {
       const readyJobs = jobs.filter((job) => {
         if (job.status !== "active" || creatingZipsRef.current!.has(job.id)) return false;
@@ -332,92 +331,86 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       });
       if (readyJobs.length === 0) return;
       const JSZip = (await import("jszip")).default;
-      await Promise.all(
-        readyJobs.map(async (job) => {
-          if (controller.signal.aborted) return;
-          const jobData = zipDataRef.current!.get(job.id);
-          if (!jobData || jobData.size === 0) {
-            setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
-            return;
+      for (const job of readyJobs) {
+        const jobData = zipDataRef.current!.get(job.id);
+        if (!jobData || jobData.size === 0) {
+          setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
+          continue;
+        }
+        creatingZipsRef.current!.add(job.id);
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
+        try {
+          type ChunkEntry = { item: DownloadItem; fileData: { blob: Blob; ext: string } };
+          const chunks: ChunkEntry[][] = [[]];
+          let chunkBytes = 0;
+          for (const item of job.items) {
+            if (item.status !== "completed") continue;
+            const fileData = jobData.get(item.id);
+            if (!fileData) continue;
+            if (chunkBytes + fileData.blob.size > ZIP_CHUNK_SIZE && chunks[chunks.length - 1].length > 0) {
+              chunks.push([]);
+              chunkBytes = 0;
+            }
+            chunks[chunks.length - 1].push({ item, fileData });
+            chunkBytes += fileData.blob.size;
           }
-          creatingZipsRef.current!.add(job.id);
-          setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
-          try {
-            type ChunkEntry = { item: DownloadItem; fileData: { blob: Blob; ext: string } };
-            const chunks: ChunkEntry[][] = [[]];
-            let chunkBytes = 0;
-            for (const item of job.items) {
-              if (item.status !== "completed") continue;
-              const fileData = jobData.get(item.id);
-              if (!fileData) continue;
-              if (chunkBytes + fileData.blob.size > ZIP_CHUNK_SIZE && chunks[chunks.length - 1].length > 0) {
-                chunks.push([]);
-                chunkBytes = 0;
-              }
-              chunks[chunks.length - 1].push({ item, fileData });
-              chunkBytes += fileData.blob.size;
-            }
-            const filled = chunks.filter((c) => c.length > 0);
-            if (filled.length === 0) {
-              setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j)));
-              creatingZipsRef.current!.delete(job.id);
-              return;
-            }
-            const baseName = job.eraName
-              ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}`
-              : `${sanitizeFilename(job.artistName)} Tracker`;
-            let firstContent: Blob | undefined;
-            for (let i = 0; i < filled.length; i++) {
-              if (controller.signal.aborted) return;
-              const zip = new JSZip();
-              for (const { item, fileData } of filled[i]) {
-                zip.file(
-                  `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
-                  fileData.blob
-                );
-              }
-              const content = await zip.generateAsync({
-                type: "blob",
-                compression: "DEFLATE",
-                compressionOptions: { level: 6 },
-              });
-              if (i === 0) firstContent = content;
-              const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
-              const downloadUrl = URL.createObjectURL(content);
-              if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
-              const link = document.createElement("a");
-              link.href = downloadUrl;
-              link.download = zipName;
-              link.style.display = "none";
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }
-            setJobs((prev) =>
-              prev.map((j) =>
-                j.id === job.id
-                  ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current!.get(job.id) }
-                  : j
-              )
-            );
-            zipDataRef.current!.delete(job.id);
+          const filled = chunks.filter((c) => c.length > 0);
+          if (filled.length === 0) {
+            setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j)));
             creatingZipsRef.current!.delete(job.id);
-          } catch (error) {
-            logError("ZIP creation failed:", error);
-            setJobs((prev) =>
-              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
-            );
-            creatingZipsRef.current!.delete(job.id);
+            continue;
           }
-        })
-      );
+          const baseName = job.eraName
+            ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}`
+            : `${sanitizeFilename(job.artistName)} Tracker`;
+          let firstContent: Blob | undefined;
+          for (let i = 0; i < filled.length; i++) {
+            const zip = new JSZip();
+            for (const { item, fileData } of filled[i]) {
+              zip.file(
+                `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
+                fileData.blob
+              );
+            }
+            const content = await zip.generateAsync({
+              type: "blob",
+              compression: "DEFLATE",
+              compressionOptions: { level: 6 },
+            });
+            if (i === 0) firstContent = content;
+            const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
+            const downloadUrl = URL.createObjectURL(content);
+            if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
+            const link = document.createElement("a");
+            link.href = downloadUrl;
+            link.download = zipName;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            if (i < filled.length - 1) {
+              await new Promise((r) => setTimeout(r, 1000));
+            }
+          }
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current!.get(job.id) }
+                : j
+            )
+          );
+          zipDataRef.current!.delete(job.id);
+          creatingZipsRef.current!.delete(job.id);
+        } catch (error) {
+          logError("ZIP creation failed:", error);
+          setJobs((prev) =>
+            prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+          );
+          creatingZipsRef.current!.delete(job.id);
+        }
+      }
     };
     checkAndCreateZips();
-    return () => {
-      controller.abort();
-      zipTimersRef.current.forEach(clearTimeout);
-      zipTimersRef.current = [];
-    };
   }, [jobs]);
   useEffect(() => {
     const ref = downloadUrlsRef;
