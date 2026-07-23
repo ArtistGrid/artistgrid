@@ -4,6 +4,7 @@ import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
+import { safeSetItem } from "@/src/lib/storage";
 import { proxyImageUrl } from "@/src/lib/image-proxy";
 import { stripEmojis } from "@/lib/utils";
 import {
@@ -88,6 +89,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
+  const lastfmSessionRef = useRef(lastfmSession);
+  lastfmSessionRef.current = lastfmSession;
   const scrobbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrobbledRef = useRef(false);
   const currentTrackRef = useRef<Track | null>(null);
@@ -229,6 +232,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [clearScrobbleTimer, scrobbleTrack]
   );
+  const scheduleScrobbleRef = useRef(scheduleScrobble);
+  scheduleScrobbleRef.current = scheduleScrobble;
   const playNext = useCallback(() => {
     const queue = queueRef.current;
     if (queue.length === 0) return;
@@ -329,8 +334,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("loadedmetadata", () => {
       const duration = audioRef.current?.duration || 0;
       setState((s) => ({ ...s, duration, isBuffering: false }));
-      if (currentTrackRef.current && lastfmSession?.key && duration > 30) {
-        scheduleScrobble(currentTrackRef.current, duration);
+      if (currentTrackRef.current && lastfmSessionRef.current?.key && duration > 30) {
+        scheduleScrobbleRef.current(currentTrackRef.current, duration);
       }
     }, opts);
     audio.addEventListener("waiting", () => setState((s) => ({ ...s, isBuffering: true })), opts);
@@ -376,7 +381,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
             hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
             if (hist.length > 200) hist.splice(0, hist.length - 200);
-            localStorage.setItem("artistgrid-history:v1", JSON.stringify(hist));
+            safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
           } catch {}
           setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
           return;
@@ -439,7 +444,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const history: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
         history.push({ name: track.name, artist: track.artistName || track.eraName || "", time: Date.now() });
         if (history.length > 200) history.splice(0, history.length - 200);
-        localStorage.setItem("artistgrid-history:v1", JSON.stringify(history));
+        safeSetItem("artistgrid-history:v1", JSON.stringify(history));
       } catch {}
     },
     [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
@@ -529,7 +534,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (data.session) {
         const session = { key: data.session.key, name: data.session.name };
         setLastfmSession(session);
-        localStorage.setItem("lastfm-session:v1", JSON.stringify(session));
+        safeSetItem("lastfm-session:v1", JSON.stringify(session));
         return { success: true, username: data.session.name };
       }
       throw new Error("No session returned");

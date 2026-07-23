@@ -64,12 +64,12 @@ describe("SettingsModal (thorough)", () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Scrobbling");
     const switches = screen.getAllByRole("switch");
-    fireEvent.click(switches[0]); // lastfm enabled
+    fireEvent.click(switches[0]); // lastfm enabled (default on -> off)
     fireEvent.click(switches[1]); // custom server -> reveals fields
     expect(loadSettings().scrobbling.lastfm.customServer).toBe(true);
     expect(screen.getByPlaceholderText("Your Last.fm API key")).toBeInTheDocument();
-    fireEvent.click(switches[2]); // listenbrainz enabled
-    expect(loadSettings().scrobbling.listenbrainz.enabled).toBe(true);
+    fireEvent.click(switches[2]); // listenbrainz enabled (default on -> off)
+    expect(loadSettings().scrobbling.listenbrainz.enabled).toBe(false);
   });
 
   it("toggles behavior switches and updates custom font", async () => {

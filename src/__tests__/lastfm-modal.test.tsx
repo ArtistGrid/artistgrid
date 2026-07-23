@@ -32,13 +32,18 @@ describe("LastFMModal", () => {
 
   it("connects and opens popup", async () => {
     const setToken = vi.fn();
-    const popup = { location: { href: "" }, close: vi.fn() };
-    vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    const mockOpen = vi.fn((url: string, target: string, features: string) => {
+      return {
+        location: { href: url },
+        close: vi.fn(),
+      };
+    });
+    vi.spyOn(window, "open").mockImplementation(mockOpen);
     const lastfm = baseLastfm({ getAuthUrl: vi.fn().mockResolvedValue({ token: "t1", url: "https://lastfm/auth" }) });
     render(<LastFMModal isOpen onClose={() => {}} lastfm={lastfm} token={null} setToken={setToken} />);
     fireEvent.click(screen.getByText("Connect Last.fm"));
     await waitFor(() => expect(setToken).toHaveBeenCalledWith("t1"));
-    expect(popup.location.href).toBe("https://lastfm/auth");
+    expect(mockOpen).toHaveBeenCalledWith("https://lastfm/auth", "_blank", "noopener,noreferrer,width=800,height=600");
   });
 
   it("shows username when authenticated", () => {

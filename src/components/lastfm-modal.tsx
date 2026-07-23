@@ -16,14 +16,14 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
   const { toast } = useToast();
   const handleConnect = async () => {
     setIsLoading(true);
-    const popup = window.open("", "_blank", "noopener,noreferrer,width=800,height=600");
     try {
       const { token: newToken, url } = await lastfm.getAuthUrl();
       setToken(newToken);
-      if (popup) popup.location.href = url;
-      else window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
+      const popup = window.open(url, "_blank", "noopener,noreferrer,width=800,height=600");
+      if (!popup) {
+        toast({ title: "Popup blocked", description: "Please allow popups for this site and try again" });
+      }
     } catch {
-      if (popup) popup.close();
     } finally {
       setIsLoading(false);
     }

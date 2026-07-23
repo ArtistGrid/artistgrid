@@ -25,6 +25,7 @@ import {
   trackEvent,
 } from "@/src/lib/home-constants";
 import { useLocalStorage } from "@/src/hooks/use-local-storage";
+import { safeSetItem } from "@/src/lib/storage";
 import { useSettings } from "@/src/hooks/use-settings";
 import { GallerySkeleton } from "@/src/components/home/skeletons";
 import { ErrorMessage, NoResultsMessage } from "@/src/components/home/messages";
@@ -87,15 +88,15 @@ export default function ArtistGallery() {
 
   useEffect(() => {
     if (settings.behavior.rememberSearch) {
-      localStorage.setItem("artistgrid-search", searchQuery);
+      safeSetItem("artistgrid-search", searchQuery);
     }
   }, [searchQuery, settings.behavior.rememberSearch]);
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
-    localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
+    safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
   }, []);
   const handleAnnouncementDonate = useCallback(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
+    safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
     setActiveModal("donate");
   }, []);
   useEffect(() => {

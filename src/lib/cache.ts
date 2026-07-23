@@ -1,3 +1,5 @@
+import { safeSetItem } from "@/src/lib/storage";
+
 export interface CacheData<T> {
   data: T;
   timestamp: number;
@@ -16,9 +18,5 @@ export function isCacheExpired<T>(cache: CacheData<T> | null, expiry: number): b
   return Date.now() - cache.timestamp > expiry;
 }
 export function setCachedData<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
-  } catch (e) {
-    console.warn("Cache write failed:", e);
-  }
+  safeSetItem(key, JSON.stringify({ data, timestamp: Date.now() }));
 }

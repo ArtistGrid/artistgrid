@@ -1,3 +1,5 @@
+import { safeSetItem } from "@/src/lib/storage";
+
 type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
 type TagPreset = "default" | "minimal" | "full";
 
@@ -65,14 +67,14 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   scrobbling: {
     lastfm: {
-      enabled: false,
+      enabled: true,
       customServer: false,
       apiUrl: "",
       apiKey: "",
       apiSecret: "",
     },
     listenbrainz: {
-      enabled: false,
+      enabled: true,
       token: "",
       apiUrl: "https://api.listenbrainz.org",
     },
@@ -113,7 +115,5 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(settings: Settings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
+  safeSetItem(STORAGE_KEY, JSON.stringify(settings));
 }
