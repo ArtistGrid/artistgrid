@@ -1,5 +1,5 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
-import SparkMD5 from "spark-md5";
+
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
@@ -118,12 +118,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [getScrobbleArtist]
   );
-  const generateSignature = useCallback((params: Record<string, string>, secret: string): string => {
+  const generateSignature = useCallback(async (params: Record<string, string>, secret: string): Promise<string> => {
     const filteredParams = { ...params };
     delete filteredParams.format;
     delete filteredParams.callback;
     const sortedKeys = Object.keys(filteredParams).sort();
     const signatureString = sortedKeys.map((key) => `${key}${filteredParams[key]}`).join("") + secret;
+    const { default: SparkMD5 } = await import("spark-md5");
     return SparkMD5.hash(signatureString);
   }, []);
   const getLastFmConfig = useCallback(() => {
@@ -139,7 +140,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const cfg = getLastFmConfig();
       const requestParams: Record<string, string> = { method, api_key: cfg.key, ...params };
       if (requiresAuth && lastfmSession?.key) requestParams.sk = lastfmSession.key;
-      const signature = generateSignature(requestParams, cfg.secret);
+      const signature = await generateSignature(requestParams, cfg.secret);
       const formData = new URLSearchParams({ ...requestParams, api_sig: signature, format: "json" });
       const response = await fetch(cfg.url, {
         method: "POST",

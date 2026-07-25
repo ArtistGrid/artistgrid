@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
-import Fuse from "fuse.js";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
 import type { Artist, ArtistFilterOptions } from "@/src/types";
@@ -23,6 +22,7 @@ import {
   CUSTOM_REDIRECTS,
   SUFFIXES_TO_STRIP,
   trackEvent,
+  ASSET_BASE,
 } from "@/src/lib/home-constants";
 import { useLocalStorage } from "@/src/hooks/use-local-storage";
 import { safeSetItem } from "@/src/lib/storage";
@@ -33,7 +33,9 @@ import { ArtistGridDisplay } from "@/src/components/home/artist-card";
 import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/components/home/header";
 import { Footer } from "@/src/components/home/footer";
 import { useHeaderSlots } from "@/src/components/layout";
-import { AnnouncementModal, DonationModal, InfoModal } from "@/src/components/home/modals";
+const LazyAnnouncementModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.AnnouncementModal })));
+const LazyDonationModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.DonationModal })));
+const LazyInfoModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.InfoModal })));
 import { TRIPLE_BOOL_YES } from "@/lib/utils";
 import { Dice6 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,18 @@ export default function ArtistGallery() {
     DEFAULT_FILTER_OPTIONS
   );
   const deferredQuery = useDeferredValue(searchQuery.trim());
+  const [fuseModule, setFuseModule] = useState<typeof import("fuse.js").default | null>(null);
+  useEffect(() => {
+    if (!fuseModule && deferredQuery) {
+      let cancelled = false;
+      import("fuse.js").then((m) => {
+        if (!cancelled) setFuseModule(m.default);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [deferredQuery, fuseModule]);
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef("");
   const hasCachedData = useRef(false);
@@ -118,7 +132,7 @@ export default function ArtistGallery() {
       }
       if (!isCacheExpired(cached, HOME_CACHE_EXPIRY) && cached?.data?.length) return;
       try {
-        const response = await fetch(ARTISTS_CSV, { signal: controller.signal, cache: "no-store" });
+        const response = await fetch(ARTISTS_CSV, { signal: controller.signal });
         if (!response.ok) throw new Error(`Status ${response.status}`);
         const text = await response.text();
         const rows = text.split("\n");
@@ -176,6 +190,28 @@ export default function ArtistGallery() {
     loadVisitorCount();
     return () => controller.abort();
   }, []);
+
+  // Warm the browser cache for the first row of artist images as soon as the
+  // directory is known. The LCP element is the first card image; preloading it
+  // lets the download overlap with the rest of app boot instead of waiting for
+  // React to render the grid.
+  const preloadedRef = useRef(false);
+  useEffect(() => {
+    if (allArtists.length === 0 || preloadedRef.current) return;
+    preloadedRef.current = true;
+    const preloadCount = Math.min(allArtists.length, 6);
+    for (let i = 0; i < preloadCount; i++) {
+      const artist = allArtists[i];
+      const href = `${ASSET_BASE}/webp/${artist.imageFilename}`;
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = href;
+      link.crossOrigin = "anonymous";
+      if (i === 0) link.fetchPriority = "high";
+      document.head.appendChild(link);
+    }
+  }, [allArtists]);
   const sortedArtists = allArtists;
   const handleFilterChange = useCallback(
     (key: keyof ArtistFilterOptions, value: boolean) => {
@@ -196,11 +232,15 @@ export default function ArtistGallery() {
     [sortedArtists, filterOptions]
   );
   const fuse = useMemo(
-    () => new Fuse(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true }),
-    [artistsPassingFilters]
+    () =>
+      fuseModule
+        ? new fuseModule(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true })
+        : null,
+    [artistsPassingFilters, fuseModule]
   );
   const filteredArtists = useMemo(() => {
     if (!deferredQuery) return artistsPassingFilters;
+    if (!fuse) return artistsPassingFilters;
     return fuse.search(deferredQuery).map((r) => r.item);
   }, [artistsPassingFilters, fuse, deferredQuery]);
   const handleArtistClick = useCallback(
@@ -286,19 +326,21 @@ export default function ArtistGallery() {
   return (
     <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-32" : "pb-8"}`}>
       {headerSlots}
-      <AnnouncementModal
-        isOpen={activeModal === "announcement"}
-        onClose={handleDismissAnnouncement}
-        message={ANNOUNCEMENT_MESSAGE}
-        onDonate={handleAnnouncementDonate}
-      />
-      <DonationModal key={String(activeModal === "donate")} isOpen={activeModal === "donate"} onClose={closeModal} />
-      <InfoModal
-        isOpen={activeModal === "info"}
-        onClose={closeModal}
-        visitorCount={visitorCount}
-        onDonate={openDonationModal}
-      />
+      <Suspense fallback={null}>
+        <LazyAnnouncementModal
+          isOpen={activeModal === "announcement"}
+          onClose={handleDismissAnnouncement}
+          message={ANNOUNCEMENT_MESSAGE}
+          onDonate={handleAnnouncementDonate}
+        />
+        <LazyDonationModal key={String(activeModal === "donate")} isOpen={activeModal === "donate"} onClose={closeModal} />
+        <LazyInfoModal
+          isOpen={activeModal === "info"}
+          onClose={closeModal}
+          visitorCount={visitorCount}
+          onDonate={openDonationModal}
+        />
+      </Suspense>
       {isFirstLoad ? (
         <main className="max-w-7xl mx-auto p-4 sm:p-6">
           <GallerySkeleton />

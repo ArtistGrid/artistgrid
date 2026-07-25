@@ -27,13 +27,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const font = settings.font?.trim() || "IBM Plex Sans";
 
     const encodedFont = encodeURIComponent(font);
-    const url = `https://api.fonts.coollabs.io/css2?family=${encodedFont}:wght@400;500;600;700&display=swap`;
+    const selfHosted = ["ibm plex sans", "ibm plex mono"].includes(font.toLowerCase());
 
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = url;
-    document.head.appendChild(link);
-    fontLinkRef.current = link;
+    if (!selfHosted) {
+      const url = `https://api.fonts.coollabs.io/css2?family=${encodedFont}:wght@400;500;600;700&display=swap`;
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = url;
+      document.head.appendChild(link);
+      fontLinkRef.current = link;
+    }
 
     document.documentElement.style.setProperty(
       "--font-family",

@@ -67,8 +67,16 @@ import {
 } from "@/src/lib/track-utils";
 import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
-import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
-import { LastFMModal } from "@/src/components/lastfm-modal";
+import { lazy } from "react";
+const ArtGallery = lazy(() =>
+  import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery }))
+);
+const ImageLightbox = lazy(() =>
+  import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox }))
+);
+const LastFMModal = lazy(() =>
+  import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal }))
+);
 import { YouTubePlayer } from "@/src/components/youtube-player";
 import { FloatingVideoPlayer } from "@/src/components/floating-video-player";
 import { useSettings } from "@/src/hooks/use-settings";
@@ -810,20 +818,20 @@ const handleLoad = useCallback(() => {
   }, [data, resolvedUrls, favourites.length]);
   const headerSlots = useHeaderSlots(
     <div className="relative flex-1 min-w-0">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/55 pointer-events-none" />
       <Input
         type="text"
         placeholder="Tracker ID..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleLoad()}
-        className="glass-flat rounded-xl w-full pl-9 pr-8 h-10 sm:h-11 text-sm text-white placeholder:text-white/25 border-0 focus-visible:ring-1 focus-visible:ring-white/30"
+        className="glass-flat rounded-xl w-full pl-9 pr-8 h-10 sm:h-11 text-sm text-white placeholder:text-white/50 border-0 focus-visible:ring-1 focus-visible:ring-white/30"
       />
       {inputValue && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-white/30 hover:text-white hover:bg-transparent"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-white/55 hover:text-white hover:bg-transparent"
           onClick={() => setInputValue("")}
           aria-label="Clear input"
         >
@@ -919,22 +927,24 @@ const handleLoad = useCallback(() => {
       {headerSlots}
       {youtubeUrl && <YouTubePlayer url={youtubeUrl} onClose={() => setYoutubeUrl(null)} />}
       {videoUrl && <FloatingVideoPlayer url={videoUrl} onClose={() => setVideoUrl(null)} />}
-      <LastFMModal
-        isOpen={lastfmModalOpen}
-        onClose={() => setLastfmModalOpen(false)}
-        lastfm={lastfm}
-        token={lastfmToken}
-        setToken={setLastfmToken}
-      />
-      {lightboxImage && (
-        <ImageLightbox
-          src={lightboxImage.src}
-          alt={lightboxImage.alt}
-          originalUrl={lightboxImage.originalUrl}
-          description={lightboxImage.description}
-          onClose={() => setLightboxImage(null)}
+      <Suspense fallback={null}>
+        <LastFMModal
+          isOpen={lastfmModalOpen}
+          onClose={() => setLastfmModalOpen(false)}
+          lastfm={lastfm}
+          token={lastfmToken}
+          setToken={setLastfmToken}
         />
-      )}
+        {lightboxImage && (
+          <ImageLightbox
+            src={lightboxImage.src}
+            alt={lightboxImage.alt}
+            originalUrl={lightboxImage.originalUrl}
+            description={lightboxImage.description}
+            onClose={() => setLightboxImage(null)}
+          />
+        )}
+      </Suspense>
       {downloadConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <button
@@ -997,7 +1007,7 @@ const handleLoad = useCallback(() => {
             <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">
               Enter a Tracker ID to get started
             </h2>
-            <p className="text-sm sm:text-base text-white/30">Tracker IDs are exactly 44 characters long</p>
+            <p className="text-sm sm:text-base text-white/55">Tracker IDs are exactly 44 characters long</p>
           </div>
         )}
         {status === "loading" && (
@@ -1008,7 +1018,7 @@ const handleLoad = useCallback(() => {
             transition={{ duration: 0.3 }}
           >
             <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 text-white/40 text-sm">
+              <div className="inline-flex items-center gap-2 text-white/55 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Loading tracker data...</span>
               </div>
@@ -1044,7 +1054,7 @@ const handleLoad = useCallback(() => {
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
                 {data?.credits && (
-                  <p className="text-xs text-white/30 mt-0.5">
+                  <p className="text-xs text-white/55 mt-0.5">
                     by {data.credits}
                     {data.discord && (
                       <a
@@ -1052,7 +1062,7 @@ const handleLoad = useCallback(() => {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Discord"
-                        className="inline-flex items-center ml-1.5 text-white/30 hover:text-white/60 transition-colors align-middle"
+                        className="inline-flex items-center ml-1.5 text-white/55 hover:text-white/60 transition-colors align-middle"
                         title="Discord"
                       >
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
@@ -1068,7 +1078,7 @@ const handleLoad = useCallback(() => {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Discord"
-                    className="inline-flex items-center text-xs text-white/30 hover:text-white/60 transition-colors mt-0.5"
+                    className="inline-flex items-center text-xs text-white/55 hover:text-white/60 transition-colors mt-0.5"
                     title="Discord"
                   >
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 mr-1">
@@ -1078,7 +1088,7 @@ const handleLoad = useCallback(() => {
                   </a>
                 )}
                 {data?.lastUpdated && (
-                  <p className="text-xs text-white/20 mt-0.5">
+                  <p className="text-xs text-white/50 mt-0.5">
                     Last updated {formatRelativeTime(data.lastUpdated)}
                   </p>
                 )}
@@ -1106,7 +1116,7 @@ const handleLoad = useCallback(() => {
                     className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 flex items-center gap-1.5 ${
                       currentTab === tab
                         ? "bg-white text-black"
-                        : "glass-flat text-white/40 hover:text-white"
+                        : "glass-flat text-white/55 hover:text-white"
                     }`}
                   >
                     {tab === "Favourites" && <Heart className={`w-3 h-3 ${favourites.length > 0 ? "fill-current" : ""}`} />}
@@ -1119,26 +1129,26 @@ const handleLoad = useCallback(() => {
             {!isArtTab && (
               <div className="flex flex-col gap-3 mb-4 sm:mb-6">
                 <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/55" />
                   <Input
                     type="text"
                     placeholder="Search tracks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="glass-flat rounded-xl text-white pl-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/25"
+                    className="glass-flat rounded-xl text-white pl-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/50"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     {isPreloading ? (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-white/40">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-white/55">
                         <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 animate-spin" />
                         <span>
                           {resolveProgress.current}/{resolveProgress.total}
                         </span>
                       </div>
                     ) : resolvedUrls.size > 0 ? (
-                      <span className="text-xs sm:text-sm text-white/30">
+                      <span className="text-xs sm:text-sm text-white/55">
                         {stats.playable}/{stats.total} playable
                         {stats.favourites > 0 && <span className="ml-2 text-red-400/70">• {stats.favourites} favourited</span>}
                       </span>
@@ -1159,7 +1169,7 @@ const handleLoad = useCallback(() => {
                       align="end"
                       className="w-64 max-h-96 overflow-y-auto glass-elevated border-0 rounded-2xl text-white/80 p-1"
                     >
-                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Filters</DropdownMenuLabel>
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Filters</DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
                        <DropdownMenuCheckboxItem
                          checked={filters.showPlayableOnly}
@@ -1169,7 +1179,7 @@ const handleLoad = useCallback(() => {
                         Show playable only
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Quality</DropdownMenuLabel>
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Quality</DropdownMenuLabel>
                        <DropdownMenuCheckboxItem
                          checked={filters.qualityFilter.length === 0}
                          onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, qualityFilter: [] }))}
@@ -1195,7 +1205,7 @@ const handleLoad = useCallback(() => {
                         </DropdownMenuCheckboxItem>
                       ))}
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                      <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Source</DropdownMenuLabel>
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Source</DropdownMenuLabel>
                        <DropdownMenuCheckboxItem
                          checked={filters.sourceFilter.length === 0}
                          onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, sourceFilter: [] }))}
@@ -1235,7 +1245,7 @@ const handleLoad = useCallback(() => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                  <Loader2 className="w-6 h-6 animate-spin text-white/55" />
                 </motion.div>
               ) : isFavouritesTab ? (
               <motion.div
@@ -1247,17 +1257,17 @@ const handleLoad = useCallback(() => {
               >
                 {favourites.length > 0 && (
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-white/40">{favourites.length} favourite{favourites.length !== 1 ? "s" : ""}</span>
+                    <span className="text-sm text-white/55">{favourites.length} favourite{favourites.length !== 1 ? "s" : ""}</span>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" onClick={() => {
                         if (favouriteTracks.length === 0) return;
                         const candidates = favouriteTracks.map(({ track, era, url }) => ({ track, era, url }));
                         downloadTracker(undefined, undefined, candidates);
-                      }} disabled={isPreloading || favouriteTracks.length === 0} className="text-white/30 hover:text-white">
+                      }} disabled={isPreloading || favouriteTracks.length === 0} className="text-white/55 hover:text-white">
                         <FolderDown className="w-3.5 h-3.5 mr-1.5" />
                         Download
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={handleClearFavourites} className="text-white/30 hover:text-red-400">
+                      <Button variant="ghost" size="sm" onClick={handleClearFavourites} className="text-white/55 hover:text-red-400">
                         <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                         Clear All
                       </Button>
@@ -1357,7 +1367,7 @@ const handleLoad = useCallback(() => {
               >
                 <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/70 mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-medium text-white/60">Failed to load this tab</h3>
-                <p className="text-sm sm:text-base text-white/30 mt-1">Try selecting another tab</p>
+                <p className="text-sm sm:text-base text-white/55 mt-1">Try selecting another tab</p>
               </motion.div>
             ) : tabEmpty ? (
               <motion.div
@@ -1380,7 +1390,9 @@ const handleLoad = useCallback(() => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+                <Suspense fallback={null}>
+                  <ArtGallery eras={filteredData} onImageClick={handleArtImageClick} />
+                </Suspense>
               </motion.div>
             ) : isFlat && filteredData ? (
               <motion.div

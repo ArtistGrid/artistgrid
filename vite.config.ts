@@ -3,12 +3,32 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
+    {
+      name: "non-blocking-main-css",
+      transformIndexHtml(html) {
+        if (command !== "build") return html;
+        return html.replace(
+          /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/,
+          `<link rel="preload" as="style" crossorigin href="$1" onload="this.rel='stylesheet'">\n    <noscript><link rel="stylesheet" crossorigin href="$1"></noscript>`
+        );
+      },
+    },
+    {
+      name: "priority-vendor-preload",
+      transformIndexHtml(html) {
+        if (command !== "build") return html;
+        return html.replace(
+          /<link rel="modulepreload" crossorigin href="(\/assets\/react-vendor-[^"]+\.js)">/,
+          `<link rel="modulepreload" crossorigin fetchpriority="high" href="$1">`
+        );
+      },
+    },
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: "auto",
+      injectRegister: false,
       manifest: {
         name: "ArtistGrid",
         short_name: "ArtistGrid",
@@ -86,10 +106,11 @@ export default defineConfig({
     },
   },
   build: {
+    sourcemap: command === "build",
     rollupOptions: {
       output: {
         manualChunks: {
-          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "react-vendor": ["react", "react-dom", "react-dom/client", "react-router-dom"],
           "radix-vendor": [
             "@radix-ui/react-dropdown-menu",
             "@radix-ui/react-progress",
@@ -101,4 +122,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

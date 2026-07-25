@@ -80,8 +80,15 @@ export function setCache(
 export function clearCache(trackerId?: string, tab?: string): void {
   if (trackerId) {
     memCache.delete(key(trackerId, tab));
+    idbPending.delete(key(trackerId, tab));
   } else {
     memCache.clear();
+    idbPending.clear();
   }
-  idbClear().catch(() => {});
+  persistToIDB();
 }
+
+// Kick off the IndexedDB load as early as possible so the in-memory cache is
+// populated before the first synchronous read (otherwise the very first
+// getCache call always misses and falls through to a network fetch).
+void loadFromIDB();

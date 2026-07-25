@@ -38,6 +38,7 @@ interface DownloadQueueItem {
   trackName: string;
   artistName: string;
   eraName: string;
+  retryCount: number;
 }
 interface DownloadContextType {
   jobs: DownloadJob[];
@@ -101,7 +102,14 @@ async function downloadFileAsBlob(
   contentType: string;
 } | null> {
   try {
-    const response = await fetch(url);
+    // Abort a stalled request so a single hung connection can't pin the item in
+    // the "downloading" state forever (which would block the whole job from
+    // ever completing or failing). The abort surfaces as an error below, which
+    // routes the item through the retry/fail path.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!response.ok) return null;
     const contentLength = response.headers.get("content-length");
     const total = contentLength ? parseInt(contentLength, 10) : 0;
@@ -113,12 +121,19 @@ async function downloadFileAsBlob(
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let loaded = 0;
+    let lastReported = -1;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
       loaded += value.length;
-      if (onProgress && total) onProgress(loaded, total);
+      if (onProgress && total) {
+        const pct = Math.floor((loaded / total) * 100);
+        if (pct !== lastReported) {
+          lastReported = pct;
+          onProgress(loaded, total);
+        }
+      }
     }
     const blob = new Blob(chunks as BlobPart[]);
     const contentType = response.headers.get("content-type") || "";
@@ -251,21 +266,17 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const creatingZipsRef = useRef<Set<string>>(new Set());
   const downloadUrlsRef = useRef<Map<string, string>>(new Map());
   const zipTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const markItemFailed = useCallback((item: DownloadQueueItem) => {
-    setJobs((prev) =>
-      prev.map((job) => {
-        if (job.id !== item.jobId) return job;
-        const newItems = job.items.map((i) => {
-          if (i.id !== item.itemId) return i;
-          if (i.retryCount < MAX_RETRY_ATTEMPTS) {
-            downloadQueueRef.current.push(item);
-            return { ...i, retryCount: i.retryCount + 1, status: "pending" as const };
-          }
-          return { ...i, status: "failed" as const };
-        });
-        return { ...job, items: newItems, failedCount: newItems.filter((i) => i.status === "failed").length };
-      })
-    );
+  const retryOrFail = useCallback((item: DownloadQueueItem) => {
+    // Push to the queue synchronously (never inside a setState updater) so the
+    // queue drains on the next processQueue() call. Driving retries off the
+    // queue item's own counter keeps the decision independent of batched state.
+    if (item.retryCount < MAX_RETRY_ATTEMPTS) {
+      item.retryCount += 1;
+      downloadQueueRef.current.push(item);
+      setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "pending", retryCount: item.retryCount }));
+    } else {
+      setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "failed" }));
+    }
   }, []);
   const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
     setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "downloading", progress: 0 }));
@@ -290,7 +301,10 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           }
         }
         const formatExtMap: Record<string, string> = { mp3: "mp3", opus: "opus", ogg: "ogg", flac: "flac", wav: "wav" };
-        const ext = format !== "original" && formatExtMap[format] ? formatExtMap[format] : getFileExtension(item.playableUrl, result.contentType);
+        const ext =
+          s.downloads.embedMetadata && format !== "original" && formatExtMap[format]
+            ? formatExtMap[format]
+            : getFileExtension(item.playableUrl, result.contentType);
         if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
         zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: finalBlob, ext });
         setJobs((prev) =>
@@ -303,15 +317,15 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           })
         );
       } else {
-        markItemFailed(item);
+        retryOrFail(item);
       }
     } catch (error) {
       logError("Download failed:", error);
-      markItemFailed(item);
+      retryOrFail(item);
     }
     activeDownloadsRef.current--;
     processQueueRef.current();
-  }, [markItemFailed]);
+  }, [retryOrFail]);
   const processQueue = useCallback(() => {
     while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
       const item = downloadQueueRef.current.shift();
@@ -363,10 +377,10 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           const baseName = job.eraName
             ? `${sanitizeFilename(job.artistName)} - ${sanitizeFilename(job.eraName)}`
             : `${sanitizeFilename(job.artistName)} Tracker`;
-          let firstContent: Blob | undefined;
           for (let i = 0; i < filled.length; i++) {
+            const chunkItems = filled[i];
             const zip = new JSZip();
-            for (const { item, fileData } of filled[i]) {
+            for (const { item, fileData } of chunkItems) {
               zip.file(
                 `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
                 fileData.blob
@@ -376,8 +390,8 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               type: "blob",
               compression: "DEFLATE",
               compressionOptions: { level: 6 },
+              streamFiles: true,
             });
-            if (i === 0) firstContent = content;
             const zipName = filled.length > 1 ? `${baseName} Part ${i + 1}.zip` : `${baseName}.zip`;
             const downloadUrl = URL.createObjectURL(content);
             if (i === 0) downloadUrlsRef.current!.set(job.id, downloadUrl);
@@ -388,14 +402,20 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            // Release the in-memory blobs for this chunk immediately so a large
+            // job (multiple GB) never has all of its data resident at once.
+            for (const { item } of chunkItems) jobData.delete(item.id);
             if (i < filled.length - 1) {
               await new Promise((r) => setTimeout(r, 1000));
             }
+            // Parts beyond the first are auto-downloaded and never re-offered,
+            // so free their object URL once the download has had time to start.
+            if (i > 0) URL.revokeObjectURL(downloadUrl);
           }
           setJobs((prev) =>
             prev.map((j) =>
               j.id === job.id
-                ? { ...j, status: "completed" as const, zipBlob: firstContent, isCreatingZip: false, downloadUrl: downloadUrlsRef.current!.get(job.id) }
+                ? { ...j, status: "completed" as const, isCreatingZip: false, downloadUrl: downloadUrlsRef.current!.get(job.id) }
                 : j
             )
           );
@@ -460,6 +480,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           trackName: item.trackName,
           artistName: params.artistName,
           eraName: item.eraName,
+          retryCount: 0,
         });
       }
       processQueue();

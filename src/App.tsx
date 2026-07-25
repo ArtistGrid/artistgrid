@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 
 import { PlayerProvider } from "./providers";
 import { SettingsProvider } from "@/src/hooks/use-settings";
-import { GlobalPlayer } from "@/components/global-player";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
@@ -13,6 +12,7 @@ import Home from "./pages/Home";
 const View = lazy(() => import("./pages/View"));
 const Donate = lazy(() => import("./pages/Donate"));
 const SettingsModal = lazy(() => import("./pages/Settings"));
+const GlobalPlayer = lazy(() => import("@/components/global-player").then((m) => ({ default: m.GlobalPlayer })));
 
 import { SettingsModalContext, useSettingsModal } from "./components/settings-modal-context";
 
@@ -114,7 +114,9 @@ export default function App() {
                   />
                 </Route>
               </Routes>
-              <GlobalPlayer />
+              <Suspense fallback={null}>
+                <GlobalPlayer />
+              </Suspense>
               <KeyboardShortcuts />
               <Toaster />
               <IframeNotice />

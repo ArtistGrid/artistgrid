@@ -1,0 +1,13 @@
+# ArtistGrid
+
+ArtistGrid is a community-driven tracker for unreleased, leaked, and upcoming music from hundreds of artists. Browse artist discographies, open tracker sheets, and discover new music.
+
+## Explore
+
+- [Home](https://artistgrid.cx/)
+- [GitHub](https://github.com/ArtistGrid)
+- [Discord](https://discord.gg/YuwTae6QC4)
+
+## Track an artist
+
+Search for any artist on the homepage to view their tracker sheet, recent leaks, and release history.

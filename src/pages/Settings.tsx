@@ -23,7 +23,7 @@ function SettingRow({ label, description, children }: { label: string; descripti
     <div className="flex items-center justify-between gap-4 py-3">
       <div className="min-w-0 flex-1">
         <p className="text-sm text-white/80">{label}</p>
-        {description && <p className="text-[11px] text-white/30 mt-0.5">{description}</p>}
+        {description && <p className="text-[11px] text-white/50 mt-0.5">{description}</p>}
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
@@ -299,7 +299,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
               </Section>
 
               <Section icon={Type} title="Font">
-                <SettingRow label="Custom Font" description="Enter a font name to load from Coollabs Fonts (e.g. Inter, Roboto, Fira Code)">
+                <SettingRow label="Custom Font" description="Enter a font name to load from Coollabs Fonts (e.g. Inter, Roboto, Fira Code). IBM Plex Sans and IBM Plex Mono are served locally.">
                   <input
                     type="text"
                     value={settings.font}

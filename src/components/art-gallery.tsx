@@ -68,7 +68,7 @@ export function ArtGallery({
             )}
             <div className="flex-1 min-w-0">
               <h3 className="text-base sm:text-lg font-bold text-white truncate">{era.name || key}</h3>
-              <p className="text-xs sm:text-sm text-white/40">
+              <p className="text-xs sm:text-sm text-white/55">
                 {era.extra && <>{era.extra} · </>}
                 {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
               </p>
@@ -127,7 +127,7 @@ export function ArtGallery({
                           <div className="p-2 sm:p-3">
                             <p className="text-xs sm:text-sm font-medium text-white truncate">{item.name}</p>
                             {item.description && (
-                              <p className="text-xs text-white/35 truncate mt-0.5 sm:mt-1 hidden sm:block">
+                              <p className="text-xs text-white/55 truncate mt-0.5 sm:mt-1 hidden sm:block">
                                 {item.description}
                               </p>
                             )}

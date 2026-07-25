@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Discover and track unreleased music from your favorite artists." />
     <meta name="application-name" content="ArtistGrid" />
@@ -18,9 +18,94 @@
     <meta property="og:image" content="https://www.artistgrid.cx/favicon.png" />
     <meta property="og:image:alt" content="ArtistGrid - Unreleased Music" />
 
-    <link rel="preconnect" href="https://artists.artistgrid.cx" />
     <link rel="preconnect" href="https://assets.artistgrid.cx" crossorigin />
-    <link rel="dns-prefetch" href="https://trackerapi.artistgrid.cx" />
+    <link rel="preconnect" href="https://artists.artistgrid.cx" crossorigin />
+    <link rel="preconnect" href="https://trackerapi.artistgrid.cx" crossorigin />
+
+    <!-- Start the artist directory download as early as possible so the grid
+         (and its LCP image) can render without waiting on a JS-triggered fetch. -->
+    <link
+      rel="preload"
+      as="fetch"
+      href="https://artists.artistgrid.cx/artists.csv"
+      crossorigin
+      fetchpriority="high"
+    />
+
+    <!-- Derive the first artist's cover image from the (preloaded) CSV and
+         preload it during HTML parsing, before the app bundle even boots. This
+         collapses the LCP image's resource-load delay from hundreds of ms to
+         near-zero. -->
+    <script>
+      (function () {
+        var url = "https://artists.artistgrid.cx/artists.csv";
+        fetch(url)
+          .then(function (r) { return r.text(); })
+          .then(function (text) {
+            var rows = text.split("\n");
+            if (rows.length < 2) return;
+            var headers = rows[0].split(",");
+            var nameIdx = headers.indexOf("name");
+            if (nameIdx < 0) return;
+            var name = rows[1].split(",")[nameIdx];
+            if (!name) return;
+            var fn = name.toLowerCase().replace(/[^a-z0-9]/g, "") + ".webp";
+            var link = document.createElement("link");
+            link.rel = "preload";
+            link.as = "image";
+            link.crossOrigin = "anonymous";
+            link.fetchPriority = "high";
+            link.href = "https://assets.artistgrid.cx/webp/" + fn;
+            document.head.appendChild(link);
+          })
+          .catch(function () {});
+      })();
+    </script>
+
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/ibm-plex-sans-normal-400-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/ibm-plex-sans-normal-500-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/ibm-plex-sans-normal-600-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/ibm-plex-sans-normal-700-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/ibm-plex-mono-normal-400-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="stylesheet"
+      href="/fonts/fonts.css"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="/fonts/fonts.css" />
+    </noscript>
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
@@ -43,11 +128,12 @@
     }
     </script>
 
-    <!-- Plausible Analytics -->
+    <!-- Plausible Analytics (self-hosted) -->
     <script
       defer
       data-domain="artistgrid.cx"
-      src="https://plausible.canine.tools/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js"
+      data-api="https://plausible.canine.tools/api/event"
+      src="/ineedthis.js"
     ></script>
     <script>
       window.plausible = window.plausible || function() {
@@ -55,7 +141,7 @@
       }
     </script>
   </head>
-  <body class="bg-black text-white min-h-screen">
+  <body class="bg-black text-white min-h-screen" style="background-color:#000;color:#fff">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

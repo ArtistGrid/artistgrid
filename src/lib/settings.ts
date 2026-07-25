@@ -93,27 +93,52 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const STORAGE_KEY = "artistgrid-settings:v1";
 
+// Cache the parsed settings, keyed on the raw stored string, so repeated reads
+// (e.g. proxyImageUrl is called once per image) skip the localStorage read +
+// JSON.parse unless the underlying value actually changed.
+let cachedRaw: string | null | undefined = undefined;
+let cachedSettings: Settings | null = null;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) cachedRaw = undefined;
+  });
+}
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
-    return {
-      lyrics: { ...DEFAULT_SETTINGS.lyrics, ...parsed.lyrics },
-      downloads: { ...DEFAULT_SETTINGS.downloads, ...parsed.downloads },
-      player: { ...DEFAULT_SETTINGS.player, ...parsed.player },
-      scrobbling: {
-        lastfm: { ...DEFAULT_SETTINGS.scrobbling.lastfm, ...parsed.scrobbling?.lastfm },
-        listenbrainz: { ...DEFAULT_SETTINGS.scrobbling.listenbrainz, ...parsed.scrobbling?.listenbrainz },
-      },
-      behavior: { ...DEFAULT_SETTINGS.behavior, ...parsed.behavior },
-      font: parsed.font ?? DEFAULT_SETTINGS.font,
-    };
+    if (raw === cachedRaw && cachedSettings) return cachedSettings;
+    let settings: Settings;
+    if (!raw) {
+      settings = { ...DEFAULT_SETTINGS };
+    } else {
+      const parsed = JSON.parse(raw);
+      settings = {
+        lyrics: { ...DEFAULT_SETTINGS.lyrics, ...parsed.lyrics },
+        downloads: { ...DEFAULT_SETTINGS.downloads, ...parsed.downloads },
+        player: { ...DEFAULT_SETTINGS.player, ...parsed.player },
+        scrobbling: {
+          lastfm: { ...DEFAULT_SETTINGS.scrobbling.lastfm, ...parsed.scrobbling?.lastfm },
+          listenbrainz: { ...DEFAULT_SETTINGS.scrobbling.listenbrainz, ...parsed.scrobbling?.listenbrainz },
+        },
+        behavior: { ...DEFAULT_SETTINGS.behavior, ...parsed.behavior },
+        font: parsed.font ?? DEFAULT_SETTINGS.font,
+      };
+    }
+    cachedRaw = raw;
+    cachedSettings = settings;
+    return settings;
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    cachedRaw = undefined;
+    cachedSettings = { ...DEFAULT_SETTINGS };
+    return cachedSettings;
   }
 }
 
 export function saveSettings(settings: Settings): void {
-  safeSetItem(STORAGE_KEY, JSON.stringify(settings));
+  const raw = JSON.stringify(settings);
+  cachedRaw = raw;
+  cachedSettings = settings;
+  safeSetItem(STORAGE_KEY, raw);
 }

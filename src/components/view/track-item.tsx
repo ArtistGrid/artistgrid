@@ -27,10 +27,10 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource,
 }) {
   return (
     <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-      {shouldShowSource && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{getSourceDisplayName(source)}</span>}
-      {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{type}</span>}
-      {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{quality}</span>}
-      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/40">{trackLength}</span>}
+      {shouldShowSource && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{getSourceDisplayName(source)}</span>}
+      {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{type}</span>}
+      {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{quality}</span>}
+      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{trackLength}</span>}
       {artUsed && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
           ✓ Used
@@ -128,14 +128,14 @@ export function FallbackView({ sheetsUrl }: { sheetsUrl: string }) {
           Open Original Spreadsheet
         </Button>
         <div className="glass-flat rounded-xl p-3 sm:p-4 text-left">
-          <p className="text-xs text-white/35 leading-relaxed">
+          <p className="text-xs text-white/55 leading-relaxed">
             <strong className="text-white/50">Disclaimer:</strong> ArtistGrid is not affiliated with, endorsed by, or
             associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not host,
             store, or distribute any copyrighted content.
           </p>
         </div>
         <div className="mt-5 sm:mt-6">
-          <Link to="/" className="text-sm text-white/35 hover:text-white transition-colors">
+          <Link to="/" className="text-sm text-white/55 hover:text-white transition-colors">
             ← Back to Home
           </Link>
         </div>

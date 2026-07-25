@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePlayer } from "@/src/providers";
 import type { Track } from "@/src/types";
@@ -20,7 +20,9 @@ import {
   CircleSlash,
   Mic2,
 } from "lucide-react";
-import { LyricsPanel } from "@/src/components/lyrics-panel";
+const LyricsPanel = lazy(() =>
+  import("@/src/components/lyrics-panel").then((m) => ({ default: m.LyricsPanel }))
+);
 interface QueueModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -474,7 +476,9 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
               <X className="w-3 h-3" />
             </Button>
           </div>
-          <LyricsPanel />
+          <Suspense fallback={null}>
+            <LyricsPanel />
+          </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

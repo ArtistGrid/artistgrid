@@ -160,7 +160,7 @@ export function EraCard({
             >
               {era.name || eraKey}
             </h3>
-            <p className="text-xs sm:text-sm text-white/40">
+            <p className="text-xs sm:text-sm text-white/55">
               {era.extra && <>{era.extra} · </>}
               {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs
               {eraPlayableCount > 0 && <> | {eraPlayableCount} playable</>}
@@ -217,7 +217,7 @@ export function EraCard({
               {era.era_dates && era.era_dates.length > 0 && (
                 <div className="mb-3 px-1">
                   {era.era_dates.map((ed, i) => (
-                    <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/40 mb-0.5 last:mb-0">
+                    <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
                       {ed.date}{ed.event ? ` — ${ed.event}` : ""}
                     </p>
                   ))}

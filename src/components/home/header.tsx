@@ -44,7 +44,7 @@ export const FilterControls = memo(
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64 glass-elevated border-0 rounded-2xl text-white/80 p-1">
-          <DropdownMenuLabel className="text-white/40 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
+          <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
             Display
           </DropdownMenuLabel>
           <DropdownMenuCheckboxItem
@@ -138,7 +138,7 @@ export const HomeHeaderCenter = memo(
         placeholder="Search artists..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="glass-flat rounded-xl w-full pl-10 pr-9 h-11 text-sm text-white placeholder:text-white/25 border-0 focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:bg-white/[0.07]"
+        className="glass-flat rounded-xl w-full pl-10 pr-9 h-11 text-sm text-white placeholder:text-white/50 border-0 focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:bg-white/[0.07]"
         aria-label="Search artists"
         autoFocus
       />

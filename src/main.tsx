@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import * as Sentry from "@sentry/react";
 import "./polyfills";
 import "./index.css";
 import App from "./App";
+import { ChunkErrorBoundary } from "./components/error-boundary";
 
 const DROPPED_ERROR_SUBSTRINGS = [
   "Rejected",
@@ -53,23 +53,49 @@ function shouldDropError(msg: string, type: string): boolean {
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
 }
 
-Sentry.init({
-  dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
-  tracesSampleRate: 0.01,
-  beforeSend(event) {
-    const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
-    const type = event.exception?.values?.[0]?.type ?? "";
-    if (shouldDropError(value, type)) {
-      return null;
-    }
-    return event;
-  },
-});
+// Initialize Sentry during browser idle time so its (sizeable) SDK is fetched
+// as a separate chunk and never competes with the critical path / LCP window.
+function initSentry() {
+  import("@sentry/react")
+    .then((Sentry) => {
+      Sentry.init({
+        dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
+        tracesSampleRate: 0.01,
+        beforeSend(event) {
+          const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
+          const type = event.exception?.values?.[0]?.type ?? "";
+          if (shouldDropError(value, type)) {
+            return null;
+          }
+          return event;
+        },
+      });
+    })
+    .catch(() => {
+      /* analytics is best-effort */
+    });
+}
+
+if (typeof (window as { requestIdleCallback?: unknown }).requestIdleCallback === "function") {
+  (window as unknown as { requestIdleCallback: (cb: (deadline: IdleDeadline) => void, opts: { timeout: number }) => number }).requestIdleCallback(initSentry, { timeout: 5000 });
+} else {
+  window.addEventListener("load", () => setTimeout(initSentry, 1500));
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
+    <ChunkErrorBoundary fallback={<p className="text-center p-8 text-white/60">Something went wrong.</p>}>
       <App />
-    </Sentry.ErrorBoundary>
+    </ChunkErrorBoundary>
   </StrictMode>
 );
+
+// Register the service worker only after the page has loaded so it never
+// competes with first paint / the critical path.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* SW is a progressive enhancement */
+    });
+  });
+}

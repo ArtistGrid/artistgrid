@@ -103,7 +103,7 @@ export function CustomViewManager({
           className="glass-flat rounded-xl text-white border-0 focus-visible:ring-1 focus-visible:ring-white/30"
         />
         <div className="space-y-2">
-          <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Tabs to combine</p>
+          <p className="text-xs text-white/55 uppercase tracking-wider font-medium">Tabs to combine</p>
           <div className="max-h-60 overflow-y-auto space-y-1">
             {allTabs.map((tab) => (
               <button

@@ -141,7 +141,9 @@ function adaptV3Track(v3Track: V3Track): TALeak {
     url: links[0],
     urls: links,
     image: v3Track.image,
-    id: links[0] ? generateTrackId(links[0]) : generateTrackId(v3Track.name.title || v3Track.name.raw || Math.random().toString()),
+    id: links[0]
+      ? generateTrackId(links[0])
+      : generateTrackId(v3Track.name.title || v3Track.name.raw || "untitled"),
     ...(v3Track.art_used !== undefined ? { art_used: v3Track.art_used } : {}),
   };
 }
