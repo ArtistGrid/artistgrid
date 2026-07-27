@@ -150,16 +150,35 @@ export function EraCard({
             />
           )}
           <div className="flex-1 min-w-0">
-            <h3
-              style={{
-                color: era.textColor
-                  ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)`
-                  : "white",
-              }}
-              className="text-base sm:text-lg font-bold truncate"
-            >
-              {era.name || eraKey}
-            </h3>
+            {era.eraLogo ? (
+              (() => {
+                const srcs = proxyImageSrcSet(era.eraLogo);
+                return (
+                  <picture>
+                    <source type="image/jxl" srcSet={srcs.jxl} />
+                    <source type="image/webp" srcSet={srcs.webp} />
+                    <img
+                      src={srcs.original}
+                      alt={era.name}
+                      className="h-6 sm:h-7 max-w-full object-contain"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                    />
+                  </picture>
+                );
+              })()
+            ) : (
+              <h3
+                style={{
+                  color: era.textColor
+                    ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)`
+                    : "white",
+                }}
+                className="text-base sm:text-lg font-bold truncate"
+              >
+                {era.name || eraKey}
+              </h3>
+            )}
             <p className="text-xs sm:text-sm text-white/55">
               {era.extra && <>{era.extra} · </>}
               {era.data ? Object.values(era.data).reduce((n, arr) => n + arr.length, 0) : 0} songs

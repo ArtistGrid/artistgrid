@@ -37,6 +37,7 @@ export interface Era {
   timeline?: string;
   fileInfo?: string[];
   image?: string;
+  eraLogo?: string;
   textColor?: string;
   backgroundColor?: string;
   description?: string;

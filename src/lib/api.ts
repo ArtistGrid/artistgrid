@@ -83,6 +83,7 @@ interface V3Era {
   timeline?: string;
   description?: string;
   cover_art?: string;
+  era_logo?: string;
   color?: string;
   text_color?: string;
   tracks: V3Track[];
@@ -164,6 +165,7 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
       extra: v3Era.aka?.join(", "),
       timeline: v3Era.timeline,
       image: v3Era.cover_art,
+      eraLogo: v3Era.era_logo,
       textColor: v3Era.text_color,
       backgroundColor: v3Era.color,
       description: v3Era.description,
