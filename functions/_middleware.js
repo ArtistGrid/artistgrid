@@ -35,7 +35,7 @@ export async function onRequest(context) {
   if (!trackerId || !artist) return next(request);
 
     const imageFilename = getImageFilename(artist);
-    const image = 'https://assets.artistgrid.cx/' + imageFilename;
+    const image = 'https://assets.artistgrid.cx/webp/' + imageFilename;
 
     const title = artist + ' - ArtistGrid';
     const description = 'Unreleased music by ' + artist;
