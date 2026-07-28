@@ -84,13 +84,18 @@ export default function ArtistGallery() {
     DEFAULT_FILTER_OPTIONS
   );
   const deferredQuery = useDeferredValue(searchQuery.trim());
-  const [fuseModule, setFuseModule] = useState<typeof import("fuse.js").default | null>(null);
+  const [fuseModule, setFuseModule] = useState<any>(null);
   useEffect(() => {
     if (!fuseModule && deferredQuery) {
       let cancelled = false;
-      import("fuse.js").then((m) => {
-        if (!cancelled) setFuseModule(m.default);
-      });
+      import("fuse.js")
+        .then((m) => {
+          const cls = m.default || m;
+          if (!cancelled) setFuseModule(() => cls);
+        })
+        .catch((err) => {
+          console.warn("Failed to load fuse.js dynamically:", err);
+        });
       return () => {
         cancelled = true;
       };
@@ -231,17 +236,28 @@ export default function ArtistGallery() {
       ),
     [sortedArtists, filterOptions]
   );
-  const fuse = useMemo(
-    () =>
-      fuseModule
-        ? new fuseModule(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true })
-        : null,
-    [artistsPassingFilters, fuseModule]
-  );
+  const fuse = useMemo(() => {
+    if (!fuseModule) return null;
+    try {
+      const FuseClass = (typeof fuseModule === "function" ? fuseModule : (fuseModule as any).default) as any;
+      if (typeof FuseClass !== "function") return null;
+      return new FuseClass(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true });
+    } catch (err) {
+      console.warn("Failed to instantiate Fuse:", err);
+      return null;
+    }
+  }, [artistsPassingFilters, fuseModule]);
   const filteredArtists = useMemo(() => {
     if (!deferredQuery) return artistsPassingFilters;
-    if (!fuse) return artistsPassingFilters;
-    return fuse.search(deferredQuery).map((r) => r.item);
+    if (fuse) {
+      try {
+        return fuse.search(deferredQuery).map((r: any) => r.item);
+      } catch (err) {
+        console.warn("Fuse search failed, falling back to substring filter:", err);
+      }
+    }
+    const q = deferredQuery.toLowerCase();
+    return artistsPassingFilters.filter((artist) => artist.name.toLowerCase().includes(q));
   }, [artistsPassingFilters, fuse, deferredQuery]);
   const handleArtistClick = useCallback(
     (artist: Artist) => {
