@@ -236,7 +236,7 @@ export function EraCard({
               {era.era_dates && era.era_dates.length > 0 && (
                 <div className="mb-3 px-1">
                   {era.era_dates.map((ed, i) => (
-                    <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
+                    <p key={`${ed.date}-${ed.event}-${i}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
                       {ed.date}{ed.event ? ` — ${ed.event}` : ""}
                     </p>
                   ))}
@@ -254,7 +254,7 @@ export function EraCard({
                     <div className="space-y-1.5 sm:space-y-2">
                       {(tracks as TALeak[]).map((track, i) => (
                         <TrackRow
-                          key={`${eraKey}-${cat}-${track.id || track.url || track.name || i}`}
+                          key={`${eraKey}-${cat}-${i}-${track.id || track.url || track.name}`}
                           track={track}
                           era={era}
                           computeTrackState={computeTrackState}

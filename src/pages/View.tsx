@@ -490,10 +490,6 @@ const handleLoad = useCallback(() => {
     });
   }, []);
   const handleOpenUrl = useCallback((url: string) => {
-    if (getTrackSource(url) === "froste") {
-      toast({ title: "froste.lol (file host for this song) has shut down :/" });
-      return;
-    }
     if (getTrackSource(url) === "youtube") {
       setYoutubeUrl(url);
       return;
@@ -1421,7 +1417,7 @@ const handleLoad = useCallback(() => {
               ) : (
                 <div className="space-y-1.5 sm:space-y-2">
                   {flatTracks.map((t, i) => {
-                    const flatKey = `flat-${t.id || t.url || t.name || i}`;
+                    const flatKey = `flat-${i}-${t.id || t.url || t.name}`;
                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
                     const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
                     return (

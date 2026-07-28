@@ -32,10 +32,6 @@ describe("getTrackSource", () => {
     expect(getTrackSource("https://youtu.be/abc")).toBe("youtube");
   });
 
-  it("identifies krakenfiles URLs", () => {
-    expect(getTrackSource("https://krakenfiles.com/view/abc123")).toBe("krakenfiles");
-  });
-
   it("identifies pixeldrain download URLs", () => {
     expect(getTrackSource("https://pixeldrain.com/d/abc123")).toBe("pixeldrain");
   });
@@ -50,10 +46,6 @@ describe("getTrackSource", () => {
 
   it("identifies soundcloud URLs", () => {
     expect(getTrackSource("https://soundcloud.com/artist/track")).toBe("soundcloud");
-  });
-
-  it("identifies froste URLs", () => {
-    expect(getTrackSource("https://music.froste.lol/song/abc")).toBe("froste");
   });
 
   it("identifies juicewrldapi URLs", () => {
@@ -71,7 +63,6 @@ describe("getTrackSource", () => {
 
 describe("isNetworkSource", () => {
   it("returns true for network sources", () => {
-    expect(isNetworkSource("krakenfiles")).toBe(true);
     expect(isNetworkSource("imgur")).toBe(true);
     expect(isNetworkSource("pixeldrain")).toBe(true);
   });
@@ -85,6 +76,11 @@ describe("isNetworkSource", () => {
 });
 
 describe("resolvePlayableUrl", () => {
+  it("resolves pixeldrain download URLs to fuck-unvaulted", async () => {
+    const result = await resolvePlayableUrl("https://pixeldrain.com/d/abc123");
+    expect(result).toBe("https://fuck-unvaulted.artistgrid.cx/abc123");
+  });
+
   it("resolves pixeldrain upload URLs to fuck-unvaulted", async () => {
     const result = await resolvePlayableUrl("https://pixeldrain.com/u/abc123");
     expect(result).toBe("https://fuck-unvaulted.artistgrid.cx/abc123");

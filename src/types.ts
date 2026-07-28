@@ -1,15 +1,11 @@
 export type TrackSource =
   | "pillows"
-  | "froste"
   | "juicewrldapi"
-  | "krakenfiles"
   | "imgur"
   | "pixeldrain"
   | "soundcloud"
   | "youtube"
   | "googledrive"
-  | "yetracker"
-  | "qobuz"
   | "unknown";
 export interface Track {
   id: string;

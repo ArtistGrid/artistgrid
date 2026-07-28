@@ -3,9 +3,7 @@ import { normalizePillowsUrl } from "./resolve-url";
 export const TRACKER_ID_LENGTH = 44;
 export const SUPPORTED_SOURCES: Track["source"][] = [
   "pillows",
-  "froste",
   "youtube",
-  "krakenfiles",
   "pixeldrain",
   "imgur",
   "soundcloud",
@@ -75,16 +73,12 @@ export function getGoogleSheetsUrl(trackerId: string, htmlview = true): string {
 export function getSourceDisplayName(source: Track["source"]): string {
   const names: Record<Track["source"], string> = {
     pillows: "Pillows",
-    froste: "Froste",
-    krakenfiles: "KrakenFiles",
     juicewrldapi: "JuiceWrldAPI",
     imgur: "Imgur",
     pixeldrain: "Pixeldrain",
     soundcloud: "SoundCloud",
     youtube: "YouTube",
     googledrive: "Google Drive",
-    yetracker: "YeTracker",
-    qobuz: "Qobuz",
     unknown: "Unknown",
   };
   return names[source];

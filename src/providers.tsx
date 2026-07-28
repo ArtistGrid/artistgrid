@@ -299,7 +299,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const el = new Audio();
     el.preload = "auto";
     (el as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
-    el.crossOrigin = "anonymous";
     el.src = next.playableUrl;
     prefetchRef.current = el;
   }, []);
@@ -309,7 +308,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = state.volume;
       audioRef.current.preload = "metadata";
       (audioRef.current as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
-      audioRef.current.crossOrigin = "anonymous";
     }
     const audio = audioRef.current;
     const controller = new AbortController();
