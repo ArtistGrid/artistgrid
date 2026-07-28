@@ -17,7 +17,7 @@ async function getFFmpeg(): Promise<FFmpeg> {
 
   loadingPromise = (async () => {
     const ffmpeg = new FFmpeg();
-    const baseURL = "/ffmpeg";
+    const baseURL = "https://cdn.hopjs.net/npm/@ffmpeg/core@0.12.6/dist/esm";
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
