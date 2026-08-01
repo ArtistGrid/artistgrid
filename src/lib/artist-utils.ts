@@ -20,23 +20,8 @@ export function getSheetViewUrl(url: string, htmlview = true): string {
   if (trackerId && !url.startsWith("http")) return `https://${url}`;
   return url;
 }
-const SPECIAL_IDS: Record<string, string> = {
-  "yetracker.net": "yetracker.net",
-  "https://yetracker.net": "yetracker.net",
-  "https://yetracker.net/": "yetracker.net",
-  "franktracker.net": "franktracker.net",
-  "https://franktracker.net": "franktracker.net",
-  "https://franktracker.net/": "franktracker.net",
-  "tylertracker.net": "tylertracker.net",
-  "https://tylertracker.net": "tylertracker.net",
-  "https://tylertracker.net/": "tylertracker.net",
-  "deftonestracker.net": "deftonestracker.net",
-  "https://deftonestracker.net": "deftonestracker.net",
-  "https://deftonestracker.net/": "deftonestracker.net",
-};
 
 export function extractTrackerId(input: string): string | null {
-  if (SPECIAL_IDS[input]) return SPECIAL_IDS[input];
   const cleanInput = input.replace(/\./g, '');
   const pubhtml = input.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
   if (pubhtml) return pubhtml[1];
