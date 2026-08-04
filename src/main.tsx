@@ -4,6 +4,7 @@ import "./polyfills";
 import "./index.css";
 import App from "./App";
 import { ChunkErrorBoundary } from "./components/error-boundary";
+import { reloadOnStaleError } from "@/src/lib/stale-reload";
 
 const DROPPED_ERROR_SUBSTRINGS = [
   "Rejected",
@@ -45,6 +46,33 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Maximum call stack size exceeded",
   "RangeError: Maximum call stack size exceeded",
   "NotSupportedError: The operation is not supported",
+  // Sentry's generic wrapper for promise rejections raised by browser
+  // extensions and other third-party script — never an app error.
+  "captured as promise rejection",
+  // Browser-extension noise that is unrelated to the app.
+  "lyricsplus",
+  "onMessage",
+  "contentScriptHrefChanged",
+  "prjktla",
+  "chrome-extension://",
+  "webkit-masked-url",
+  "__MACOSX",
+  "beacon.min.js",
+  "ucConfig",
+  "getQuettaInfo",
+  "provider is not defined",
+  "Jsloader error",
+  "WKWebView API client did not respond",
+  "webkitCurrentPlayback",
+  "media.currentTime",
+  "Message Timeout",
+  "Internal error",
+  "Cannot call a class as a function",
+  // Benign browser/abort conditions that are not app failures.
+  "The fetching process for the media resource was aborted",
+  "Fetch is aborted",
+  "writeText",
+  "Document is not focused",
 ];
 
 function shouldDropError(msg: string, type: string): boolean {
@@ -53,6 +81,20 @@ function shouldDropError(msg: string, type: string): boolean {
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
 }
 
+// A stale-deployment chunk error can surface as an uncaught error or an
+// unhandled promise rejection outside of React's error boundary. Reload once
+// so the browser picks up the current assets.
+function installStaleAssetRecovery() {
+  window.addEventListener("error", (event) => {
+    reloadOnStaleError(event.message || "");
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason as { message?: string } | undefined;
+    reloadOnStaleError(reason?.message ?? String(reason ?? ""));
+  });
+}
+installStaleAssetRecovery();
+
 // Initialize Sentry during browser idle time so its (sizeable) SDK is fetched
 // as a separate chunk and never competes with the critical path / LCP window.
 function initSentry() {
@@ -60,6 +102,7 @@ function initSentry() {
     .then((Sentry) => {
       Sentry.init({
         dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
+        release: __APP_VERSION__,
         tracesSampleRate: 0.01,
         beforeSend(event) {
           const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
@@ -77,7 +120,11 @@ function initSentry() {
 }
 
 if (typeof (window as { requestIdleCallback?: unknown }).requestIdleCallback === "function") {
-  (window as unknown as { requestIdleCallback: (cb: (deadline: IdleDeadline) => void, opts: { timeout: number }) => number }).requestIdleCallback(initSentry, { timeout: 5000 });
+  (
+    window as unknown as {
+      requestIdleCallback: (cb: (deadline: IdleDeadline) => void, opts: { timeout: number }) => number;
+    }
+  ).requestIdleCallback(initSentry, { timeout: 5000 });
 } else {
   window.addEventListener("load", () => setTimeout(initSentry, 1500));
 }

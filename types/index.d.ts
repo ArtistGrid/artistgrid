@@ -2,7 +2,9 @@
 
 // This tells TypeScript that whenever we import a file ending in .csv,
 // its default export will be a string.
-declare module '*.csv' {
+declare module "*.csv" {
   const content: string;
   export default content;
 }
+
+declare const __APP_VERSION__: string;

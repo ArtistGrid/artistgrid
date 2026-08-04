@@ -17,6 +17,31 @@ import {
 } from "@/src/lib/player-queue";
 import type { RepeatMode } from "@/src/lib/player-queue";
 
+// Plays an audio element, ignoring the promise rejection that browsers throw
+// when playback is interrupted or the element isn't ready. Guards against a
+// null element so a missing audio node can never throw "e.current.play()".
+function safePlay(audio: HTMLAudioElement | null | undefined) {
+  if (audio) audio.play().catch(() => {});
+}
+
+// Shows a notification, tolerating platforms where the Notification constructor
+// is unavailable/illegal (e.g. WKWebView, which requires the service worker's
+// showNotification). Never throws.
+function notify(title: string, options: NotificationOptions) {
+  try {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, options);
+      return;
+    }
+  } catch {
+    try {
+      if ("serviceWorker" in navigator) {
+        void navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, options));
+      }
+    } catch {}
+  }
+}
+
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
@@ -76,11 +101,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   });
   const stateRef = useRef<PlayerState | null>(null);
-  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const [history, setHistory] = useState<Track[]>([]);
   const historyRef = useRef<Track[]>([]);
-  useEffect(() => { historyRef.current = history; }, [history]);
-  useEffect(() => { queueRef.current = state.queue; }, [state.queue]);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+  useEffect(() => {
+    queueRef.current = state.queue;
+  }, [state.queue]);
   const [lastfmSession, setLastfmSession] = useState<LastFMSession | null>(() => {
     try {
       const session = localStorage.getItem("lastfm-session:v1");
@@ -131,12 +162,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const settings = loadSettings();
     const lf = settings.scrobbling.lastfm;
     if (lf.customServer && lf.apiUrl) {
-      return { url: lf.apiUrl.replace(/\/$/, ""), key: lf.apiKey || LASTFM_KEY, secret: lf.apiSecret || LASTFM_API_SIG };
+      return {
+        url: lf.apiUrl.replace(/\/$/, ""),
+        key: lf.apiKey || LASTFM_KEY,
+        secret: lf.apiSecret || LASTFM_API_SIG,
+      };
     }
     return { url: LASTFM_API_URL, key: LASTFM_KEY, secret: LASTFM_API_SIG };
   }, []);
   const makeLastFMRequest = useCallback(
-    async <T = unknown>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> => {
+    async <T = unknown,>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> => {
       const cfg = getLastFmConfig();
       const requestParams: Record<string, string> = { method, api_key: cfg.key, ...params };
       if (requiresAuth && lastfmSession?.key) requestParams.sk = lastfmSession.key;
@@ -147,7 +182,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
       });
-      const data = await response.json() as { error?: { code: number; message: string }; [key: string]: unknown };
+      const data = (await response.json()) as { error?: { code: number; message: string }; [key: string]: unknown };
       if (data.error) throw new Error(data.error.message || "Last.fm API error");
       return data as T;
     },
@@ -159,31 +194,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       scrobbleTimerRef.current = null;
     }
   }, []);
-  const scrobbleListenBrainz = useCallback(async (track: Track) => {
-    const settings = loadSettings();
-    const lb = settings.scrobbling.listenbrainz;
-    if (!lb.enabled || !lb.token) return;
-    try {
-      const artist = getScrobbleArtist(track);
-      const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
-      const base = (lb.apiUrl || LISTENBRAINZ_API_URL).replace(/\/$/, "");
-      const listen: Record<string, unknown> = {
-        listened_at: Math.floor(Date.now() / 1000),
-        track_metadata: {
-          artist_name: artist,
-          track_name: trackName,
-          ...(track.eraName ? { release_name: track.eraName } : {}),
-        },
-      };
-      await fetch(`${base}/1/submit-listens`, {
-        method: "POST",
-        headers: { Authorization: `Token ${lb.token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ listen_type: "single", payload: [listen] }),
-      });
-    } catch (e) {
-      logError("Failed to scrobble to ListenBrainz:", e);
-    }
-  }, [getScrobbleArtist]);
+  const scrobbleListenBrainz = useCallback(
+    async (track: Track) => {
+      const settings = loadSettings();
+      const lb = settings.scrobbling.listenbrainz;
+      if (!lb.enabled || !lb.token) return;
+      try {
+        const artist = getScrobbleArtist(track);
+        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+        const base = (lb.apiUrl || LISTENBRAINZ_API_URL).replace(/\/$/, "");
+        const listen: Record<string, unknown> = {
+          listened_at: Math.floor(Date.now() / 1000),
+          track_metadata: {
+            artist_name: artist,
+            track_name: trackName,
+            ...(track.eraName ? { release_name: track.eraName } : {}),
+          },
+        };
+        await fetch(`${base}/1/submit-listens`, {
+          method: "POST",
+          headers: { Authorization: `Token ${lb.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ listen_type: "single", payload: [listen] }),
+        });
+      } catch (e) {
+        logError("Failed to scrobble to ListenBrainz:", e);
+      }
+    },
+    [getScrobbleArtist]
+  );
   const scrobbleTrack = useCallback(
     async (track: Track) => {
       if (hasScrobbledRef.current) return;
@@ -244,7 +282,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       hasScrobbledRef.current = false;
       currentTrackRef.current = next;
       audioRef.current.src = next.playableUrl;
-      audioRef.current.play().catch(console.error);
+      safePlay(audioRef.current);
       setHistory((h) => [...h, next]);
       if (lastfmSession?.key) updateNowPlaying(next);
       updateMediaSession(next, true);
@@ -260,7 +298,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       hasScrobbledRef.current = false;
       currentTrackRef.current = prev;
       audioRef.current.src = prev.playableUrl;
-      audioRef.current.play().catch(console.error);
+      safePlay(audioRef.current);
       if (lastfmSession?.key) updateNowPlaying(prev);
       updateMediaSession(prev, true);
       setState((s) => ({ ...s, currentTrack: prev, isPlaying: true }));
@@ -269,7 +307,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if ("mediaSession" in navigator) {
       navigator.mediaSession.setActionHandler("play", () => {
-        if (audioRef.current) audioRef.current.play().catch(console.error);
+        if (audioRef.current) safePlay(audioRef.current);
       });
       navigator.mediaSession.setActionHandler("pause", () => {
         if (audioRef.current) audioRef.current.pause();
@@ -312,100 +350,137 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     const controller = new AbortController();
     const opts = { signal: controller.signal };
-    audio.addEventListener("timeupdate", () => {
-      setState((s) => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
-      if ("mediaSession" in navigator && audioRef.current) {
-        try {
-          const duration = audioRef.current.duration;
-          const position = audioRef.current.currentTime;
-          if (isFinite(duration) && isFinite(position)) {
-            navigator.mediaSession.setPositionState({
-              duration,
-              playbackRate: audioRef.current.playbackRate,
-              position,
-            });
+    audio.addEventListener(
+      "timeupdate",
+      () => {
+        setState((s) => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
+        if ("mediaSession" in navigator && audioRef.current) {
+          try {
+            const duration = audioRef.current.duration;
+            const position = audioRef.current.currentTime;
+            if (isFinite(duration) && isFinite(position)) {
+              navigator.mediaSession.setPositionState({
+                duration,
+                playbackRate: audioRef.current.playbackRate,
+                position,
+              });
+            }
+          } catch {
+            // setPositionState may throw on some browsers
           }
-        } catch {
-          // setPositionState may throw on some browsers
         }
-      }
-    }, opts);
-    audio.addEventListener("loadedmetadata", () => {
-      const duration = audioRef.current?.duration || 0;
-      setState((s) => ({ ...s, duration, isBuffering: false }));
-      if (currentTrackRef.current && lastfmSessionRef.current?.key && duration > 30) {
-        scheduleScrobbleRef.current(currentTrackRef.current, duration);
-      }
-    }, opts);
+      },
+      opts
+    );
+    audio.addEventListener(
+      "loadedmetadata",
+      () => {
+        const duration = audioRef.current?.duration || 0;
+        setState((s) => ({ ...s, duration, isBuffering: false }));
+        if (currentTrackRef.current && lastfmSessionRef.current?.key && duration > 30) {
+          scheduleScrobbleRef.current(currentTrackRef.current, duration);
+        }
+      },
+      opts
+    );
     audio.addEventListener("waiting", () => setState((s) => ({ ...s, isBuffering: true })), opts);
     audio.addEventListener("canplay", () => setState((s) => ({ ...s, isBuffering: false })), opts);
-    audio.addEventListener("error", (e) => {
-      logError("Audio error:", e);
-      setState((s) => ({ ...s, isBuffering: false }));
-    }, opts);
-    audio.addEventListener("ended", () => {
-      clearScrobbleTimer();
-      const s = stateRef.current;
-      if (!s) return;
-      if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
-        audio.currentTime = 0;
-        audio.play().catch(console.error);
-        setState((prev) => ({ ...prev, isPlaying: true }));
-        return;
-      }
-      if (s.queue.length > 0) {
-        const [next, ...rest] = s.queue;
-        if (audio && next.playableUrl) {
-          const prefetched = prefetchRef.current;
-          if (prefetched && prefetched.src === next.playableUrl) {
-            audio.src = next.playableUrl;
-            audio.play().catch(console.error);
-            prefetchRef.current = null;
-          } else {
-            audio.src = next.playableUrl;
-            audio.play().catch(console.error);
-          }
-          setHistory((h) => [...h, next]);
-          currentTrackRef.current = next;
-          prefetchNext(rest);
-          if (lastfmSession?.key) updateNowPlaying(next);
-          updateMediaSession(next, true);
-          const settings = loadSettings();
-          if (settings.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
-            const artist = next.artistName || next.eraName || "Unknown";
-            new Notification(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
-          }
-          try {
-            const raw = localStorage.getItem("artistgrid-history:v1");
-            const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
-            hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
-            if (hist.length > 200) hist.splice(0, hist.length - 200);
-            safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
-          } catch {}
-          setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
+    audio.addEventListener(
+      "error",
+      (e) => {
+        logError("Audio error:", e);
+        setState((s) => ({ ...s, isBuffering: false }));
+      },
+      opts
+    );
+    audio.addEventListener(
+      "ended",
+      () => {
+        clearScrobbleTimer();
+        const s = stateRef.current;
+        if (!s) return;
+        if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
+          audio.currentTime = 0;
+          safePlay(audio);
+          setState((prev) => ({ ...prev, isPlaying: true }));
           return;
         }
-      }
-      if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
-        audio.currentTime = 0;
-        audio.play().catch(console.error);
+        if (s.queue.length > 0) {
+          const [next, ...rest] = s.queue;
+          if (audio && next.playableUrl) {
+            const prefetched = prefetchRef.current;
+            if (prefetched && prefetched.src === next.playableUrl) {
+              audio.src = next.playableUrl;
+              safePlay(audio);
+              prefetchRef.current = null;
+            } else {
+              audio.src = next.playableUrl;
+              safePlay(audio);
+            }
+            setHistory((h) => [...h, next]);
+            currentTrackRef.current = next;
+            prefetchNext(rest);
+            if (lastfmSession?.key) updateNowPlaying(next);
+            updateMediaSession(next, true);
+            const settings = loadSettings();
+            if (
+              settings.behavior.notifications &&
+              document.hidden &&
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              const artist = next.artistName || next.eraName || "Unknown";
+              notify(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
+            }
+            try {
+              const raw = localStorage.getItem("artistgrid-history:v1");
+              const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+              hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
+              if (hist.length > 200) hist.splice(0, hist.length - 200);
+              safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
+            } catch {}
+            setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
+            return;
+          }
+        }
+        if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
+          audio.currentTime = 0;
+          safePlay(audio);
+          setState((prev) => ({ ...prev, isPlaying: true }));
+          return;
+        }
+        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
+        setState((prev) => ({ ...prev, isPlaying: false }));
+      },
+      opts
+    );
+    audio.addEventListener(
+      "play",
+      () => {
+        if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, true);
         setState((prev) => ({ ...prev, isPlaying: true }));
-        return;
-      }
-      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
-      setState((prev) => ({ ...prev, isPlaying: false }));
-    }, opts);
-    audio.addEventListener("play", () => {
-      if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, true);
-      setState((prev) => ({ ...prev, isPlaying: true }));
-    }, opts);
-    audio.addEventListener("pause", () => {
-      if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, false);
-      setState((prev) => ({ ...prev, isPlaying: false }));
-      clearScrobbleTimer();
-    }, opts);
+      },
+      opts
+    );
+    audio.addEventListener(
+      "pause",
+      () => {
+        if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, false);
+        setState((prev) => ({ ...prev, isPlaying: false }));
+        clearScrobbleTimer();
+      },
+      opts
+    );
     return () => controller.abort();
-  }, [lastfmSession, scheduleScrobble, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume, prefetchNext]);
+  }, [
+    lastfmSession,
+    scheduleScrobble,
+    clearScrobbleTimer,
+    updateNowPlaying,
+    updateMediaSession,
+    state.volume,
+    prefetchNext,
+  ]);
 
   useEffect(() => {
     const s = loadSettings();
@@ -420,7 +495,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       hasScrobbledRef.current = false;
       currentTrackRef.current = track;
       audioRef.current.src = track.playableUrl!;
-      audioRef.current.play().catch(console.error);
+      safePlay(audioRef.current);
       setHistory((h) => [...h, track]);
     },
     [clearScrobbleTimer]
@@ -434,9 +509,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (lastfmSession?.key) updateNowPlaying(track);
       updateMediaSession(track, true);
       const s = loadSettings();
-      if (s.behavior.notifications && document.hidden && "Notification" in window && Notification.permission === "granted") {
+      if (
+        s.behavior.notifications &&
+        document.hidden &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
         const artist = track.artistName || track.eraName || "Unknown";
-        new Notification(track.name, { body: artist, icon: track.eraImage ? proxyImageUrl(track.eraImage) : undefined });
+        notify(track.name, { body: artist, icon: track.eraImage ? proxyImageUrl(track.eraImage) : undefined });
       }
       try {
         const raw = localStorage.getItem("artistgrid-history:v1");
@@ -450,7 +530,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
-    if (audioRef.current.paused) audioRef.current.play().catch(console.error);
+    if (audioRef.current.paused) safePlay(audioRef.current);
     else audioRef.current.pause();
   }, []);
   const seekTo = useCallback((time: number) => {
@@ -470,7 +550,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (audioRef.current) audioRef.current.volume = volume;
     setState((s) => ({ ...s, volume }));
   }, []);
-  const addToQueue = useCallback((track: Track) => setState((s) => ({ ...s, queue: addTrackToQueue(s.queue, track) })), []);
+  const addToQueue = useCallback(
+    (track: Track) => setState((s) => ({ ...s, queue: addTrackToQueue(s.queue, track) })),
+    []
+  );
   const removeFromQueue = useCallback(
     (index: number) => setState((s) => ({ ...s, queue: removeTrackFromQueue(s.queue, index) })),
     []
@@ -547,31 +630,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [clearScrobbleTimer]);
   return (
     <PlayerContext.Provider
-      value={useMemo(() => ({
-        state,
-        playTrack,
-        togglePlayPause,
-        seekTo,
-        setVolume,
-        addToQueue,
-        removeFromQueue,
-        clearQueue,
-        playNext,
-        playPrevious,
-        reorderQueue,
-        playFromQueue,
-        toggleShuffle,
-        toggleRepeat,
-        history,
-        closePlayer,
-        lastfm: {
-          isAuthenticated: !!lastfmSession?.key,
-          username: lastfmSession?.name || null,
+      value={useMemo(
+        () => ({
+          state,
+          playTrack,
+          togglePlayPause,
+          seekTo,
+          setVolume,
+          addToQueue,
+          removeFromQueue,
+          clearQueue,
+          playNext,
+          playPrevious,
+          reorderQueue,
+          playFromQueue,
+          toggleShuffle,
+          toggleRepeat,
+          history,
+          closePlayer,
+          lastfm: {
+            isAuthenticated: !!lastfmSession?.key,
+            username: lastfmSession?.name || null,
+            getAuthUrl,
+            completeAuth,
+            disconnect: disconnectLastFM,
+          },
+        }),
+        [
+          state,
+          playTrack,
+          togglePlayPause,
+          seekTo,
+          setVolume,
+          addToQueue,
+          removeFromQueue,
+          clearQueue,
+          playNext,
+          playPrevious,
+          reorderQueue,
+          playFromQueue,
+          toggleShuffle,
+          history,
+          closePlayer,
+          lastfmSession,
           getAuthUrl,
           completeAuth,
-          disconnect: disconnectLastFM,
-        },
-      }), [state, playTrack, togglePlayPause, seekTo, setVolume, addToQueue, removeFromQueue, clearQueue, playNext, playPrevious, reorderQueue, playFromQueue, toggleShuffle, history, closePlayer, lastfmSession, getAuthUrl, completeAuth, disconnectLastFM])}
+          disconnectLastFM,
+        ]
+      )}
     >
       {children}
     </PlayerContext.Provider>
