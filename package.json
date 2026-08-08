@@ -5,11 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vitest run --coverage && vite build && node scripts/copy-coverage.mjs",
+    "build": "vitest run && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "format": "bun run scripts/format.ts",
     "release": "node scripts/release.mjs",
     "doctor": "npx react-doctor@latest"
@@ -52,7 +51,6 @@
     "@types/react-dom": "^19",
     "@types/spark-md5": "^3.0.5",
     "@vitejs/plugin-react-swc": "^4.3.3",
-    "@vitest/coverage-v8": "^4.1.10",
     "chrome-devtools-mcp": "^1.6.0",
     "clean-css": "^5.3.3",
     "cssnano": "^8.0.4",

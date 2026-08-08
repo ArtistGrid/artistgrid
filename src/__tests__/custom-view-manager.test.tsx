@@ -12,7 +12,6 @@ function makeProps(over: Partial<Parameters<typeof CustomViewManager>[0]> = {}):
     activeCustomView: null,
     setActiveCustomView: vi.fn(),
     onSelect: vi.fn(),
-    tabsList: ["Tab A", "Tab B"],
     tabSlugs: { "Tab A": "a", "Tab B": "b" },
     ...over,
   };

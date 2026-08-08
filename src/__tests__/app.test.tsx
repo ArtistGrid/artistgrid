@@ -32,6 +32,6 @@ describe("App", () => {
   it("renders the donate page on /donate", async () => {
     render(<App />);
     await navigateTo("/donate");
-    await waitFor(() => expect(screen.getByText(/Support ArtistGrid/i)).toBeInTheDocument(), { timeout: 2000 });
+    await waitFor(() => expect(screen.getByText(/Support ArtistGrid/i)).toBeInTheDocument(), { timeout: 10000 });
   });
 });

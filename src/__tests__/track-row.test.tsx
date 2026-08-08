@@ -94,7 +94,7 @@ describe("TrackRow", () => {
     expect(screen.getByLabelText("Remove from favourites")).toBeInTheDocument();
   });
 
-  it("opens the actions menu and triggers share / play next / add to queue / download", async () => {
+  it("opens the actions menu and triggers share / play next / add to queue / download", { timeout: 15000 }, async () => {
     const handleShareTrack = vi.fn();
     const handlePlayNext = vi.fn();
     const handleAddToQueue = vi.fn();

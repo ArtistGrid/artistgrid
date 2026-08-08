@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime, isVideoUrl, forEachEraTrack, mergeAndCache } from "../lib/view-utils";
+import { formatRelativeTime, isVideoUrl, forEachEraTrack } from "../lib/view-utils";
 import type { Era, TALeak } from "../types";
 
 describe("formatRelativeTime", () => {

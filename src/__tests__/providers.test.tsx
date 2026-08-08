@@ -16,6 +16,7 @@ beforeAll(() => {
 const track = (id: string, url: string): Track => ({
   id,
   name: `Track ${id}`,
+  extra: "",
   playableUrl: url,
   url,
   source: "youtube",

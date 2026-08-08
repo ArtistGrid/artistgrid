@@ -7,7 +7,7 @@ class Boom extends Error {
   }
 }
 
-function Thrower({ msg }: { msg: string }) {
+function Thrower({ msg }: { msg: string }): never {
   throw new Boom(msg);
 }
 

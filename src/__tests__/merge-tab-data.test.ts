@@ -59,8 +59,8 @@ describe("mergeTabData", () => {
   });
 
   it("merges _flat tracks", () => {
-    const a = makeRes({ eras: { _flat: { name: "_flat", data: { Leaks: [{ url: "u1" }] } } } });
-    const b = makeRes({ eras: { _flat: { name: "_flat", data: { Leaks: [{ url: "u2" }] } } } });
+    const a = makeRes({ eras: { _flat: { name: "_flat", data: { Leaks: [{ name: "u1", url: "u1" }] } } } });
+    const b = makeRes({ eras: { _flat: { name: "_flat", data: { Leaks: [{ name: "u2", url: "u2" }] } } } });
     const merged = mergeTabData([a, b]);
     expect(merged.eras._flat.data!.Leaks).toHaveLength(2);
   });

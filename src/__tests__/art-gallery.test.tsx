@@ -37,7 +37,7 @@ describe("ArtGallery", () => {
   });
 
   it("toggles era expansion", () => {
-    const { container } = render(wrap(<ArtGallery eras={eras} onImageClick={() => {}} />));
+    render(wrap(<ArtGallery eras={eras} onImageClick={() => {}} />));
     const btn = screen.getByText("Era X");
     fireEvent.click(btn);
     expect(btn).toBeInTheDocument();

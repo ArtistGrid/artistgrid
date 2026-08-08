@@ -16,7 +16,7 @@ beforeAll(() => {
   }) as unknown as typeof fetch;
 });
 
-const track = (id: string, url: string): Track => ({ id, name: id, playableUrl: url, url, source: "youtube", artistName: "A", eraName: "E" });
+const track = (id: string, url: string): Track => ({ id, name: id, extra: "", playableUrl: url, url, source: "youtube", artistName: "A", eraName: "E" });
 
 function Helper() {
   const { playTrack } = usePlayer();

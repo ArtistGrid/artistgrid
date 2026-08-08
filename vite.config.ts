@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -55,13 +55,13 @@ async function minifyJs(dir: string) {
 
     // 2. oxc
     try {
-      const oxcOut = oxcMinify(file, code, { compress: true, mangle: true });
+      const oxcOut = await oxcMinify(file, code, { compress: true, mangle: true });
       if (oxcOut.code) code = oxcOut.code;
     } catch {}
 
     // 3. terser
     try {
-      const terserOut = await terserMod.default.minify(code, {
+      const terserOut = await terserMod.minify(code, {
         ecma: 2020,
         module: true,
         toplevel: true,
@@ -191,7 +191,7 @@ async function minifyCss(dir: string) {
   return saved;
 }
 
-function customMinifyPlugin(dir: string) {
+function customMinifyPlugin(dir: string): Plugin {
   return {
     name: "custom-minify",
     enforce: "post",

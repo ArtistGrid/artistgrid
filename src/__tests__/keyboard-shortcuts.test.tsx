@@ -10,7 +10,7 @@ beforeAll(() => {
   Object.defineProperty(window, "mediaSession", { configurable: true, value: { setActionHandler: vi.fn() } });
 });
 
-const track = (id: string, url: string): Track => ({ id, name: id, playableUrl: url, url, source: "youtube", artistName: "A", eraName: "E" });
+const track = (id: string, url: string): Track => ({ id, name: id, extra: "", playableUrl: url, url, source: "youtube", artistName: "A", eraName: "E" });
 
 function setup() {
   return renderHook(() => usePlayer(), {

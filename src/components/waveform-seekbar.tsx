@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useCallback, useState } from "react";
+import { memo, useRef, useEffect, useCallback } from "react";
 import { waveformGenerator } from "../../js/waveform.js";
 
 interface WaveformSeekbarProps {
@@ -32,12 +32,10 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
 }: WaveformSeekbarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const peaksRef = useRef<Float32Array | null>(null);
-  const [hasWaveform, setHasWaveform] = useState(false);
 
   useEffect(() => {
     if (!audioUrl || !trackId) {
       peaksRef.current = null;
-      setHasWaveform(false);
       return;
     }
 
@@ -46,7 +44,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       const result = await waveformGenerator.getWaveform(audioUrl, trackId);
       if (cancelled || !result) return;
       peaksRef.current = result.peaks;
-      setHasWaveform(true);
     })();
 
     return () => { cancelled = true; };

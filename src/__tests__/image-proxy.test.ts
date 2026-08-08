@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { proxyImageUrl } from "@/src/lib/image-proxy";
-import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
+import { saveSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
 
 describe("proxyImageUrl", () => {
   beforeEach(() => {

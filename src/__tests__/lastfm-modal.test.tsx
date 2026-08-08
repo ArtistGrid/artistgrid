@@ -18,8 +18,6 @@ const baseLastfm = (over: Partial<LastFMClientInfo> = {}): LastFMClientInfo => (
   getAuthUrl: vi.fn(),
   completeAuth: vi.fn(),
   disconnect: vi.fn(),
-  scrobble: vi.fn(),
-  updateNowPlaying: vi.fn(),
   ...over,
 });
 
@@ -32,11 +30,11 @@ describe("LastFMModal", () => {
 
   it("connects and opens popup", async () => {
     const setToken = vi.fn();
-    const mockOpen = vi.fn((url: string, target: string, features: string) => {
+    const mockOpen = vi.fn((url?: string | URL) => {
       return {
-        location: { href: url },
+        location: { href: String(url ?? "") },
         close: vi.fn(),
-      };
+      } as unknown as Window;
     });
     vi.spyOn(window, "open").mockImplementation(mockOpen);
     const lastfm = baseLastfm({ getAuthUrl: vi.fn().mockResolvedValue({ token: "t1", url: "https://lastfm/auth" }) });

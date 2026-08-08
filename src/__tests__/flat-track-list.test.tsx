@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { FlatTrackList } from "@/src/components/view/flat-track-card";
-import type { TALeak, Era, TrackSource } from "@/src/types";
+import type { TALeak, TrackSource } from "@/src/types";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -24,8 +24,6 @@ const tracks: TALeak[] = [
   { name: "Song Two", url: "https://x.com/2", eraName: "Era X" },
   { name: "Song Three", url: "https://x.com/3", eraName: "Era X" },
 ];
-
-const fakeEra: Era = { name: "Era X" };
 
 function listProps(over: Record<string, unknown> = {}) {
   const noop = vi.fn();
