@@ -34,7 +34,6 @@ describe("LyricsPanel", () => {
       </SettingsProvider>
     );
     act(() => screen.getByText("play").click());
-    // allow effects to run
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.getByText("play")).toBeInTheDocument();
   });

@@ -27,7 +27,6 @@ export default defineConfig({
         "**/*.test.{ts,tsx}",
         "**/*.config.*",
         "src/main.tsx",
-        "src/polyfills.ts",
         "src/providers.tsx",
       ],
       thresholds: {

@@ -4,7 +4,6 @@ import {
   isUrl,
   getTrackUrl,
   getTrackDescription,
-  isValidTrackerId,
   encodeTrackForUrl,
   decodeTrackFromUrl,
   getSourceDisplayName,
@@ -98,36 +97,6 @@ describe("getTrackDescription", () => {
   it("returns null if nothing", () => {
     const track: TALeak = { name: "test" };
     expect(getTrackDescription(track)).toBeNull();
-  });
-});
-
-describe("isValidTrackerId", () => {
-  it("accepts valid 44-char base64url strings", () => {
-    const id = "a".repeat(44);
-    expect(isValidTrackerId(id)).toBe(true);
-  });
-
-  it("rejects short strings", () => {
-    expect(isValidTrackerId("abc")).toBe(false);
-  });
-
-  it("rejects strings with invalid chars", () => {
-    const id = "a".repeat(43) + "!";
-    expect(isValidTrackerId(id)).toBe(false);
-  });
-
-  it("accepts 2PACX- prefixed ids", () => {
-    expect(isValidTrackerId("2PACX-" + "a".repeat(30))).toBe(true);
-  });
-
-  it("accepts special tracker ids", () => {
-    expect(isValidTrackerId("yetracker.net")).toBe(true);
-    expect(isValidTrackerId("franktracker.net")).toBe(true);
-    expect(isValidTrackerId("deftonestracker.net")).toBe(true);
-  });
-
-  it("rejects empty/null", () => {
-    expect(isValidTrackerId("")).toBe(false);
   });
 });
 

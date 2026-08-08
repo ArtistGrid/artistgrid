@@ -3,7 +3,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { Modal } from "@/src/components/modal";
 
 beforeAll(() => {
-  // jsdom doesn't implement <dialog> showModal/close
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });
   });

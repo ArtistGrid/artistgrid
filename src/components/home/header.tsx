@@ -9,7 +9,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Link } from "react-router-dom";
 import { useSettingsModal } from "@/src/components/settings-modal-context";
 import type { ArtistFilterOptions } from "@/src/types";
 import { trackEvent, DISCORD_INVITE } from "@/src/lib/home-constants";

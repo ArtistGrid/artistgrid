@@ -41,7 +41,7 @@ export default function Donate() {
             tabIndex={-1}
           />
           <div className="relative z-10 flex flex-col items-center">
-            <QrOverlay {...activeQrCode} onClose={() => setActiveQrCode(null)} />
+            <QrOverlay {...activeQrCode} />
             <Button
               variant="ghost"
               className="mt-4 text-neutral-400 hover:text-white hover:bg-white/10 rounded-lg"

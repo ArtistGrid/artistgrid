@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef, la
 import { useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
 import { usePlayer } from "../providers";
-import { useToast } from "@/components/ui/use-toast";
 import type { Artist, ArtistFilterOptions } from "@/src/types";
 import { getCachedData, isCacheExpired, setCachedData } from "@/src/lib/cache";
 import {
@@ -61,7 +60,6 @@ export default function ArtistGallery() {
   usePageMeta({ title: "ArtistGrid", description: "Discover and track unreleased music from your favorite artists.", url: "https://artistgrid.cx/" });
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
-  const { toast } = useToast();
   const { settings } = useSettings();
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -187,8 +185,19 @@ export default function ArtistGallery() {
     };
     const loadVisitorCount = async () => {
       try {
+        const cached = sessionStorage.getItem("visitor-count");
+        const cachedTime = sessionStorage.getItem("visitor-count-time");
+        if (cached && cachedTime && Date.now() - Number(cachedTime) < 300000) {
+          setVisitorCount(Number(cached));
+          return;
+        }
         const res = await fetch("https://121124.edideaur.works/artistgrid.cx/", { signal: controller.signal });
-        if (res.ok) setVisitorCount(Number((await res.json()).count));
+        if (res.ok) {
+          const count = Number((await res.json()).count);
+          setVisitorCount(count);
+          sessionStorage.setItem("visitor-count", String(count));
+          sessionStorage.setItem("visitor-count-time", String(Date.now()));
+        }
       } catch {}
     };
     loadData();
@@ -196,10 +205,6 @@ export default function ArtistGallery() {
     return () => controller.abort();
   }, []);
 
-  // Warm the browser cache for the first row of artist images as soon as the
-  // directory is known. The LCP element is the first card image; preloading it
-  // lets the download overlap with the rest of app boot instead of waiting for
-  // React to render the grid.
   const preloadedRef = useRef(false);
   useEffect(() => {
     if (allArtists.length === 0 || preloadedRef.current) return;

@@ -8,7 +8,6 @@ import {
   cycleRepeatMode,
   shuffleQueue,
   toggleShuffleState,
-  playNextFromQueue,
 } from "@/src/lib/player-queue";
 
 function makeTrack(name: string): Track {
@@ -85,13 +84,5 @@ describe("player-queue pure helpers", () => {
     const result = toggleShuffleState({ queue: [a, b, c], isShuffled: true });
     expect(result.isShuffled).toBe(false);
     expect(result.queue).toEqual([a, b, c]);
-  });
-
-  it("playNextFromQueue returns head and tail", () => {
-    expect(playNextFromQueue([a, b, c])).toEqual({ next: a, rest: [b, c] });
-  });
-
-  it("playNextFromQueue returns nulls for empty queue", () => {
-    expect(playNextFromQueue([])).toEqual({ next: null, rest: [] });
   });
 });

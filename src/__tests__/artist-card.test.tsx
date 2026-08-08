@@ -4,7 +4,6 @@ import { MemoryRouter } from "react-router-dom";
 import { ArtistGridDisplay } from "@/src/components/home/artist-card";
 import type { Artist } from "@/src/types";
 
-// The component reads artist.imageFilename at runtime (precomputed by callers).
 const artists = [
   { name: "Kanye West", url: "https://docs.google.com/spreadsheets/d/abc123def456ghi789jklmno", imageFilename: "kanyewest.webp" },
   { name: "Drake", url: "https://docs.google.com/spreadsheets/d/def456ghi789jklmnoabc123", imageFilename: "drake.webp" },

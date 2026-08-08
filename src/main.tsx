@@ -1,6 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./polyfills";
 import "./index.css";
 import App from "./App";
 import { ChunkErrorBoundary } from "./components/error-boundary";
@@ -46,10 +45,7 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Maximum call stack size exceeded",
   "RangeError: Maximum call stack size exceeded",
   "NotSupportedError: The operation is not supported",
-  // Sentry's generic wrapper for promise rejections raised by browser
-  // extensions and other third-party script — never an app error.
   "captured as promise rejection",
-  // Browser-extension noise that is unrelated to the app.
   "lyricsplus",
   "onMessage",
   "contentScriptHrefChanged",
@@ -68,7 +64,6 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Message Timeout",
   "Internal error",
   "Cannot call a class as a function",
-  // Benign browser/abort conditions that are not app failures.
   "The fetching process for the media resource was aborted",
   "Fetch is aborted",
   "writeText",
@@ -81,9 +76,6 @@ function shouldDropError(msg: string, type: string): boolean {
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
 }
 
-// A stale-deployment chunk error can surface as an uncaught error or an
-// unhandled promise rejection outside of React's error boundary. Reload once
-// so the browser picks up the current assets.
 function installStaleAssetRecovery() {
   window.addEventListener("error", (event) => {
     reloadOnStaleError(event.message || "");
@@ -95,8 +87,6 @@ function installStaleAssetRecovery() {
 }
 installStaleAssetRecovery();
 
-// Initialize Sentry during browser idle time so its (sizeable) SDK is fetched
-// as a separate chunk and never competes with the critical path / LCP window.
 function initSentry() {
   import("@sentry/react")
     .then((Sentry) => {
@@ -114,9 +104,7 @@ function initSentry() {
         },
       });
     })
-    .catch(() => {
-      /* analytics is best-effort */
-    });
+    .catch(() => {});
 }
 
 if (typeof (window as { requestIdleCallback?: unknown }).requestIdleCallback === "function") {
@@ -137,12 +125,8 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>
 );
 
-// Register the service worker only after the page has loaded so it never
-// competes with first paint / the critical path.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      /* SW is a progressive enhancement */
-    });
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }

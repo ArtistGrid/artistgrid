@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { usePlayer } from "@/src/providers";
+import { usePlayerTime } from "@/src/lib/player-time";
 
 const SEEK_STEP = 5;
 const VOLUME_STEP = 0.05;
 
 export function KeyboardShortcuts() {
   const { state, togglePlayPause, seekTo, setVolume, playNext, playPrevious } = usePlayer();
+  const { currentTime } = usePlayerTime();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -19,11 +21,11 @@ export function KeyboardShortcuts() {
           break;
         case "ArrowLeft":
           e.preventDefault();
-          if (state.currentTrack) seekTo(state.currentTime - SEEK_STEP);
+          if (state.currentTrack) seekTo(currentTime - SEEK_STEP);
           break;
         case "ArrowRight":
           e.preventDefault();
-          if (state.currentTrack) seekTo(state.currentTime + SEEK_STEP);
+          if (state.currentTrack) seekTo(currentTime + SEEK_STEP);
           break;
         case "ArrowUp":
           e.preventDefault();
@@ -50,7 +52,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state.currentTime, state.currentTrack, state.volume, togglePlayPause, seekTo, setVolume, playNext, playPrevious]);
+  }, [currentTime, state.currentTrack, state.volume, togglePlayPause, seekTo, setVolume, playNext, playPrevious]);
 
   return null;
 }

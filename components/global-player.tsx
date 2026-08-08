@@ -1,6 +1,7 @@
 import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePlayer } from "@/src/providers";
+import { usePlayerTime } from "@/src/lib/player-time";
 import type { Track } from "@/src/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +20,13 @@ import {
   Trash2,
   CircleSlash,
   Mic2,
+  Maximize2,
 } from "lucide-react";
 const LyricsPanel = lazy(() =>
   import("@/src/components/lyrics-panel").then((m) => ({ default: m.LyricsPanel }))
+);
+const FullscreenTrackView = lazy(() =>
+  import("@/src/components/fullscreen-track-view").then((m) => ({ default: m.FullscreenTrackView }))
 );
 interface QueueModalProps {
   isOpen: boolean;
@@ -114,6 +119,7 @@ const QueueModal = ({
                     src={currentTrack.eraImage}
                     alt=""
                     className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     crossOrigin="anonymous"
                   />
@@ -151,6 +157,8 @@ const QueueModal = ({
                       src={track.eraImage}
                       alt=""
                       className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                     />
@@ -204,11 +212,13 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   } = usePlayer();
   const [queueModalOpen, setQueueModalOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(state.volume);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
-  const displayTime = seekPreview ?? state.currentTime;
-  const progress = state.duration ? (displayTime / state.duration) * 100 : 0;
+  const { currentTime, duration } = usePlayerTime();
+  const displayTime = seekPreview ?? currentTime;
+  const progress = duration ? (displayTime / duration) * 100 : 0;
   const handleVolumeToggle = useCallback(() => {
     if (isMuted || state.volume === 0) {
       const restore = prevVolume || 0.7;
@@ -249,17 +259,27 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
           <div className="glass-elevated rounded-2xl overflow-hidden">
             <div className="flex items-center gap-1 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
               <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-none sm:w-52">
-                {state.currentTrack.eraImage ? (
-                  <img
-                    src={state.currentTrack.eraImage}
-                    alt=""
-                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg object-cover flex-shrink-0"
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                  />
-                ) : (
-                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/[0.08] flex-shrink-0" />
-                )}
+                <button
+                  type="button"
+                  onClick={() => setFullscreenOpen(true)}
+                  className="flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
+                  aria-label="Open fullscreen view"
+                >
+                  {state.currentTrack.eraImage ? (
+                    <img
+                      src={state.currentTrack.eraImage}
+                      alt=""
+                      className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg object-cover"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/[0.08] flex items-center justify-center">
+                      <Maximize2 className="w-4 h-4 text-white/30" />
+                    </div>
+                  )}
+                </button>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-white truncate leading-snug">
                     {state.currentTrack.name}
@@ -341,7 +361,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   <input
                     type="range"
                     min="0"
-                    max={state.duration || 0}
+                    max={duration || 0}
                     value={displayTime}
                     step="1"
                     onChange={(e) => setSeekPreview(parseFloat(e.target.value))}
@@ -352,7 +372,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   />
                 </div>
                 <span className="text-xs text-white/30 tabular-nums w-8 flex-shrink-0">
-                  {formatTime(state.duration)}
+                  {formatTime(duration)}
                 </span>
               </div>
               <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
@@ -430,7 +450,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
               <input
                 type="range"
                 min="0"
-                max={state.duration || 0}
+                max={duration || 0}
                 value={displayTime}
                 step="1"
                 onChange={(e) => setSeekPreview(parseFloat(e.target.value))}
@@ -482,6 +502,12 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
           </motion.div>
         )}
       </AnimatePresence>
+      <Suspense fallback={null}>
+        <FullscreenTrackView
+          isOpen={fullscreenOpen}
+          onClose={() => setFullscreenOpen(false)}
+        />
+      </Suspense>
       </>
     </AnimatePresence>
   );

@@ -57,6 +57,8 @@ export function ArtGallery({
                       src={srcs.original}
                       alt={era.name}
                       className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                     />
@@ -116,6 +118,8 @@ export function ArtGallery({
                                   className={`w-full h-full object-cover transition-transform duration-300 ${
                                     clickTarget ? "group-hover:scale-105" : "opacity-40"
                                   }`}
+                                  loading="lazy"
+                                  decoding="async"
                                   referrerPolicy="no-referrer"
                                   crossOrigin="anonymous"
                                 />
@@ -209,6 +213,7 @@ export function ImageLightbox({
               className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
               referrerPolicy="no-referrer"
               crossOrigin="anonymous"
+              decoding="async"
             />
           </picture>
         </button>

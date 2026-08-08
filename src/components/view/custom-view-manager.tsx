@@ -18,7 +18,6 @@ interface CustomViewManagerProps {
   activeCustomView: CustomView | null;
   setActiveCustomView: (view: CustomView | null) => void;
   onSelect: (view: CustomView) => void;
-  tabsList: string[];
   tabSlugs: Record<string, string>;
 }
 
@@ -29,7 +28,6 @@ export function CustomViewManager({
   activeCustomView,
   setActiveCustomView,
   onSelect,
-  tabsList,
   tabSlugs,
 }: CustomViewManagerProps) {
   const [editorOpen, setEditorOpen] = useState(false);

@@ -10,23 +10,6 @@ export interface LyricsData {
   duration: number;
 }
 
-function parseSyncedTimestamps(syncedLyrics: string): LyricLine[] {
-  const lines: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)/g;
-  let match;
-  while ((match = regex.exec(syncedLyrics)) !== null) {
-    const minutes = parseInt(match[1], 10);
-    const seconds = parseInt(match[2], 10);
-    const ms = parseInt(match[3].padEnd(3, "0"), 10);
-    const startTime = minutes * 60 * 1000 + seconds * 1000 + ms;
-    const text = match[4].trim();
-    if (text) lines.push({ text, startTime });
-  }
-  return lines;
-}
-
-export { parseSyncedTimestamps as parseSyncedLyrics };
-
 function formatTtmlTime(ms: number): string {
   const totalSeconds = Math.max(0, ms) / 1000;
   const hours = Math.floor(totalSeconds / 3600);
@@ -64,18 +47,11 @@ export function toTTML(lyrics: LyricsData): string {
     .map((l) => `      <p begin="${formatTtmlTime(l.start)}" end="${formatTtmlTime(l.end)}">${escapeXml(l.text)}</p>`)
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<tt xmlns="http://www.w3.org/ns/ttml">
-  <body>
-    <div>
-${body}
-    </div>
-  </body>
-</tt>`;
-}
-
-export function findCurrentLineIndex(lines: LyricLine[], currentTimeMs: number): number {
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (currentTimeMs >= lines[i].startTime!) return i;
-  }
-  return 0;
+ <tt xmlns="http://www.w3.org/ns/ttml">
+   <body>
+     <div>
+ ${body}
+     </div>
+   </body>
+ </tt>`;
 }

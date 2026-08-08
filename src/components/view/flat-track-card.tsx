@@ -1,9 +1,10 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Play, Pause, Radio, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Play, Radio, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
 import type { Era, TALeak, Track, TrackSource } from "@/src/types";
 import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, TrackItemActions } from "@/src/components/view/track-item";
+import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
 
 export interface FlatTrackCardProps {
   t: TALeak;
@@ -46,6 +47,7 @@ export function FlatTrackCard({ t, fakeEra, url, source, isPlayable, isCurrently
               <span
                 className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
                 style={{
+                  ...(getEraFontStyle(fakeEra.font) || {}),
                   background: t.eraColor ? `color-mix(in srgb, ${t.eraColor}, oklch(14.5% 0 0) 70%)` : "rgb(38 38 38)",
                   color: t.eraTextColor ? `color-mix(in srgb, ${t.eraTextColor}, rgb(255,255,255) 30%)` : "rgb(163 163 163)",
                 }}
@@ -112,7 +114,7 @@ export function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, hand
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const t = tracks[virtualRow.index];
           const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
-          const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
+          const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor, font: t.eraFont };
           return (
             <div
               key={virtualRow.key}

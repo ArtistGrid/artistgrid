@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHeaderSlots } from "@/src/components/layout";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
-import type { Track, Era, TALeak, TrackerResponse, TrackSource } from "@/src/types";
+import type { Track, Era, TALeak, TrackerResponse } from "@/src/types";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useEraFonts } from "@/src/hooks/use-era-fonts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,20 +23,15 @@ import {
   Search,
   X,
   Play,
-  Pause,
   Filter,
   Share2,
-  ChevronDown,
   CircleSlash,
   ListPlus,
-  MoreHorizontal,
   Download,
   ExternalLink,
   Loader2,
   Radio,
-  Link as LinkIcon,
   AlertTriangle,
-  Share,
   SkipForward,
   FolderDown,
   Settings,
@@ -45,9 +40,6 @@ import {
   Music2,
   FileSpreadsheet,
   Layers,
-  Plus,
-  Pencil,
-  X as XIcon,
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCache, setCache } from "@/src/lib/tracker-cache";
@@ -62,7 +54,6 @@ import {
   decodeTrackFromUrl,
   getGoogleSheetsUrl,
   getSourceDisplayName,
-  TRACKER_ID_LENGTH,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
 import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
@@ -84,7 +75,7 @@ import { useTrackerData } from "@/src/hooks/use-tracker-data";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/components/settings-modal-context";
 import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks, toggleEraFavourite, isEraFavourited } from "@/src/lib/favourites";
-import { getCustomViews, addCustomView, deleteCustomView, type CustomView } from "@/src/lib/custom-views";
+import { getCustomViews, type CustomView } from "@/src/lib/custom-views";
 import { mergeTabData } from "@/src/lib/merge-tab-data";
 import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
 import {
@@ -99,7 +90,6 @@ import {
 } from "@/src/components/view/track-item";
 import { CustomViewManager } from "@/src/components/view/custom-view-manager";
 import { FlatTrackCard, FlatTrackList } from "@/src/components/view/flat-track-card";
-import { TrackRow } from "@/src/components/view/track-row";
 import { EraCard } from "@/src/components/view/era-card";
 const ART_TABS = ["Art"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
@@ -136,11 +126,8 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     hasLoaded,
     setHasLoaded,
     baseEraImages,
-    setBaseEraImages,
     isPreloading,
-    setIsPreloading,
     resolveProgress,
-    setResolveProgress,
     tabSlugsRef,
     tabGidsRef,
     hasLoadedRef,
@@ -197,6 +184,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     for (const [key, era] of Object.entries(data.eras)) result[key] = { ...era, image: getEraImage(era) };
     return result;
   }, [data?.eras, getEraImage]);
+  const eraFontList = useMemo(
+    () => (data?.eras ? Object.values(data.eras).map((e) => e.font) : []),
+    [data?.eras]
+  );
+  useEraFonts(eraFontList);
   const isArtTab = ART_TABS.some((t) => currentTab.toLowerCase().includes(t.toLowerCase()));
   const isFlat = !!data?.isFlat;
   const filteredData = useMemo(() => {
@@ -1272,8 +1264,8 @@ const handleLoad = useCallback(() => {
                 )}
                 {favouriteTracks.length > 0 ? (
                   <div className="space-y-1.5 sm:space-y-2">
-                    {favouriteTracks.map((t, i) => {
-                      const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t.track);
+                    {favouriteTracks.map((t) => {
+                      const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } = computeTrackState(t.track);
                       return (
                         <div
                           key={`fav-${t.url}`}
@@ -1343,7 +1335,6 @@ const handleLoad = useCallback(() => {
                   activeCustomView={activeCustomView}
                   setActiveCustomView={setActiveCustomView}
                   onSelect={loadCustomView}
-                  tabsList={tabsList}
                   tabSlugs={tabSlugsRef.current}
                 />
                 {activeCustomView && filteredData && Object.keys(filteredData).length > 0 && (
@@ -1419,7 +1410,7 @@ const handleLoad = useCallback(() => {
                   {flatTracks.map((t, i) => {
                     const flatKey = `flat-${i}-${t.id || t.url || t.name}`;
                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
-                    const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor };
+                    const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor, font: t.eraFont };
                     return (
                       <div
                         key={flatKey}

@@ -7,14 +7,6 @@ export function useImageProxy() {
   const { settings } = useSettings();
   const enabled = settings.behavior.useImageProxy;
 
-  const proxyImageUrl = useCallback(
-    (url: string) => {
-      if (!enabled) return url;
-      return `${PROXY_BASE}/?url=${encodeURIComponent(url)}`;
-    },
-    [enabled]
-  );
-
   const proxyImageSrcSet = useCallback(
     (url: string) => {
       if (!enabled) return { jxl: url, webp: url, original: url };
@@ -27,5 +19,5 @@ export function useImageProxy() {
     [enabled]
   );
 
-  return { proxyImageUrl, proxyImageSrcSet };
+  return { proxyImageSrcSet };
 }

@@ -70,26 +70,14 @@ body {
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Mirror Tailwind's backdrop-blur utilities with the -webkit- prefix so the
-     glass effect works on WebKit engines (e.g. Tauri) that require it. */
   .backdrop-blur-sm {
     -webkit-backdrop-filter: blur(4px);
   }
   .backdrop-blur-md {
     -webkit-backdrop-filter: blur(12px);
   }
-  .backdrop-blur-lg {
-    -webkit-backdrop-filter: blur(16px);
-  }
   .backdrop-blur-xl {
     -webkit-backdrop-filter: blur(24px);
-  }
-  .backdrop-blur-2xl {
-    -webkit-backdrop-filter: blur(40px);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;

@@ -1,4 +1,5 @@
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { memo } from "react";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Share, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, TrackItemActions } from "@/src/components/view/track-item";
@@ -19,7 +20,7 @@ export interface TrackRowProps {
   highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
   track,
   era,
   computeTrackState,
@@ -134,4 +135,4 @@ export function TrackRow({
       <TrackDescription description={description} />
     </div>
   );
-}
+});

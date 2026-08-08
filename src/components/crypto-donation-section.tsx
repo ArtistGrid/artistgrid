@@ -96,7 +96,7 @@ function CryptoDonationSection({ onShowQr }: CryptoDonationSectionProps) {
     </div>
   );
 }
-export function QrOverlay({ value, uriScheme, name, onClose }: QrCodeData & { onClose: () => void }) {
+export function QrOverlay({ value, uriScheme, name }: QrCodeData) {
   return (
     <div className="bg-white p-4 rounded-lg shadow-2xl">
       <Suspense fallback={<div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" />}>

@@ -49,9 +49,3 @@ export function toggleShuffleState(state: QueueState): QueueState {
   }
   return { ...state, isShuffled: newShuffled };
 }
-
-export function playNextFromQueue(queue: Track[]): { next: Track | null; rest: Track[] } {
-  if (queue.length === 0) return { next: null, rest: [] };
-  const [next, ...rest] = queue;
-  return { next, rest };
-}

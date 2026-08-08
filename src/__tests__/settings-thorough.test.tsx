@@ -38,9 +38,9 @@ describe("SettingsModal (thorough)", () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Player");
     const switches = screen.getAllByRole("switch");
-    fireEvent.click(switches[0]); // showAlbumArt off
-    fireEvent.click(switches[1]); // showNextSong on
-    fireEvent.click(switches[2]); // startupShuffle on
+    fireEvent.click(switches[0]);
+    fireEvent.click(switches[1]);
+    fireEvent.click(switches[2]);
     const s = loadSettings();
     expect(s.player.showAlbumArt).toBe(false);
     expect(s.player.showNextSong).toBe(true);
@@ -51,8 +51,8 @@ describe("SettingsModal (thorough)", () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Player");
     const switches = screen.getAllByRole("switch");
-    fireEvent.click(switches[3]); // useOgFilename
-    fireEvent.click(switches[4]); // embedMetadata
+    fireEvent.click(switches[3]);
+    fireEvent.click(switches[4]);
     expect(loadSettings().downloads.useOgFilename).toBe(true);
     expect(loadSettings().downloads.embedMetadata).toBe(true);
     const format = screen.getByDisplayValue("Original") as HTMLSelectElement;
@@ -64,11 +64,11 @@ describe("SettingsModal (thorough)", () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Scrobbling");
     const switches = screen.getAllByRole("switch");
-    fireEvent.click(switches[0]); // lastfm enabled (default on -> off)
-    fireEvent.click(switches[1]); // custom server -> reveals fields
+    fireEvent.click(switches[0]);
+    fireEvent.click(switches[1]);
     expect(loadSettings().scrobbling.lastfm.customServer).toBe(true);
     expect(screen.getByPlaceholderText("Your Last.fm API key")).toBeInTheDocument();
-    fireEvent.click(switches[2]); // listenbrainz enabled (default on -> off)
+    fireEvent.click(switches[2]);
     expect(loadSettings().scrobbling.listenbrainz.enabled).toBe(false);
   });
 
@@ -76,11 +76,11 @@ describe("SettingsModal (thorough)", () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Behavior");
     const switches = screen.getAllByRole("switch");
-    fireEvent.click(switches[0]); // detailedErrors
-    fireEvent.click(switches[1]); // notifications
-    fireEvent.click(switches[2]); // showEmojis
-    fireEvent.click(switches[3]); // rememberSearch
-    fireEvent.click(switches[4]); // openInNewTab
+    fireEvent.click(switches[0]);
+    fireEvent.click(switches[1]);
+    fireEvent.click(switches[2]);
+    fireEvent.click(switches[3]);
+    fireEvent.click(switches[4]);
     const s = loadSettings();
     expect(s.behavior.detailedErrors).toBe(true);
     expect(s.behavior.notifications).toBe(true);

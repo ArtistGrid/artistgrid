@@ -30,12 +30,11 @@ export interface EraDate {
 export interface Era {
   name: string;
   extra?: string;
-  timeline?: string;
-  fileInfo?: string[];
   image?: string;
   eraLogo?: string;
   textColor?: string;
   backgroundColor?: string;
+  font?: string;
   description?: string;
   data?: Record<string, TALeak[]>;
   era_dates?: EraDate[];
@@ -59,6 +58,7 @@ export interface TALeak {
   eraName?: string;
   eraColor?: string;
   eraTextColor?: string;
+  eraFont?: string;
   art_used?: boolean;
 }
 export interface TrackerResponse {

@@ -44,7 +44,6 @@ describe("CustomViewManager", () => {
     const setCustomViews = vi.fn();
     render(<CustomViewManager {...makeProps({ setCustomViews })} />);
     fireEvent.click(screen.getByText("Create Custom View"));
-    // name empty, no tabs selected -> create disabled
     expect(screen.getByText("Create")).toBeDisabled();
   });
 

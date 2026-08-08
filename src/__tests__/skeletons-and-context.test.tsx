@@ -7,7 +7,6 @@ import { MemoryRouter } from "react-router-dom";
 describe("GallerySkeleton", () => {
   it("renders 18 skeleton cells", () => {
     const { container } = render(<GallerySkeleton />);
-    // Each cell has an image skeleton + text skeleton; count image skeletons (aspect-square)
     expect(container.querySelectorAll(".aspect-square").length).toBe(18);
   });
 });

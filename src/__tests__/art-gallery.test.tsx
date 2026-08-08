@@ -40,7 +40,6 @@ describe("ArtGallery", () => {
     const { container } = render(wrap(<ArtGallery eras={eras} onImageClick={() => {}} />));
     const btn = screen.getByText("Era X");
     fireEvent.click(btn);
-    // collapsed: era name still present (button text), art may hide
     expect(btn).toBeInTheDocument();
   });
 });

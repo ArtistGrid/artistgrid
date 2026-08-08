@@ -1,10 +1,10 @@
 import { useCallback, useRef, useEffect, useState, memo, createElement } from "react";
 import { Client } from "lrclib-api";
 import { usePlayer } from "@/src/providers";
+import { usePlayerTime } from "@/src/lib/player-time";
 import { useSettings } from "@/src/hooks/use-settings";
 import { toTTML, type LyricsData } from "@/src/lib/lyrics";
 
-// Import the side-effect to register the custom element
 import "@uimaxbai/am-lyrics/am-lyrics.js";
 
 interface AmLyricsElement extends HTMLElement {
@@ -67,7 +67,8 @@ async function fetchFromLRCLIB(name: string, artist: string): Promise<string | n
 
 export const LyricsPanel = memo(function LyricsPanel() {
   const { state } = usePlayer();
-  const { currentTrack, currentTime } = state;
+  const { currentTrack } = state;
+  const { currentTime } = usePlayerTime();
   const { settings } = useSettings();
   const ref = useRef<AmLyricsElement>(null);
   const [ttml, setTtml] = useState<string | null>(null);

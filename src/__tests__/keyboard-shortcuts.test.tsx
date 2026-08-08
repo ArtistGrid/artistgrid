@@ -28,7 +28,6 @@ describe("KeyboardShortcuts", () => {
     const { result } = setup();
     act(() => result.current.playTrack(track("1", "https://x.com/1.mp3")));
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: " " })));
-    // play called (paused stays true in jsdom) -> just assert no throw and handler ran
     expect(result.current.state.isPlaying).toBe(true);
   });
 

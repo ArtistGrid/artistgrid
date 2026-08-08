@@ -16,17 +16,12 @@ import {
   toggleShuffleState,
 } from "@/src/lib/player-queue";
 import type { RepeatMode } from "@/src/lib/player-queue";
+import { setCurrentTime, setDuration, resetTime } from "@/src/lib/player-time";
 
-// Plays an audio element, ignoring the promise rejection that browsers throw
-// when playback is interrupted or the element isn't ready. Guards against a
-// null element so a missing audio node can never throw "e.current.play()".
 function safePlay(audio: HTMLAudioElement | null | undefined) {
   if (audio) audio.play().catch(() => {});
 }
 
-// Shows a notification, tolerating platforms where the Notification constructor
-// is unavailable/illegal (e.g. WKWebView, which requires the service worker's
-// showNotification). Never throws.
 function notify(title: string, options: NotificationOptions) {
   try {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -48,10 +43,7 @@ interface PlayerState {
   isPlaying: boolean;
   isShuffled: boolean;
   repeatMode: RepeatMode;
-  currentTime: number;
-  duration: number;
   volume: number;
-  isBuffering: boolean;
 }
 interface LastFMSession {
   key: string;
@@ -72,7 +64,6 @@ interface PlayerContextType {
   playFromQueue: (index: number) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
-  history: Track[];
   closePlayer: () => void;
   lastfm: LastFMClientInfo;
 }
@@ -94,10 +85,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isPlaying: false,
       isShuffled: s.player.startupShuffle,
       repeatMode: "off",
-      currentTime: 0,
-      duration: 0,
       volume: 1,
-      isBuffering: false,
     };
   });
   const stateRef = useRef<PlayerState | null>(null);
@@ -353,7 +341,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener(
       "timeupdate",
       () => {
-        setState((s) => ({ ...s, currentTime: audioRef.current?.currentTime || 0 }));
+        setCurrentTime(audioRef.current?.currentTime || 0);
         if ("mediaSession" in navigator && audioRef.current) {
           try {
             const duration = audioRef.current.duration;
@@ -366,7 +354,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               });
             }
           } catch {
-            // setPositionState may throw on some browsers
           }
         }
       },
@@ -375,21 +362,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener(
       "loadedmetadata",
       () => {
-        const duration = audioRef.current?.duration || 0;
-        setState((s) => ({ ...s, duration, isBuffering: false }));
-        if (currentTrackRef.current && lastfmSessionRef.current?.key && duration > 30) {
-          scheduleScrobbleRef.current(currentTrackRef.current, duration);
+        const dur = audioRef.current?.duration || 0;
+        setDuration(dur);
+        if (currentTrackRef.current && lastfmSessionRef.current?.key && dur > 30) {
+          scheduleScrobbleRef.current(currentTrackRef.current, dur);
         }
       },
       opts
     );
-    audio.addEventListener("waiting", () => setState((s) => ({ ...s, isBuffering: true })), opts);
-    audio.addEventListener("canplay", () => setState((s) => ({ ...s, isBuffering: false })), opts);
     audio.addEventListener(
       "error",
       (e) => {
         logError("Audio error:", e);
-        setState((s) => ({ ...s, isBuffering: false }));
       },
       opts
     );
@@ -591,7 +575,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     clearScrobbleTimer();
     currentTrackRef.current = null;
-    setState((s) => ({ ...s, currentTrack: null, isPlaying: false, queue: [], currentTime: 0, duration: 0 }));
+    setState((s) => ({ ...s, currentTrack: null, isPlaying: false, queue: [] }));
+    resetTime();
     setHistory([]);
     if ("mediaSession" in navigator) {
       navigator.mediaSession.metadata = null;
@@ -646,7 +631,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           playFromQueue,
           toggleShuffle,
           toggleRepeat,
-          history,
           closePlayer,
           lastfm: {
             isAuthenticated: !!lastfmSession?.key,
@@ -670,7 +654,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           reorderQueue,
           playFromQueue,
           toggleShuffle,
-          history,
           closePlayer,
           lastfmSession,
           getAuthUrl,

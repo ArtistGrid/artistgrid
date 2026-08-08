@@ -58,9 +58,7 @@ describe("DownloadProvider flow", () => {
   beforeEach(() => {
     originalCreateObjectURL = globalThis.URL.createObjectURL;
     originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
-    // @ts-expect-error - jsdom lacks createObjectURL
     globalThis.URL.createObjectURL = createObjectURL;
-    // @ts-expect-error - jsdom lacks revokeObjectURL
     globalThis.URL.revokeObjectURL = revokeObjectURL;
     createObjectURL.mockClear();
     revokeObjectURL.mockClear();
@@ -81,7 +79,6 @@ describe("DownloadProvider flow", () => {
     await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("completed"), {
       timeout: 8000,
     });
-    // The zip blob was created and offered for download.
     expect(createObjectURL).toHaveBeenCalled();
   });
 

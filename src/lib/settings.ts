@@ -1,7 +1,6 @@
 import { safeSetItem } from "@/src/lib/storage";
 
 type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
-type TagPreset = "default" | "minimal" | "full";
 
 export interface Settings {
   lyrics: {
@@ -13,10 +12,8 @@ export interface Settings {
     useOgFilename: boolean;
     embedMetadata: boolean;
     format: DownloadFormat;
-    tagPreset: TagPreset;
   };
   player: {
-    miniPlayer: boolean;
     showAlbumArt: boolean;
     showNextSong: boolean;
     startupShuffle: boolean;
@@ -57,10 +54,8 @@ export const DEFAULT_SETTINGS: Settings = {
     useOgFilename: false,
     embedMetadata: false,
     format: "original",
-    tagPreset: "default",
   },
   player: {
-    miniPlayer: true,
     showAlbumArt: true,
     showNextSong: false,
     startupShuffle: false,
@@ -93,9 +88,6 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const STORAGE_KEY = "artistgrid-settings:v1";
 
-// Cache the parsed settings, keyed on the raw stored string, so repeated reads
-// (e.g. proxyImageUrl is called once per image) skip the localStorage read +
-// JSON.parse unless the underlying value actually changed.
 let cachedRaw: string | null | undefined = undefined;
 let cachedSettings: Settings | null = null;
 

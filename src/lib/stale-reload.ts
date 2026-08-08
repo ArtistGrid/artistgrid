@@ -1,8 +1,3 @@
-// Detects the class of errors caused by a stale deployment: a browser holding an
-// old index.html that references JS chunk hashes which no longer exist on the CDN.
-// Those requests 404 and return an HTML error page, which surfaces as a MIME-type
-// error, a chunk-load failure, or a parse error when the HTML is injected as a
-// script. A single reload pulls the fresh assets and clears the condition.
 let attempted = false;
 
 const STALE_PATTERNS = [
@@ -13,7 +8,7 @@ const STALE_PATTERNS = [
   /Loading chunk [\d]+ failed/,
 ];
 
-export function isStaleAssetError(message: string): boolean {
+function isStaleAssetError(message: string): boolean {
   return STALE_PATTERNS.some((p) => (typeof p === "string" ? message.includes(p) : p.test(message)));
 }
 
@@ -24,4 +19,47 @@ export function reloadOnStaleError(message: string): boolean {
     window.location.reload();
   }
   return true;
+}
+
+let cacheCleared = false;
+
+const STALE_LOCAL_STORAGE_KEYS = [
+  "artistGridCsvCache_remote",
+  "artistGridCsvCache_local",
+  "artistGridMessageHash",
+  "artistgrid-search",
+];
+
+const PRESERVED_IDB_DBS = new Set(["artistgrid-cache"]);
+
+export async function clearCacheAndReload(): Promise<void> {
+  if (cacheCleared) return;
+  cacheCleared = true;
+  try {
+    for (const k of STALE_LOCAL_STORAGE_KEYS) {
+      localStorage.removeItem(k);
+    }
+    if (typeof caches !== "undefined") {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if (typeof indexedDB !== "undefined") {
+      const databases = await indexedDB.databases();
+      await Promise.all(
+        databases
+          .filter((db) => db.name && !PRESERVED_IDB_DBS.has(db.name))
+          .map(
+            (db) =>
+              new Promise<void>((resolve, reject) => {
+                const req = indexedDB.deleteDatabase(db.name!);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+                req.onblocked = () => resolve();
+              }),
+          ),
+      );
+    }
+  } catch {
+  }
+  window.location.reload();
 }

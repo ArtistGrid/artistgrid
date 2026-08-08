@@ -4,11 +4,6 @@ import { toBlobURL } from "@ffmpeg/util";
 let ffmpegInstance: FFmpeg | null = null;
 let loadingPromise: Promise<FFmpeg> | null = null;
 
-// Serialize all FFmpeg operations. The underlying instance shares a single
-// in-memory (MEMFS) filesystem, so concurrent `exec` calls with overlapping
-// temp filenames would corrupt each other's data. A promise chain guarantees
-// only one operation touches the instance at a time and bounds peak memory to
-// a single file.
 let operationChain: Promise<unknown> = Promise.resolve();
 
 async function getFFmpeg(): Promise<FFmpeg> {
@@ -48,7 +43,7 @@ export interface MetadataInput {
   coverUrl?: string;
 }
 
-export type TranscodeFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
+type TranscodeFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
 
 function getTranscodeArgs(format: TranscodeFormat): { args: string[]; ext: string; mime: string } {
   switch (format) {
@@ -162,7 +157,6 @@ export async function embedMetadata(
     }
   });
 
-  // Keep the chain alive regardless of success/failure so later operations still run.
   operationChain = run.then(
     () => undefined,
     () => undefined

@@ -1,15 +1,11 @@
 import type { Era, EraDate, TALeak, TrackerResponse } from "@/src/types";
 import { isUrl, generateTrackId } from "./track-utils";
+import { clearCacheAndReload } from "./stale-reload";
 
 const API_BASE = "https://trackerapi.artistgrid.cx";
 
 const etagStore = new Map<string, string>();
 const bodyCache = new Map<string, string>();
-
-export function clearETags(): void {
-  etagStore.clear();
-  bodyCache.clear();
-}
 
 export async function computeETag(body: string): Promise<string> {
   const data = new TextEncoder().encode(body);
@@ -42,11 +38,19 @@ export async function fetchWithFallback(endpoint: string, options?: RequestInit)
     });
   }
 
+  if (res.status === 404) {
+    clearCacheAndReload();
+  }
+
   if (res.ok) {
     const body = await res.clone().text();
-    const etag = await computeETag(body);
-    etagStore.set(url, etag);
     bodyCache.set(url, body);
+    const compute = () => computeETag(body).then((etag) => etagStore.set(url, etag));
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(compute, { timeout: 5000 });
+    } else {
+      setTimeout(compute, 0);
+    }
   }
 
   return res;
@@ -75,6 +79,8 @@ interface V3FlatTrack extends V3Track {
   era: string;
   era_color?: string;
   era_text_color?: string;
+  era_font?: string;
+  font_family?: string;
   og_filename?: string;
 }
 interface V3Era {
@@ -86,6 +92,8 @@ interface V3Era {
   era_logo?: string;
   color?: string;
   text_color?: string;
+  font?: string;
+  font_family?: string;
   tracks: V3Track[];
 }
 interface V3Tab {
@@ -163,11 +171,11 @@ export function adaptV3Response(v3: V3Response): TrackerResponse {
     eras[key] = {
       name: v3Era.name,
       extra: v3Era.aka?.join(", "),
-      timeline: v3Era.timeline,
       image: v3Era.cover_art,
       eraLogo: v3Era.era_logo,
       textColor: v3Era.text_color,
       backgroundColor: v3Era.color,
+      font: v3Era.font_family || v3Era.font,
       description: v3Era.description,
       data: Object.keys(grouped).length > 0 ? grouped : undefined,
     };
@@ -207,12 +215,14 @@ export function adaptV3FlatResponse(v3: V3Response): TrackerResponse {
         name: eraName,
         backgroundColor: track.era_color,
         textColor: track.era_text_color,
+        font: track.era_font || track.font_family,
       };
     }
     const taLeak = adaptV3Track(track);
     taLeak.eraName = eraName;
     taLeak.eraColor = track.era_color;
     taLeak.eraTextColor = track.era_text_color;
+    taLeak.eraFont = track.era_font || track.font_family;
     flat.push(taLeak);
   }
   const eras: Record<string, Era> = { _flat: { name: "", data: { Default: flat } } };

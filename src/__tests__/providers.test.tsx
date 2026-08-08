@@ -4,7 +4,6 @@ import { PlayerProvider, usePlayer } from "@/src/providers";
 import type { Track } from "@/src/types";
 
 beforeAll(() => {
-  // jsdom has no HTMLMediaElement playback
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();
   window.HTMLMediaElement.prototype.load = vi.fn();

@@ -27,6 +27,12 @@ export function extractTrackerId(input: string): string | null {
   if (pubhtml) return pubhtml[1];
   const match = input.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
   if (match) return match[1];
+  try {
+    const url = new URL(input.trim());
+    const hostname = url.hostname;
+    if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(hostname)) return hostname;
+  } catch {
+  }
   if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(input.trim())) return input.trim();
   if (/^[a-zA-Z0-9_-]+$/.test(cleanInput)) return cleanInput;
   return null;

@@ -14,3 +14,7 @@
 # Self-hosted fonts are immutable and versioned by filename.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# index.html must always revalidate so users get the latest shell.
+/index.html
+  Cache-Control: no-cache, must-revalidate

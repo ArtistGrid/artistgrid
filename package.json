@@ -17,7 +17,8 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "@lit/react": "^1.0.8",
+    "@kawarp/core": "^1.2.0",
+    "@kawarp/react": "^1.2.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
@@ -39,7 +40,8 @@
     "react-dom": "^19.2.1",
     "react-router-dom": "^6.30.0",
     "spark-md5": "^3.0.2",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "vanilla-tilt": "^1.8.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -14,7 +14,7 @@ const Donate = lazy(() => import("./pages/Donate"));
 const SettingsModal = lazy(() => import("./pages/Settings"));
 const GlobalPlayer = lazy(() => import("@/components/global-player").then((m) => ({ default: m.GlobalPlayer })));
 
-import { SettingsModalContext, useSettingsModal } from "./components/settings-modal-context";
+import { SettingsModalContext } from "./components/settings-modal-context";
 
 function IframeNotice() {
   const [visible, setVisible] = useState(() => {

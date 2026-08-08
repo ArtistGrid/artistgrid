@@ -45,15 +45,6 @@ export function getTrackDescription(track: TALeak): string | null {
 }
 
 
-const SPECIAL_TRACKER_IDS = ["yetracker.net", "franktracker.net", "deftonestracker.net"];
-
-export function isValidTrackerId(id: string): boolean {
-  if (!id || typeof id !== "string") return false;
-  const trimmed = id.trim();
-  if (SPECIAL_TRACKER_IDS.includes(trimmed)) return true;
-  if (trimmed.startsWith("2PACX-")) return /^[a-zA-Z0-9_-]+$/.test(trimmed);
-  return trimmed.length === TRACKER_ID_LENGTH && /^[a-zA-Z0-9_-]+$/.test(trimmed);
-}
 export function encodeTrackForUrl(url: string): string {
   return btoa(url).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

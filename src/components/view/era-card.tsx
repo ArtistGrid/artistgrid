@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import type { Era, TALeak, TrackSource } from "@/src/types";
 import { getAllTrackUrls } from "@/src/lib/track-utils";
 import { TrackRow } from "@/src/components/view/track-row";
 import { useImageProxy } from "@/src/hooks/use-image-proxy";
+import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
 
 export type EraCardTrackState = {
   url: string | null;
@@ -70,7 +72,7 @@ export interface EraCardProps {
   highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function EraCard({
+export const EraCard = memo(function EraCard({
   eraKey,
   era,
   resolvedUrls,
@@ -128,6 +130,8 @@ export function EraCard({
                     src={srcs.original}
                     alt={era.name}
                     className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       background: era.backgroundColor
                         ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
@@ -161,6 +165,8 @@ export function EraCard({
                       src={srcs.original}
                       alt={era.name}
                       className="h-6 sm:h-7 max-w-full object-contain"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                     />
@@ -170,9 +176,10 @@ export function EraCard({
             ) : (
               <h3
                 style={{
-                  color: era.textColor
-                    ? `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)`
-                    : "white",
+                  ...(era.textColor
+                    ? { color: `color-mix(in srgb, ${era.textColor}, rgb(255,255,255) 40%)` }
+                    : { color: "white" }),
+                  ...getEraFontStyle(era.font),
                 }}
                 className="text-base sm:text-lg font-bold truncate"
               >
@@ -279,4 +286,4 @@ export function EraCard({
       </AnimatePresence>
     </div>
   );
-}
+});

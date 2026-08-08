@@ -12,9 +12,7 @@ declare global {
 export const ASSET_BASE = "https://assets.artistgrid.cx";
 export const DISCORD_INVITE = "https://discord.gg/YuwTae6QC4";
 export const LOCAL_STORAGE_KEYS = {
-  USE_SHEET: "artistGridUseSheet",
   FILTER_OPTIONS: "artistGridFilterOptions",
-  CSV_CACHE_REMOTE: "artistGridCsvCache_remote",
   CSV_CACHE_LOCAL: "artistGridCsvCache_local",
 
   MESSAGE_HASH: "artistGridMessageHash",

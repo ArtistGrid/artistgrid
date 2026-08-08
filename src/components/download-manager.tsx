@@ -102,10 +102,6 @@ async function downloadFileAsBlob(
   contentType: string;
 } | null> {
   try {
-    // Abort a stalled request so a single hung connection can't pin the item in
-    // the "downloading" state forever (which would block the whole job from
-    // ever completing or failing). The abort surfaces as an error below, which
-    // routes the item through the retry/fail path.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     const response = await fetch(url, { signal: controller.signal });
@@ -265,11 +261,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const processQueueRef = useRef<() => void>(() => {});
   const creatingZipsRef = useRef<Set<string>>(new Set());
   const downloadUrlsRef = useRef<Map<string, string>>(new Map());
-  const zipTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const retryOrFail = useCallback((item: DownloadQueueItem) => {
-    // Push to the queue synchronously (never inside a setState updater) so the
-    // queue drains on the next processQueue() call. Driving retries off the
-    // queue item's own counter keeps the decision independent of batched state.
     if (item.retryCount < MAX_RETRY_ATTEMPTS) {
       item.retryCount += 1;
       downloadQueueRef.current.push(item);
@@ -402,14 +394,10 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            // Release the in-memory blobs for this chunk immediately so a large
-            // job (multiple GB) never has all of its data resident at once.
             for (const { item } of chunkItems) jobData.delete(item.id);
             if (i < filled.length - 1) {
               await new Promise((r) => setTimeout(r, 1000));
             }
-            // Parts beyond the first are auto-downloaded and never re-offered,
-            // so free their object URL once the download has had time to start.
             if (i > 0) URL.revokeObjectURL(downloadUrl);
           }
           setJobs((prev) =>

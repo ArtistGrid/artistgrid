@@ -47,7 +47,6 @@ function wrap(ui: React.ReactNode) {
 describe("GlobalPlayer", () => {
   it("renders nothing when no current track", () => {
     const { container } = render(wrap(<GlobalPlayer />));
-    // No audio controls visible without a track
     expect(container.firstChild).toBeNull();
   });
 

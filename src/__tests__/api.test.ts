@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchWithFallback, clearETags, computeETag } from "@/src/lib/api";
+import { fetchWithFallback, computeETag } from "@/src/lib/api";
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -20,7 +20,6 @@ describe("ETag support", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    clearETags();
     fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
   });
@@ -120,26 +119,13 @@ describe("ETag support", () => {
 
     it("does not cache non-200 responses", async () => {
       fetchSpy.mockResolvedValueOnce(new Response("error", { status: 500 }));
-      await fetchWithFallback("/sh/test/");
+      await fetchWithFallback("/sh/no-cache/");
 
       fetchSpy.mockResolvedValueOnce(jsonResponse({ ok: true }));
-      const res = await fetchWithFallback("/sh/test/");
+      const res = await fetchWithFallback("/sh/no-cache/");
       const json = await res.json();
 
       expect(json).toEqual({ ok: true });
-      const [, opts] = fetchSpy.mock.calls[1];
-      expect(opts?.headers?.["If-None-Match"]).toBeUndefined();
-    });
-
-    it("clearETags removes all stored ETags", async () => {
-      fetchSpy.mockResolvedValueOnce(jsonResponse({ a: 1 }));
-      await fetchWithFallback("/sh/test/");
-
-      clearETags();
-
-      fetchSpy.mockResolvedValueOnce(jsonResponse({ a: 1 }));
-      await fetchWithFallback("/sh/test/");
-
       const [, opts] = fetchSpy.mock.calls[1];
       expect(opts?.headers?.["If-None-Match"]).toBeUndefined();
     });
