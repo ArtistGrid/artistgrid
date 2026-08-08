@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { ChunkErrorBoundary } from "./components/error-boundary";
-import { reloadOnStaleError } from "@/src/lib/stale-reload";
+import { reloadOnStaleError, clearCacheAndReload } from "@/src/lib/stale-reload";
 
 const DROPPED_ERROR_SUBSTRINGS = [
   "Rejected",
@@ -40,8 +40,10 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Error invoking postMessage",
   "Can't find variable: CONFIG",
   "Can't find variable: EmptyRanges",
+  "Can't find variable: __gCrWeb",
   "e.useCache",
   "e.target.tagName.toLowerCase",
+  "M_ID",
   "Maximum call stack size exceeded",
   "RangeError: Maximum call stack size exceeded",
   "NotSupportedError: The operation is not supported",
@@ -72,7 +74,7 @@ const DROPPED_ERROR_SUBSTRINGS = [
 
 function shouldDropError(msg: string, type: string): boolean {
   if (type.includes("React ErrorBoundary")) return true;
-  if (msg === "Aa" || msg === "fa") return true;
+  if (msg === "Aa" || msg === "fa" || msg === "Ba") return true;
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
 }
 
@@ -130,3 +132,10 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "r") {
+    e.preventDefault();
+    clearCacheAndReload();
+  }
+});

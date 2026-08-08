@@ -5,6 +5,7 @@ import VanillaTilt from "vanilla-tilt";
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 import { Button } from "@/components/ui/button";
+import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
 import {
   X,
   SkipBack,
@@ -68,23 +69,24 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
 
   // Init / destroy Kawarp — stable, never recreated
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     // Reuse existing instance (handles React strict mode double-mount)
     let kawarp = kawarpRef.current;
     if (!kawarp) {
-      kawarp = new Kawarp(canvasRef.current, { ...KAWARP_DEFAULTS });
+      kawarp = new Kawarp(canvas, { ...KAWARP_DEFAULTS });
       kawarpRef.current = kawarp;
     }
 
+    let stopped = false;
     const resize = () => {
-      if (canvasRef.current) {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        if (canvasRef.current.width !== w) canvasRef.current.width = w;
-        if (canvasRef.current.height !== h) canvasRef.current.height = h;
-        kawarp!.resize();
-      }
+      if (stopped || !canvasRef.current) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (canvasRef.current.width !== w) canvasRef.current.width = w;
+      if (canvasRef.current.height !== h) canvasRef.current.height = h;
+      try { kawarp!.resize(); } catch {}
     };
 
     resize();
@@ -92,10 +94,11 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
     kawarp.start();
 
     return () => {
+      stopped = true;
       window.removeEventListener("resize", resize);
-      kawarp!.stop();
-      // Don't null kawarpRef or dispose — strict mode re-runs effect on same canvas.
-      // Canvas unmounting cleans up the context naturally.
+      try { kawarp!.stop(); } catch {}
+      try { kawarp!.dispose(); } catch {}
+      kawarpRef.current = null;
     };
   }, []);
 
@@ -121,7 +124,9 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
       scale: 1.02,
     });
     return () => {
-      (el as unknown as { vanillaTilt?: { destroy: () => void } }).vanillaTilt?.destroy();
+      try {
+        (el as unknown as { vanillaTilt?: { destroy: () => void } }).vanillaTilt?.destroy();
+      } catch {}
     };
   }, [isOpen]);
 
@@ -238,41 +243,16 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
 
               {/* Seek bar */}
               <div className="w-full max-w-lg mb-4 sm:mb-6">
-                <div className="relative h-6 flex items-center group cursor-pointer">
-                  <div className="absolute inset-x-0 h-1.5 bg-white/[0.15] rounded-full overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-white/80 group-hover:bg-white rounded-full transition-colors"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <div
-                    className="absolute top-1/2 w-3.5 h-3.5 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none"
-                    style={{
-                      left: `${progress}%`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max={duration || 0}
-                    value={displayTime}
-                    step="1"
-                    onChange={(e) => handleSeekStart(parseFloat(e.target.value))}
-                    onMouseUp={(e) =>
-                      handleSeekEnd(
-                        parseFloat((e.target as HTMLInputElement).value)
-                      )
-                    }
-                    onTouchEnd={(e) =>
-                      handleSeekEnd(
-                        parseFloat((e.target as HTMLInputElement).value)
-                      )
-                    }
-                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                    aria-label="Seek playback position"
-                  />
-                </div>
+                <WaveformSeekbar
+                  audioUrl={state.currentTrack?.playableUrl ?? null}
+                  trackId={state.currentTrack?.id ?? null}
+                  progress={progress}
+                  duration={duration}
+                  onSeekStart={handleSeekStart}
+                  onSeekEnd={handleSeekEnd}
+                  height={48}
+                  className="w-full"
+                />
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-white/40 tabular-nums">
                     {formatTime(displayTime)}

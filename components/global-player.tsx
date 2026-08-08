@@ -4,6 +4,7 @@ import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 import type { Track } from "@/src/types";
 import { Button } from "@/components/ui/button";
+import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
 import {
   X,
   SkipBack,
@@ -347,30 +348,16 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                 <span className="text-xs text-white/30 tabular-nums w-8 text-right flex-shrink-0">
                   {formatTime(displayTime)}
                 </span>
-                <div className="relative flex-1 h-5 flex items-center group cursor-pointer">
-                  <div className="absolute inset-x-0 h-1 bg-white/[0.12] rounded-full">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-white/70 group-hover:bg-white rounded-full transition-colors"
-                      style={{ width: `${progress}%` }}
-                    />
-                    <div
-                      className="absolute top-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm pointer-events-none"
-                      style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
-                    />
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max={duration || 0}
-                    value={displayTime}
-                    step="1"
-                    onChange={(e) => setSeekPreview(parseFloat(e.target.value))}
-                    onMouseUp={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
-                    onTouchEnd={(e) => { seekTo(parseFloat((e.target as HTMLInputElement).value)); setSeekPreview(null); }}
-                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                    aria-label="Seek playback position"
-                  />
-                </div>
+                <WaveformSeekbar
+                  audioUrl={state.currentTrack?.playableUrl ?? null}
+                  trackId={state.currentTrack?.id ?? null}
+                  progress={progress}
+                  duration={duration}
+                  onSeekStart={setSeekPreview}
+                  onSeekEnd={(v) => { seekTo(v); setSeekPreview(null); }}
+                  height={20}
+                  className="flex-1 min-w-0"
+                />
                 <span className="text-xs text-white/30 tabular-nums w-8 flex-shrink-0">
                   {formatTime(duration)}
                 </span>

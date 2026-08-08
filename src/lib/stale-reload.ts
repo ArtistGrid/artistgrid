@@ -43,6 +43,10 @@ export async function clearCacheAndReload(): Promise<void> {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
     }
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
     if (typeof indexedDB !== "undefined") {
       const databases = await indexedDB.databases();
       await Promise.all(

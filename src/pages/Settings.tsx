@@ -16,7 +16,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { clearCache } from "@/src/lib/tracker-cache";
-import { Database, Globe } from "lucide-react";
+import { clearCacheAndReload } from "@/src/lib/stale-reload";
+import { Database, Globe, Trash2 } from "lucide-react";
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -314,6 +315,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                 <SettingRow label="Clear Tracker Cache" description="Remove cached tracker data and free up local storage">
                   <Button variant="outline" size="sm" onClick={() => clearCache()}>
                     Clear
+                  </Button>
+                </SettingRow>
+                <SettingRow label="Bust All Caches" description="Clear service worker, browser cache, and IndexedDB. Forces a full reload.">
+                  <Button variant="outline" size="sm" onClick={() => clearCacheAndReload()} className="gap-1.5">
+                    <Trash2 className="w-3 h-3" /> Bust
                   </Button>
                 </SettingRow>
               </Section>
