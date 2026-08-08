@@ -42,9 +42,14 @@ function removeLink(link: HTMLLinkElement) {
 export function useEraFonts(eraFonts: (string | undefined)[]) {
   const linksRef = useRef<HTMLLinkElement[]>([]);
   const fontsKey = useMemo(
-    () => eraFonts.filter(Boolean).map((f) => sanitizeFontName(f!)).sort().join(","),
+    () =>
+      eraFonts
+        .filter(Boolean)
+        .map((f) => sanitizeFontName(f!))
+        .sort()
+        .join(","),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [eraFonts.length, ...eraFonts.filter(Boolean).sort()]
+    [eraFonts.length, eraFonts.filter(Boolean).sort().join(",")]
   );
 
   useEffect(() => {

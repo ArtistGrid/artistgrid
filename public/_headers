@@ -7,8 +7,20 @@
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()
   Content-Security-Policy: default-src 'self'; img-src 'self' data: blob: https:; font-src 'self' https:; style-src 'self' 'unsafe-inline' https://api.fonts.coollabs.io; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://unpkg.com https://cdn.jsdelivr.net https://cdn.hopjs.net; connect-src 'self' https: wss:; frame-src 'self' https:; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' https: blob:; object-src 'none'
 
-# Hashed build assets are immutable and can be cached indefinitely.
-/assets/*
+# Hashed build assets (JS/CSS) are never cached so users always get fresh code.
+/assets/*.js
+/assets/*.css
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Images are immutable and can be cached indefinitely.
+/assets/*.svg
+/assets/*.png
+/assets/*.jpg
+/assets/*.jpeg
+/assets/*.webp
+/assets/*.avif
+/assets/*.gif
+/assets/*.ico
   Cache-Control: public, max-age=31536000, immutable
 
 # Self-hosted fonts are immutable and versioned by filename.
@@ -17,4 +29,4 @@
 
 # index.html must always revalidate so users get the latest shell.
 /index.html
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: public, max-age=31536000, immutable

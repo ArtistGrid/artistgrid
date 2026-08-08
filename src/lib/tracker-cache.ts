@@ -1,7 +1,7 @@
 import type { TrackerResponse } from "@/src/types";
 import { idbGet, idbSet } from "@/src/lib/indexeddb-cache";
 
-const CACHE_EXPIRY = 1000 * 60 * 60;
+const CACHE_EXPIRY = 1000 * 60 * 10;
 const IDB_PREFIX = "tc:";
 
 interface CacheEntry {

@@ -26,7 +26,6 @@ let cacheCleared = false;
 const STALE_LOCAL_STORAGE_KEYS = [
   "artistGridCsvCache_remote",
   "artistGridCsvCache_local",
-  "artistGridMessageHash",
   "artistgrid-search",
 ];
 

@@ -6,18 +6,7 @@ import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 import { Button } from "@/components/ui/button";
 import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
-import {
-  X,
-  SkipBack,
-  SkipForward,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Shuffle,
-  Repeat,
-  Repeat1,
-} from "lucide-react";
+import { X, SkipBack, SkipForward, Play, Pause, Volume2, VolumeX, Shuffle, Repeat, Repeat1 } from "lucide-react";
 
 const KAWARP_DEFAULTS = {
   warpIntensity: 1,
@@ -43,20 +32,9 @@ interface FullscreenTrackViewProps {
   onClose: () => void;
 }
 
-export const FullscreenTrackView = memo(function FullscreenTrackView({
-  isOpen,
-  onClose,
-}: FullscreenTrackViewProps) {
-  const {
-    state,
-    togglePlayPause,
-    seekTo,
-    setVolume,
-    playNext,
-    playPrevious,
-    toggleShuffle,
-    toggleRepeat,
-  } = usePlayer();
+export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, onClose }: FullscreenTrackViewProps) {
+  const { state, togglePlayPause, seekTo, setVolume, playNext, playPrevious, toggleShuffle, toggleRepeat } =
+    usePlayer();
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(state.volume);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
@@ -86,7 +64,9 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
       const h = window.innerHeight;
       if (canvasRef.current.width !== w) canvasRef.current.width = w;
       if (canvasRef.current.height !== h) canvasRef.current.height = h;
-      try { kawarp!.resize(); } catch {}
+      try {
+        kawarp!.resize();
+      } catch {}
     };
 
     resize();
@@ -96,8 +76,12 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
     return () => {
       stopped = true;
       window.removeEventListener("resize", resize);
-      try { kawarp!.stop(); } catch {}
-      try { kawarp!.dispose(); } catch {}
+      try {
+        kawarp!.stop();
+      } catch {}
+      try {
+        kawarp!.dispose();
+      } catch {}
       kawarpRef.current = null;
     };
   }, []);
@@ -124,8 +108,26 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
       scale: 1.02,
     });
     return () => {
+      const tilt = el as unknown as {
+        vanillaTilt?: {
+          destroy: () => void;
+          removeEventListeners?: () => void;
+        };
+      };
+      const inst = tilt.vanillaTilt;
+      if (!inst) return;
+      // VanillaTilt.destroy() throws if the element is already null and then
+      // never reaches removeEventListeners(), leaking its window resize/mouse
+      // listeners. Detach them first (removeEventListeners only touches
+      // elementListener + window, safe even when element is null).
       try {
-        (el as unknown as { vanillaTilt?: { destroy: () => void } }).vanillaTilt?.destroy();
+        inst.removeEventListeners?.();
+      } catch {}
+      try {
+        inst.destroy();
+      } catch {}
+      try {
+        (el as unknown as { vanillaTilt?: null }).vanillaTilt = null;
       } catch {}
     };
   }, [isOpen]);
@@ -170,14 +172,8 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
   return (
     <>
       {/* Kawarp canvas — always mounted, visibility toggled via CSS */}
-      <div
-        className="fixed inset-0 z-[100] pointer-events-none"
-        style={{ visibility: isOpen ? "visible" : "hidden" }}
-      >
-        <canvas
-          ref={canvasRef}
-          style={{ display: "block", width: "100%", height: "100%" }}
-        />
+      <div className="fixed inset-0 z-[100] pointer-events-none" style={{ visibility: isOpen ? "visible" : "hidden" }}>
+        <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
         <div className="absolute inset-0 bg-black/40" />
       </div>
 
@@ -235,9 +231,7 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
                   {state.currentTrack.artistName || state.currentTrack.extra}
                 </p>
                 {state.currentTrack.eraName && (
-                  <p className="text-xs sm:text-sm text-white/40 mt-1 truncate">
-                    {state.currentTrack.eraName}
-                  </p>
+                  <p className="text-xs sm:text-sm text-white/40 mt-1 truncate">{state.currentTrack.eraName}</p>
                 )}
               </div>
 
@@ -254,12 +248,8 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
                   className="w-full"
                 />
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs text-white/40 tabular-nums">
-                    {formatTime(displayTime)}
-                  </span>
-                  <span className="text-xs text-white/40 tabular-nums">
-                    {formatTime(duration)}
-                  </span>
+                  <span className="text-xs text-white/40 tabular-nums">{formatTime(displayTime)}</span>
+                  <span className="text-xs text-white/40 tabular-nums">{formatTime(duration)}</span>
                 </div>
               </div>
 
@@ -270,9 +260,7 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
                   size="icon"
                   onClick={toggleShuffle}
                   className={`hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-colors active:scale-90 ${
-                    state.isShuffled
-                      ? "text-white"
-                      : "text-white/40 hover:text-white"
+                    state.isShuffled ? "text-white" : "text-white/40 hover:text-white"
                   }`}
                   aria-label="Shuffle"
                   aria-pressed={state.isShuffled}
@@ -319,9 +307,7 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
                   size="icon"
                   onClick={toggleRepeat}
                   className={`hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-colors active:scale-90 ${
-                    state.repeatMode !== "off"
-                      ? "text-white"
-                      : "text-white/40 hover:text-white"
+                    state.repeatMode !== "off" ? "text-white" : "text-white/40 hover:text-white"
                   }`}
                   aria-label={`Repeat: ${state.repeatMode}`}
                   aria-pressed={state.repeatMode !== "off"}
@@ -342,11 +328,7 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({
                   className="text-white/40 hover:text-white transition-colors"
                   aria-label="Toggle mute"
                 >
-                  {state.volume === 0 || isMuted ? (
-                    <VolumeX className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
+                  {state.volume === 0 || isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </button>
                 <input
                   type="range"
