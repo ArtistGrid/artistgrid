@@ -120,13 +120,13 @@ export default function App() {
               <KeyboardShortcuts />
               <Toaster />
               <IframeNotice />
-              {settingsOpen && (
+              {settingsOpen ? (
                 <ChunkErrorBoundary>
                   <Suspense fallback={null}>
                     <SettingsModal onClose={closeSettings} />
                   </Suspense>
                 </ChunkErrorBoundary>
-              )}
+              ) : null}
             </PlayerProvider>
           </SettingsProvider>
         </SettingsModalContext.Provider>
