@@ -93,7 +93,7 @@ function initSentry() {
   import("@sentry/react")
     .then((Sentry) => {
       Sentry.init({
-        dsn: "http://9c47ffd2d3824883a759595f54c03b8e@rustrak-api.edideaur.works/1",
+        dsn: "https://9c47ffd2d3824883a759595f54c03b8e@rustrak-api.edideaur.works/1",
         release: __APP_VERSION__,
         tracesSampleRate: 0.1,
         beforeSend(event) {
