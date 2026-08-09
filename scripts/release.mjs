@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const PKG_PATH = new URL("../package.json", import.meta.url);
+const VERSION_TS_PATH = new URL("../src/version.ts", import.meta.url);
 const GLITCHTIP_API = "https://app.glitchtip.com/api/0";
 const ORG = "edi";
 
@@ -33,6 +34,7 @@ const pkg = JSON.parse(readFileSync(PKG_PATH, "utf-8"));
 const next = bump(pkg.version, kind);
 pkg.version = next;
 writeFileSync(PKG_PATH, JSON.stringify(pkg, null, 2) + "\n");
+writeFileSync(VERSION_TS_PATH, `export const APP_VERSION = "${next}";\n`);
 console.log(`Bumped version -> ${next}`);
 
 console.log("Building...");

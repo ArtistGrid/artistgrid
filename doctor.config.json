@@ -1,5 +1,6 @@
 {
   "$schema": "https://react.doctor/schema/config.json",
+  "rootDir": "src",
   "ignore": {
     "files": ["functions/_middleware.js"]
   },

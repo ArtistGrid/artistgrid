@@ -3,8 +3,7 @@ import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
-
-const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
+import { APP_VERSION as version } from "./src/version";
 
 function findFiles(dir: string, ext: string): string[] {
   const results: string[] = [];
@@ -86,7 +85,7 @@ function customMinifyPlugin(dir: string): Plugin {
 
 export default defineConfig(({ command }) => ({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(version),
   },
   plugins: [
     react(),

@@ -93,9 +93,9 @@ function initSentry() {
   import("@sentry/react")
     .then((Sentry) => {
       Sentry.init({
-        dsn: "https://40ac583f39b8406a92d73e038423e756@app.glitchtip.com/25380",
+        dsn: "http://9c47ffd2d3824883a759595f54c03b8e@rustrak-api.edideaur.works/1",
         release: __APP_VERSION__,
-        tracesSampleRate: 0.01,
+        tracesSampleRate: 0.1,
         beforeSend(event) {
           const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
           const type = event.exception?.values?.[0]?.type ?? "";
