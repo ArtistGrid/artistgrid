@@ -19,7 +19,14 @@ import type { RepeatMode } from "@/src/lib/player-queue";
 import { setCurrentTime, setDuration, resetTime } from "@/src/lib/player-time";
 
 function safePlay(audio: HTMLAudioElement | null | undefined) {
-  if (audio) audio.play().catch(() => {});
+  if (!audio) return;
+  try {
+    // play() should return a Promise, but on some engines it can return
+    // undefined or throw synchronously. Guard both so we never crash with
+    // "e.play().catch" / "Cannot read properties of undefined".
+    const p = audio.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch {}
 }
 
 function notify(title: string, options: NotificationOptions) {
@@ -386,7 +393,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
           audio.currentTime = 0;
           safePlay(audio);
-          setState((prev) => ({ ...prev, isPlaying: true }));
+          setState((prev) => (prev.isPlaying ? prev : { ...prev, isPlaying: true }));
           return;
         }
         if (s.queue.length > 0) {
@@ -430,11 +437,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
           audio.currentTime = 0;
           safePlay(audio);
-          setState((prev) => ({ ...prev, isPlaying: true }));
+          setState((prev) => (prev.isPlaying ? prev : { ...prev, isPlaying: true }));
           return;
         }
         if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
-        setState((prev) => ({ ...prev, isPlaying: false }));
+        setState((prev) => (prev.isPlaying ? { ...prev, isPlaying: false } : prev));
       },
       opts
     );
@@ -442,7 +449,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       "play",
       () => {
         if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, true);
-        setState((prev) => ({ ...prev, isPlaying: true }));
+        setState((prev) => (prev.isPlaying ? prev : { ...prev, isPlaying: true }));
       },
       opts
     );
@@ -450,7 +457,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       "pause",
       () => {
         if (stateRef.current?.currentTrack) updateMediaSession(stateRef.current.currentTrack, false);
-        setState((prev) => ({ ...prev, isPlaying: false }));
+        setState((prev) => (prev.isPlaying ? { ...prev, isPlaying: false } : prev));
         clearScrobbleTimer();
       },
       opts

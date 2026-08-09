@@ -5,6 +5,7 @@ const STALE_PATTERNS = [
   "Failed to fetch dynamically imported module",
   "Importing a module script failed",
   "Unexpected token",
+  "error loading dynamically imported module",
   /Loading chunk [\d]+ failed/,
 ];
 

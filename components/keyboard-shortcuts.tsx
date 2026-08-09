@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 
@@ -8,11 +8,17 @@ const VOLUME_STEP = 0.05;
 export function KeyboardShortcuts() {
   const { state, togglePlayPause, seekTo, setVolume, playNext, playPrevious } = usePlayer();
   const { currentTime } = usePlayerTime();
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      const s = stateRef.current;
+      const t = currentTimeRef.current;
 
       switch (e.key) {
         case " ":
@@ -21,19 +27,19 @@ export function KeyboardShortcuts() {
           break;
         case "ArrowLeft":
           e.preventDefault();
-          if (state.currentTrack) seekTo(currentTime - SEEK_STEP);
+          if (s.currentTrack) seekTo(t - SEEK_STEP);
           break;
         case "ArrowRight":
           e.preventDefault();
-          if (state.currentTrack) seekTo(currentTime + SEEK_STEP);
+          if (s.currentTrack) seekTo(t + SEEK_STEP);
           break;
         case "ArrowUp":
           e.preventDefault();
-          setVolume(Math.min(1, state.volume + VOLUME_STEP));
+          setVolume(Math.min(1, s.volume + VOLUME_STEP));
           break;
         case "ArrowDown":
           e.preventDefault();
-          setVolume(Math.max(0, state.volume - VOLUME_STEP));
+          setVolume(Math.max(0, s.volume - VOLUME_STEP));
           break;
         case "n":
         case "N":
@@ -45,14 +51,14 @@ export function KeyboardShortcuts() {
           break;
         case "m":
         case "M":
-          setVolume(state.volume > 0 ? 0 : 1);
+          setVolume(s.volume > 0 ? 0 : 1);
           break;
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentTime, state.currentTrack, state.volume, togglePlayPause, seekTo, setVolume, playNext, playPrevious]);
+  }, [togglePlayPause, seekTo, setVolume, playNext, playPrevious]);
 
   return null;
 }

@@ -2,6 +2,25 @@ import { memo, useCallback, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Kawarp } from "@kawarp/core";
 import VanillaTilt from "vanilla-tilt";
+
+// vanilla-tilt's destroy() sets this.element = null, but a window resize / mouse
+// listener bound earlier can still fire afterwards and crash on a null element.
+// Make those instance methods no-ops once the element has been torn down.
+const TILT_GUARDED_METHODS = [
+  "update",
+  "updateGlareSize",
+  "updateElementPosition",
+  "setTransition",
+  "onWindowResize",
+] as const;
+for (const method of TILT_GUARDED_METHODS) {
+  const original = (VanillaTilt.prototype as unknown as Record<string, unknown>)[method];
+  if (typeof original !== "function") continue;
+  (VanillaTilt.prototype as unknown as Record<string, unknown>)[method] = function (...args: unknown[]) {
+    if (!(this as { element?: unknown }).element) return;
+    return (original as (...a: unknown[]) => unknown).apply(this, args);
+  };
+}
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 import { Button } from "@/components/ui/button";
@@ -53,9 +72,29 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
     // Reuse existing instance (handles React strict mode double-mount)
     let kawarp = kawarpRef.current;
     if (!kawarp) {
-      kawarp = new Kawarp(canvas, { ...KAWARP_DEFAULTS });
-      kawarpRef.current = kawarp;
+      // WebGL can fail on iOS (context loss / texture limits). If creation
+      // throws, degrade gracefully instead of crashing the fullscreen view.
+      try {
+        kawarp = new Kawarp(canvas, { ...KAWARP_DEFAULTS });
+        kawarpRef.current = kawarp;
+      } catch {}
     }
+    if (!kawarp) return;
+
+    const stop = () => {
+      try {
+        kawarp!.stop();
+      } catch {}
+    };
+
+    const onContextLost = (e: Event) => {
+      // WebGL context is gone (memory pressure, backgrounding, other tabs).
+      // Stop the render loop so it stops trying to create textures/framebuffers,
+      // and reset the instance so a later re-mount re-creates it cleanly.
+      e.preventDefault();
+      stop();
+      kawarpRef.current = null;
+    };
 
     let stopped = false;
     const resize = () => {
@@ -71,14 +110,16 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
 
     resize();
     window.addEventListener("resize", resize);
-    kawarp.start();
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    try {
+      kawarp.start();
+    } catch {}
 
     return () => {
       stopped = true;
       window.removeEventListener("resize", resize);
-      try {
-        kawarp!.stop();
-      } catch {}
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      stop();
       try {
         kawarp!.dispose();
       } catch {}
