@@ -12,6 +12,10 @@ const TILT_GUARDED_METHODS = [
   "updateElementPosition",
   "setTransition",
   "onWindowResize",
+  "onMouseEnter",
+  "onMouseLeave",
+  "reset",
+  "resetGlare",
 ] as const;
 for (const method of TILT_GUARDED_METHODS) {
   const original = (VanillaTilt.prototype as unknown as Record<string, unknown>)[method];
