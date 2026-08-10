@@ -32,7 +32,8 @@
     ]
   },
   "duplicates": {
-    "minLines": 20
+    "minLines": 20,
+    "ignore": ["src/hooks/use-tracker-data.ts"]
   },
   "ignorePatterns": ["functions/_middleware.js"],
   "ignoreExports": [

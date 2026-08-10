@@ -27,9 +27,11 @@ for (const method of TILT_GUARDED_METHODS) {
 }
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
+import { useVolume } from "@/src/hooks/use-volume";
+import { VolumeControl } from "@/src/components/volume-control";
 import { Button } from "@/components/ui/button";
 import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
-import { X, SkipBack, SkipForward, Play, Pause, Volume2, VolumeX, Shuffle, Repeat, Repeat1 } from "lucide-react";
+import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react";
 
 const KAWARP_DEFAULTS = {
   warpIntensity: 1,
@@ -58,12 +60,11 @@ interface FullscreenTrackViewProps {
 export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, onClose }: FullscreenTrackViewProps) {
   const { state, togglePlayPause, seekTo, setVolume, playNext, playPrevious, toggleShuffle, toggleRepeat } =
     usePlayer();
-  const [isMuted, setIsMuted] = useState(false);
-  const [prevVolume, setPrevVolume] = useState(state.volume);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
   const { currentTime, duration } = usePlayerTime();
   const displayTime = seekPreview ?? currentTime;
   const progress = duration ? (displayTime / duration) * 100 : 0;
+  const { isMuted, handleVolumeToggle, handleVolumeChange } = useVolume(state.volume, setVolume);
   const tiltRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const kawarpRef = useRef<Kawarp | null>(null);
@@ -176,18 +177,6 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
       } catch {}
     };
   }, [isOpen]);
-
-  const handleVolumeToggle = useCallback(() => {
-    if (isMuted || state.volume === 0) {
-      const restore = prevVolume || 0.7;
-      setVolume(restore);
-      setIsMuted(false);
-    } else {
-      setPrevVolume(state.volume);
-      setVolume(0);
-      setIsMuted(true);
-    }
-  }, [isMuted, prevVolume, state.volume, setVolume]);
 
   const handleSeekStart = useCallback((value: number) => {
     setSeekPreview(value);
@@ -375,30 +364,15 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
               </div>
 
               {/* Volume (desktop only) */}
-              <div className="hidden sm:flex items-center gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={handleVolumeToggle}
-                  className="text-white/40 hover:text-white transition-colors"
-                  aria-label="Toggle mute"
-                >
-                  {state.volume === 0 || isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : state.volume}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    setVolume(v);
-                    if (v > 0) setIsMuted(false);
-                  }}
-                  className="w-24 accent-white cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
-                  aria-label="Volume"
-                />
-              </div>
+              <VolumeControl
+                volume={state.volume}
+                isMuted={isMuted}
+                onToggleMute={handleVolumeToggle}
+                onVolumeChange={handleVolumeChange}
+                className="hidden sm:flex items-center gap-3 mt-6"
+                buttonClassName="text-white/40 hover:text-white transition-colors"
+                rangeClassName="w-24 accent-white cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+              />
             </div>
           </motion.div>
         )}

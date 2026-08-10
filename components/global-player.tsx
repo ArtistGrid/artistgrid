@@ -2,6 +2,8 @@ import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
+import { useVolume } from "@/src/hooks/use-volume";
+import { VolumeControl } from "@/src/components/volume-control";
 import type { Track } from "@/src/types";
 import { Button } from "@/components/ui/button";
 import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
@@ -11,8 +13,6 @@ import {
   SkipForward,
   Play,
   Pause,
-  Volume2,
-  VolumeX,
   ListMusic,
   Shuffle,
   Repeat,
@@ -214,23 +214,11 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
   const [queueModalOpen, setQueueModalOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [prevVolume, setPrevVolume] = useState(state.volume);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
   const { currentTime, duration } = usePlayerTime();
   const displayTime = seekPreview ?? currentTime;
   const progress = duration ? (displayTime / duration) * 100 : 0;
-  const handleVolumeToggle = useCallback(() => {
-    if (isMuted || state.volume === 0) {
-      const restore = prevVolume || 0.7;
-      setVolume(restore);
-      setIsMuted(false);
-    } else {
-      setPrevVolume(state.volume);
-      setVolume(0);
-      setIsMuted(true);
-    }
-  }, [isMuted, prevVolume, state.volume, setVolume]);
+  const { isMuted, handleVolumeToggle, handleVolumeChange } = useVolume(state.volume, setVolume);
   const handleQueueReorder = useCallback(
     (fromIndex: number, toIndex: number) => reorderQueue(fromIndex, toIndex),
     [reorderQueue]
@@ -362,34 +350,15 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   {formatTime(duration)}
                 </span>
               </div>
-              <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={handleVolumeToggle}
-                  className="text-white/30 hover:text-white transition-colors p-1"
-                  aria-label="Toggle mute"
-                >
-                  {state.volume === 0 || isMuted ? (
-                    <VolumeX className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : state.volume}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    setVolume(v);
-                    if (v > 0) setIsMuted(false);
-                  }}
-                  className="w-18 accent-white cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
-                  aria-label="Volume"
-                />
-              </div>
+              <VolumeControl
+                volume={state.volume}
+                isMuted={isMuted}
+                onToggleMute={handleVolumeToggle}
+                onVolumeChange={handleVolumeChange}
+                className="hidden md:flex items-center gap-1.5 flex-shrink-0"
+                buttonClassName="text-white/30 hover:text-white transition-colors p-1"
+                rangeClassName="w-18 accent-white cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+              />
               <div className="flex items-center gap-0 sm:gap-0.5 flex-shrink-0">
                 <Button
                   variant="ghost"

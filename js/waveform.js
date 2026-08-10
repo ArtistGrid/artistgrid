@@ -1,4 +1,4 @@
-export class WaveformGenerator {
+class WaveformGenerator {
     constructor() {
         this.cache = new Map();
         this.sampleCache = new Map();

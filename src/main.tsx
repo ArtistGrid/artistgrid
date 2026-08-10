@@ -96,6 +96,7 @@ function initSentry() {
         dsn: "https://9c47ffd2d3824883a759595f54c03b8e@rustrak-api.edideaur.works/1",
         release: __APP_VERSION__,
         tracesSampleRate: 0.1,
+        integrations: [Sentry.browserTracingIntegration()],
         beforeSend(event) {
           const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
           const type = event.exception?.values?.[0]?.type ?? "";

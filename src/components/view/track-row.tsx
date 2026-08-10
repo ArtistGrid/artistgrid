@@ -4,7 +4,7 @@ import { Share, SkipForward, ListPlus, Download, Heart, ExternalLink } from "luc
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, TrackItemActions } from "@/src/components/view/track-item";
 
-export interface TrackRowProps {
+interface TrackRowProps {
   track: TALeak;
   era: Era;
   computeTrackState: (t: TALeak) => { url: string | null; source: TrackSource; isPlayable: boolean; isCurrentlyPlaying: boolean; isCurrentTrack: boolean; isHighlighted: boolean; description: string | undefined; shouldShowSource: boolean; playableUrl: string | null };

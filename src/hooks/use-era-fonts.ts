@@ -13,8 +13,6 @@ function sanitizeFontName(raw: string): string {
   return name.trim();
 }
 
-export { sanitizeFontName };
-
 function loadFont(fontName: string): HTMLLinkElement | null {
   const clean = sanitizeFontName(fontName);
   if (!clean || loadedFonts.has(clean)) return null;

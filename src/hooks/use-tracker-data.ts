@@ -92,25 +92,11 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
     async (id: string, tab?: string, overrideTabName?: string) => {
       const virtualTabs = ["Favourites", "Custom"];
       const tabName = overrideTabName || tab;
-      if (tab && virtualTabs.includes(tabName || tab)) {
-        setCurrentTab(tabName || tab);
-        return;
-      }
-      abortRef.current?.abort();
-      if (!tab) {
-        setData(null);
-        setResolvedUrls(new Map());
-        setExpandedEras(new Set());
-        setTabsList([]);
-        tabSlugsRef.current = {};
-        tabGidsRef.current = {};
-      }
-      setTabError(false);
-      setTabEmpty(false);
-      const gid = tab ? (tabGidsRef.current[overrideTabName || ""] || "") : "";
-      const cacheKey = gid || tab;
-      const cached = getCache(id, cacheKey);
-      if (cached) {
+      const applyCachedData = (
+        cached: NonNullable<ReturnType<typeof getCache>>,
+        tab: string | undefined,
+        overrideTabName: string | undefined
+      ) => {
         setData(cached.data);
         setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
         if (tab) {
@@ -125,43 +111,13 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         setStatus("success");
         hasLoadedRef.current = true;
         setHasLoaded(true);
-        return;
-      }
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
-      if (tab) fetchBaseEraImages(id);
-      const fail = () => {
-        if (controller.signal.aborted) return;
-        if (tab) {
-          setData(null);
-          setTabError(true);
-          setStatus("success");
-        } else {
-          setStatus("fallback");
-        }
       };
-      try {
-        const gid = tabGidsRef.current[overrideTabName || ""] || "";
-        const endpoint = tab ? (gid ? `/sh/${id}/gid/${gid}` : `/sh/${id}/tab/${encodeURIComponent(tab)}`) : `/sh/${id}/`;
-        const res = await fetchWithFallback(endpoint, { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        if (!res.ok) { fail(); return; }
-        const v3: V3Response = await res.json();
-        if (controller.signal.aborted) return;
-        const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
-        const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
-        if (!hasFlatTracks && !hasEras) {
-          if (tab) {
-            setData(null);
-            setTabEmpty(true);
-            setStatus("success");
-          } else {
-            fail();
-          }
-          return;
-        }
-        const json = hasFlatTracks ? adaptV3FlatResponse(v3) : adaptV3Response(v3);
+      const applySuccessData = (
+        id: string,
+        cacheKey: string | undefined,
+        json: TrackerResponse,
+        overrideTabName: string | undefined
+      ) => {
         setData(json);
         setCurrentTab(overrideTabName || json.current_tab);
         if (json.tabs?.length) setTabsList(json.tabs);
@@ -182,6 +138,67 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
             resolveUrls(freeUrls).then((resolved) => mergeAndCache(id, cacheKey, json, resolved));
           }
         }
+      };
+      const hasPayload = (v3: V3Response): boolean =>
+        (v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0) ||
+        (v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0);
+      if (tab && virtualTabs.includes(tabName || tab)) {
+        setCurrentTab(tabName || tab);
+        return;
+      }
+      abortRef.current?.abort();
+      if (!tab) {
+        setData(null);
+        setResolvedUrls(new Map());
+        setExpandedEras(new Set());
+        setTabsList([]);
+        tabSlugsRef.current = {};
+        tabGidsRef.current = {};
+      }
+      setTabError(false);
+      setTabEmpty(false);
+      const gid = tab ? (tabGidsRef.current[overrideTabName || ""] || "") : "";
+      const cacheKey = gid || tab;
+      const cached = getCache(id, cacheKey);
+      if (cached) {
+        applyCachedData(cached, tab, overrideTabName);
+        return;
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
+      if (tab) fetchBaseEraImages(id);
+      const endpoint = tab ? (gid ? `/sh/${id}/gid/${gid}` : `/sh/${id}/tab/${encodeURIComponent(tab)}`) : `/sh/${id}/`;
+      const fail = () => {
+        if (controller.signal.aborted) return;
+        if (tab) {
+          setData(null);
+          setTabError(true);
+          setStatus("success");
+        } else {
+          setStatus("fallback");
+        }
+      };
+      try {
+        const res = await fetchWithFallback(endpoint, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (!res.ok) { fail(); return; }
+        const v3: V3Response = await res.json();
+        if (controller.signal.aborted) return;
+        if (!hasPayload(v3)) {
+          if (tab) {
+            setData(null);
+            setTabEmpty(true);
+            setStatus("success");
+          } else {
+            fail();
+          }
+          return;
+        }
+        const json = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0
+          ? adaptV3FlatResponse(v3)
+          : adaptV3Response(v3);
+        applySuccessData(id, cacheKey, json, overrideTabName);
       } catch (e) {
         if (controller.signal.aborted) return;
         console.error("[tracker] load failed", e);

@@ -41,9 +41,6 @@ export function resetTime() {
   emit();
 }
 
-export function readCurrentTime() { return currentTime; }
-export function readDuration() { return duration; }
-
 export function usePlayerTime(): { currentTime: number; duration: number } {
   useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return { currentTime, duration };
