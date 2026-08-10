@@ -97,13 +97,13 @@ export function ArtGallery({
                     </h4>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-                    {(items as TALeak[]).map((item, i) => {
+                    {(items as TALeak[]).map((item) => {
                       const url = item.url || (item.urls && item.urls[0]);
                       const urlAsImage = url ? getImageUrl(url) : null;
                       const ownImageSrc = item.image || urlAsImage;
                        const displaySrc = ownImageSrc || era.image || null;
                       const clickTarget = ownImageSrc || null;
-                       const stableKey = `${cat}-${i}-${item.id || item.url || item.name || ""}`;
+                       const stableKey = `${cat}-${item.id || item.url || item.name || "unknown"}`;
                       const proxied = displaySrc ? proxyImageSrcSet(displaySrc) : null;
                       const cardContent = (
                         <>
@@ -142,7 +142,7 @@ export function ArtGallery({
                         <button
                           key={stableKey}
                           type="button"
-                          className="group glass-flat rounded-xl overflow-hidden transition-all cursor-pointer text-left w-full"
+                          className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-pointer text-left w-full"
                           onClick={() => onImageClick(ownImageSrc || era.image || "", item.name, item.description, url)}
                         >
                           {cardContent}
@@ -150,7 +150,7 @@ export function ArtGallery({
                       ) : (
                         <div
                           key={stableKey}
-                          className="group glass-flat rounded-xl overflow-hidden transition-all cursor-default"
+                          className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-default"
                         >
                           {cardContent}
                         </div>

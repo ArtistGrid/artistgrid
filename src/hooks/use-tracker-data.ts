@@ -64,25 +64,28 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
     const batchSize = 10;
     const FLUSH_INTERVAL_MS = 200;
     let lastFlush = 0;
-    for (let i = 0; i < urls.length; i += batchSize) {
-      const batch = urls.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
-      for (const { url, playable } of results) resolved[url] = playable;
-      const current = Math.min(i + batchSize, urls.length);
-      const isLast = current >= urls.length;
-      const now = Date.now();
-      if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
-        lastFlush = now;
-        const snapshot = { ...resolved };
-        setResolvedUrls((prev) => {
-          const next = new Map(prev);
-          for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
-          return next;
-        });
-        setResolveProgress({ current, total: urls.length });
+    try {
+      for (let i = 0; i < urls.length; i += batchSize) {
+        const batch = urls.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
+        for (const { url, playable } of results) resolved[url] = playable;
+        const current = Math.min(i + batchSize, urls.length);
+        const isLast = current >= urls.length;
+        const now = Date.now();
+        if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
+          lastFlush = now;
+          const snapshot = { ...resolved };
+          setResolvedUrls((prev) => {
+            const next = new Map(prev);
+            for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
+            return next;
+          });
+          setResolveProgress({ current, total: urls.length });
+        }
       }
+    } finally {
+      setIsPreloading(false);
     }
-    setIsPreloading(false);
     return resolved;
   }, []);
   const loadTrackerData = useCallback(
@@ -185,7 +188,7 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         fail();
       }
     },
-    [fetchBaseEraImages, resolveUrls]
+    [fetchBaseEraImages, resolveUrls, setExpandedEras]
   );
 
   return {

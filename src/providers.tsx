@@ -116,7 +116,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   });
   const lastfmSessionRef = useRef(lastfmSession);
-  lastfmSessionRef.current = lastfmSession;
+  useEffect(() => {
+    lastfmSessionRef.current = lastfmSession;
+  }, [lastfmSession]);
   const scrobbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrobbledRef = useRef(false);
   const currentTrackRef = useRef<Track | null>(null);
@@ -177,6 +179,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
       });
+      if (!response.ok) throw new Error(`Last.fm API error: HTTP ${response.status}`);
       const data = (await response.json()) as { error?: { code: number; message: string }; [key: string]: unknown };
       if (data.error) throw new Error(data.error.message || "Last.fm API error");
       return data as T;
@@ -267,7 +270,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearScrobbleTimer, scrobbleTrack]
   );
   const scheduleScrobbleRef = useRef(scheduleScrobble);
-  scheduleScrobbleRef.current = scheduleScrobble;
+  useEffect(() => {
+    scheduleScrobbleRef.current = scheduleScrobble;
+  }, [scheduleScrobble]);
   const playNext = useCallback(() => {
     const queue = queueRef.current;
     if (queue.length === 0) return;
@@ -465,7 +470,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, [
     lastfmSession,
-    scheduleScrobble,
     clearScrobbleTimer,
     updateNowPlaying,
     updateMediaSession,

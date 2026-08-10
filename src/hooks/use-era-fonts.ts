@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { buildFontCssUrl } from "@/src/lib/fonts";
 
 const loadedFonts = new Set<string>();
 
@@ -20,11 +21,9 @@ function loadFont(fontName: string): HTMLLinkElement | null {
   if (["ibm plex sans", "ibm plex mono"].includes(clean.toLowerCase())) return null;
 
   loadedFonts.add(clean);
-  const encoded = encodeURIComponent(clean);
-  const url = `https://api.fonts.coollabs.io/css2?family=${encoded}:wght@400;500;600;700&display=swap`;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = url;
+  link.href = buildFontCssUrl(clean);
   document.head.appendChild(link);
   return link;
 }
@@ -56,7 +55,7 @@ export function useEraFonts(eraFonts: (string | undefined)[]) {
     for (const link of linksRef.current) removeLink(link);
     linksRef.current = [];
 
-    const unique = [...new Set(eraFonts.filter(Boolean) as string[])];
+    const unique = fontsKey ? fontsKey.split(",").filter(Boolean) : [];
     const newLinks: HTMLLinkElement[] = [];
     for (const font of unique) {
       const link = loadFont(font);

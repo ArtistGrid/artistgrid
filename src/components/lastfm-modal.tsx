@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/src/components/modal";
@@ -12,10 +12,13 @@ export interface LastFMModalProps {
   setToken: (t: string | null) => void;
 }
 export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFMModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeFlow, setActiveFlow] = useState<number | null>(null);
   const { toast } = useToast();
+  const flowRef = useRef(0);
+  const isLoading = activeFlow !== null;
   const handleConnect = async () => {
-    setIsLoading(true);
+    const flow = ++flowRef.current;
+    setActiveFlow(flow);
     try {
       const { token: newToken, url } = await lastfm.getAuthUrl();
       setToken(newToken);
@@ -25,12 +28,13 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
       }
     } catch {
     } finally {
-      setIsLoading(false);
+      setActiveFlow((cur) => (cur === flow ? null : cur));
     }
   };
   const handleComplete = async () => {
     if (!token) return;
-    setIsLoading(true);
+    const flow = ++flowRef.current;
+    setActiveFlow(flow);
     try {
       await lastfm.completeAuth(token);
       setToken(null);
@@ -38,7 +42,7 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
     } catch (e) {
       toast({ title: "Connection failed", description: e instanceof Error ? e.message : "Could not complete Last.fm authentication" });
     } finally {
-      setIsLoading(false);
+      setActiveFlow((cur) => (cur === flow ? null : cur));
     }
   };
   return (

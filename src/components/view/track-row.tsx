@@ -48,7 +48,7 @@ export const TrackRow = memo(function TrackRow({
   return (
     <div
       ref={isHighlighted ? highlightedTrackRef : null}
-      className={`rounded-xl transition-all ${
+      className={`rounded-xl transition-colors ${
         isHighlighted
           ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20"
           : isCurrentTrack

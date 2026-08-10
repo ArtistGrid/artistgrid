@@ -35,6 +35,7 @@ export const Modal: FC<{
         aria-hidden="true"
       />
       <div className="relative z-10 flex items-center justify-center w-full h-full p-4">
+        {/* oxlint-disable-next-line react-doctor/no-transition-all -- tailwindcss-animate `animate-in`/`duration-200` compile to keyframe animation, not `transition: all` */}
         <div className="glass-elevated rounded-2xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95 duration-200">
           <Button
             variant="ghost"

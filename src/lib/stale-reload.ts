@@ -49,19 +49,19 @@ export async function clearCacheAndReload(): Promise<void> {
     }
     if (typeof indexedDB !== "undefined") {
       const databases = await indexedDB.databases();
-      await Promise.all(
-        databases
-          .filter((db) => db.name && !PRESERVED_IDB_DBS.has(db.name))
-          .map(
-            (db) =>
-              new Promise<void>((resolve, reject) => {
-                const req = indexedDB.deleteDatabase(db.name!);
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
-                req.onblocked = () => resolve();
-              }),
-          ),
-      );
+      const deletions: Promise<void>[] = [];
+      for (const db of databases) {
+        if (!db.name || PRESERVED_IDB_DBS.has(db.name)) continue;
+        deletions.push(
+          new Promise<void>((resolve, reject) => {
+            const req = indexedDB.deleteDatabase(db.name!);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+            req.onblocked = () => resolve();
+          }),
+        );
+      }
+      await Promise.all(deletions);
     }
   } catch {
   }

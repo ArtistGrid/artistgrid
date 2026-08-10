@@ -42,7 +42,7 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource,
 
 export function PlayButton({ onPlay, label = "Play" }: { onPlay: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all active:scale-95">
+    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95">
       <Play className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5 ml-0.5" />
     </button>
   );
@@ -50,7 +50,7 @@ export function PlayButton({ onPlay, label = "Play" }: { onPlay: () => void; lab
 
 export function PauseButton({ onPlay, label = "Pause" }: { onPlay: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all active:scale-95">
+    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95">
       <Pause className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
@@ -58,7 +58,7 @@ export function PauseButton({ onPlay, label = "Pause" }: { onPlay: () => void; l
 
 export function OpenLinkButton({ onOpenLink, label = "Open link" }: { onOpenLink: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onOpenLink} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-all active:scale-95">
+    <button type="button" onClick={onOpenLink} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-transform active:scale-95">
       <LinkIcon className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
@@ -84,7 +84,7 @@ export function TrackItemActions({ track, source, shouldShowSource, url, onOpenU
         <button
           type="button"
           onClick={onToggleFavourite}
-          className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg transition-all active:scale-90 ${
+          className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg transition-[transform,color,background-color] active:scale-90 ${
             isFavourited ? "text-red-400 hover:text-red-300" : "text-neutral-500 hover:text-red-400 hover:bg-white/10"
           }`}
           aria-label={isFavourited ? "Remove from favourites" : "Add to favourites"}

@@ -116,6 +116,7 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
   }, [progress, barColor, playedColor, handleColor, showHandle]);
 
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-pass-data-to-parent -- draw() only redraws this component's own canvas; parent callbacks fire from pointer events, not effects
     draw();
   }, [draw]);
 

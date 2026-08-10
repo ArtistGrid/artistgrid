@@ -284,7 +284,12 @@ export default function ArtistGallery() {
   useEffect(() => {
     if (status === "success" && !hashProcessed.current && window.location.hash) {
       const hash = window.location.hash.substring(1);
-      let processedHash = decodeURIComponent(hash).toLowerCase();
+      let processedHash: string;
+      try {
+        processedHash = decodeURIComponent(hash).toLowerCase();
+      } catch {
+        processedHash = hash.toLowerCase();
+      }
       for (const suffix of SUFFIXES_TO_STRIP) {
         if (processedHash.endsWith(suffix)) {
           processedHash = processedHash.slice(0, -suffix.length);

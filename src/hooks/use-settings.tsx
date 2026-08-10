@@ -1,5 +1,6 @@
 import { createContext, use, useState, useCallback, useMemo, useEffect, useRef, ReactNode } from "react";
 import { type Settings, loadSettings, saveSettings } from "@/src/lib/settings";
+import { buildFontCssUrl } from "@/src/lib/fonts";
 
 interface SettingsContextType {
   settings: Settings;
@@ -26,15 +27,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
     const font = settings.font?.trim() || "IBM Plex Sans";
 
-    const encodedFont = encodeURIComponent(font);
     const selfHosted = ["ibm plex sans", "ibm plex mono"].includes(font.toLowerCase());
 
     if (!selfHosted) {
-      const url = `https://api.fonts.coollabs.io/css2?family=${encodedFont}:wght@400;500;600;700&display=swap`;
-
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = url;
+      link.href = buildFontCssUrl(font);
       document.head.appendChild(link);
       fontLinkRef.current = link;
     }
@@ -54,18 +52,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback(
     (section: keyof Settings, key: string, value: unknown) => {
-      setSettings((prev) => {
-        const current = prev[section];
-        const nextSection =
-          typeof current === "object" && current !== null
-            ? { ...(current as Record<string, unknown>), [key]: value }
-            : value;
-        const next = { ...prev, [section]: nextSection };
-        saveSettings(next as Settings);
-        return next as Settings;
-      });
+      const current = settings[section];
+      const nextSection =
+        typeof current === "object" && current !== null
+          ? { ...(current as Record<string, unknown>), [key]: value }
+          : value;
+      const next = { ...settings, [section]: nextSection } as Settings;
+      saveSettings(next);
+      setSettings(next);
     },
-    []
+    [settings]
   );
 
   return (

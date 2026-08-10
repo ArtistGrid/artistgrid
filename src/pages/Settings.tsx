@@ -57,6 +57,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         aria-label="Close settings"
         tabIndex={-1}
       />
+      {/* oxlint-disable-next-line react-doctor/no-transition-all -- tailwindcss-animate `animate-in`/`duration-200` compile to keyframe animation, not `transition: all` */}
       <div className="relative z-10 glass-elevated rounded-2xl w-full max-w-xl max-h-[80vh] overflow-hidden animate-in fade-in-0 slide-in-from-top-4 duration-200 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
@@ -191,6 +192,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                         value={settings.scrobbling.lastfm.apiUrl || ""}
                         onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiUrl: e.target.value })}
                         placeholder="https://ws.audioscrobbler.com/2.0/"
+                        aria-label="API URL"
                         className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                       />
                     </SettingRow>
@@ -200,6 +202,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                         value={settings.scrobbling.lastfm.apiKey || ""}
                         onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiKey: e.target.value })}
                         placeholder="Your Last.fm API key"
+                        aria-label="API Key"
                         className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                       />
                     </SettingRow>
@@ -209,6 +212,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                         value={settings.scrobbling.lastfm.apiSecret || ""}
                         onChange={(e) => update("scrobbling", "lastfm", { ...settings.scrobbling.lastfm, apiSecret: e.target.value })}
                         placeholder="Your Last.fm API secret"
+                        aria-label="API Secret"
                         className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                       />
                     </SettingRow>
@@ -229,6 +233,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     value={settings.scrobbling.listenbrainz.token || ""}
                     onChange={(e) => update("scrobbling", "listenbrainz", { ...settings.scrobbling.listenbrainz, token: e.target.value })}
                     placeholder="Your ListenBrainz token"
+                    aria-label="Auth Token"
                     className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                   />
                 </SettingRow>
@@ -238,6 +243,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     value={settings.scrobbling.listenbrainz.apiUrl || ""}
                     onChange={(e) => update("scrobbling", "listenbrainz", { ...settings.scrobbling.listenbrainz, apiUrl: e.target.value })}
                     placeholder="https://api.listenbrainz.org"
+                    aria-label="Custom API URL"
                     className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                   />
                 </SettingRow>
@@ -306,6 +312,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                     value={settings.font}
                     onChange={(e) => update("font", "font", e.target.value)}
                     placeholder="IBM Plex Sans"
+                    aria-label="Custom Font"
                     className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 w-64 placeholder:text-white/20"
                   />
                 </SettingRow>

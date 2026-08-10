@@ -124,7 +124,7 @@ export function FlatTrackList({ tracks, computeTrackState, handlePlayTrack, hand
               }}
               data-index={virtualRow.index}
               style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
-              className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+              className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
             >
               <FlatTrackCard t={t} fakeEra={fakeEra} url={url} source={source} isPlayable={isPlayable} isCurrentlyPlaying={isCurrentlyPlaying} description={description} shouldShowSource={shouldShowSource} playableUrl={playableUrl} handlePlayTrack={handlePlayTrack} handleOpenUrl={handleOpenUrl} handleToggleFavourite={handleToggleFavourite} handleOpenOriginal={handleOpenOriginal} handleDownload={handleDownload} handleAddToQueue={handleAddToQueue} favourites={favourites} createTrackObject={createTrackObject} clearQueue={clearQueue} playTrack={playTrack} />
             </div>

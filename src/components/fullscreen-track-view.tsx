@@ -244,7 +244,16 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
               <div
                 ref={tiltRef}
                 onClick={onClose}
-                className="mb-6 sm:mb-8 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 cursor-pointer"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onClose();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Close fullscreen view"
+                className="mb-6 sm:mb-8 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                 style={{ transformStyle: "preserve-3d" }}
               >
                 {state.currentTrack.eraImage ? (

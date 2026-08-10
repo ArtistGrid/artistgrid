@@ -159,6 +159,7 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   const [activeCustomView, setActiveCustomView] = useState<CustomView | null>(null);
   const isFavouritesTab = currentTab === "Favourites";
   const isCustomTab = currentTab === "Custom";
+  const showTrackerContent = ((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty)) || hasLoaded;
   const pageTabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
   const pageTabPart = pageTabSlug ? `/${pageTabSlug}` : "";
   const displayTabs = useMemo(() => {
@@ -331,6 +332,7 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     }
   }, [data, resolvedUrls, playTrack, createTrackObject]);
   const tabChangeInProgress = useRef(false);
+  // oxlint-disable-next-line react-doctor/no-derived-state-effect -- this is a data-loading effect (guarded ref to avoid double-load), not derived state
   useEffect(() => {
     if (!trackerId) return;
     if (tabChangeInProgress.current) {
@@ -373,7 +375,7 @@ const handleLoad = useCallback(() => {
     const url = `${window.location.origin}/sh/${trackerId}${tabPart}${artistQs}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Copied!", description: "Share link copied to clipboard" });
-  }, [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName]);
+  }, [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef]);
   const handleShareTrack = useCallback(
     (trackUrl: string, trackName: string) => {
       const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
@@ -384,7 +386,7 @@ const handleLoad = useCallback(() => {
       navigator.clipboard.writeText(shareUrl);
       toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
     },
-    [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName]
+    [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef]
   );
   const handleTabChange = useCallback(
     (tabName: string) => {
@@ -414,7 +416,7 @@ const handleLoad = useCallback(() => {
       navigate(`/sh/${trackerId}/${slug}${artistQs}`, { replace: true });
       loadTrackerData(trackerId, slug, tabName);
     },
-    [trackerId, currentTab, loadTrackerData, navigate, cleanArtistName]
+    [trackerId, currentTab, loadTrackerData, navigate, cleanArtistName, setCurrentTab, setResolvedUrls, tabSlugsRef]
   );
   const loadCustomView = useCallback(
     async (view: CustomView) => {
@@ -471,7 +473,24 @@ const handleLoad = useCallback(() => {
         setStatus("success");
       }
     },
-    [trackerId]
+    [
+      trackerId,
+      setActiveCustomView,
+      setResolvedUrls,
+      setHighlightedTrackUrl,
+      setStatus,
+      setTabError,
+      setTabEmpty,
+      fetchBaseEraImages,
+      abortRef,
+      tabSlugsRef,
+      tabGidsRef,
+      setData,
+      setCurrentTab,
+      hasLoadedRef,
+      setHasLoaded,
+      setTabsList,
+    ]
   );
   const toggleEra = useCallback((eraKey: string) => {
     setExpandedEras((prev) => {
@@ -495,7 +514,7 @@ const handleLoad = useCallback(() => {
       const top = (screen.height - h) / 2;
       window.open(transformUrlForOpening(url), "_blank", `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`);
     }
-  }, [toast]);
+  }, []);
   const handleToggleFavourite = useCallback(
     (trackUrl: string) => {
       const added = toggleFavourite(trackerId, trackUrl);
@@ -620,6 +639,7 @@ const handleLoad = useCallback(() => {
           toast({ title: "Preparing download...", description: "Embedding metadata" });
           const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
           const res = await fetch(playableUrl);
+          if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
           const blob = await res.blob();
           const meta: { title?: string; artist?: string } = {
             title: rawTrack.name || undefined,
@@ -736,7 +756,7 @@ const handleLoad = useCallback(() => {
         items: downloadItems,
       });
     },
-    [data, filteredData, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab]
+    [data, filteredData, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab, tabGidsRef]
   );
   const computeTrackState = useCallback((track: TALeak) => {
     const allUrls = getAllTrackUrls(track);
@@ -942,6 +962,7 @@ const handleLoad = useCallback(() => {
             aria-label="Close download dialog"
             tabIndex={-1}
           />
+          {/* oxlint-disable-next-line react-doctor/no-transition-all -- tailwindcss-animate `animate-in`/`duration-200` compile to keyframe animation, not `transition: all` */}
           <div className="relative z-10 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-sm animate-in fade-in-0 zoom-in-95 duration-200">
             <div className="p-6">
               <div className="flex items-start gap-3 mb-4">
@@ -1036,7 +1057,7 @@ const handleLoad = useCallback(() => {
             </div>
           </div>
         )}
-        {((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty) || hasLoaded) && (
+        {showTrackerContent && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
@@ -1101,7 +1122,7 @@ const handleLoad = useCallback(() => {
                     type="button"
                     key={tab}
                     onClick={() => handleTabChange(tab)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex-shrink-0 flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors flex-shrink-0 flex items-center gap-1.5 ${
                       currentTab === tab
                         ? "bg-white text-black"
                         : "glass-flat text-white/55 hover:text-white"
@@ -1223,8 +1244,11 @@ const handleLoad = useCallback(() => {
                 </div>
               </div>
             )}
-            <AnimatePresence mode="wait">
-              {status === "tab-loading" ? (
+            </>
+          )}
+          <AnimatePresence mode="wait">
+            {showTrackerContent ? (
+              status === "tab-loading" ? (
                 <motion.div
                   key="tab-loading"
                   className="flex justify-center py-12 sm:py-20"
@@ -1270,7 +1294,7 @@ const handleLoad = useCallback(() => {
                         <div
                           key={`fav-${t.url}`}
                           ref={isHighlighted ? highlightedTrackRef : null}
-                          className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+                          className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                         >
                           <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
                             {isPlayable
@@ -1407,15 +1431,15 @@ const handleLoad = useCallback(() => {
                 />
               ) : (
                 <div className="space-y-1.5 sm:space-y-2">
-                  {flatTracks.map((t, i) => {
-                    const flatKey = `flat-${i}-${t.id || t.url || t.name}`;
+                  {flatTracks.map((t) => {
+                    const flatKey = `flat-${t.id || t.url || t.name}`;
                     const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
                     const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor, font: t.eraFont };
                     return (
                       <div
                         key={flatKey}
                         ref={isHighlighted ? highlightedTrackRef : null}
-                        className={`rounded-xl transition-all ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
+                        className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
                       >
                         <FlatTrackCard t={t} fakeEra={fakeEra} url={url} source={source} isPlayable={isPlayable} isCurrentlyPlaying={isCurrentlyPlaying} description={description} shouldShowSource={shouldShowSource} playableUrl={playableUrl} handlePlayTrack={handlePlayTrack} handleOpenUrl={handleOpenUrl} handleToggleFavourite={handleToggleFavourite} handleOpenOriginal={handleOpenOriginal} handleDownload={handleDownload} handleAddToQueue={handleAddToQueue} favourites={favourites} createTrackObject={createTrackObject} clearQueue={clearQueue} playTrack={playTrack} />
                       </div>
@@ -1450,10 +1474,8 @@ const handleLoad = useCallback(() => {
                   {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters"}
                 </p>
               </motion.div>
-            )}
+              )) : null}
             </AnimatePresence>
-          </>
-        )}
         <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-b border-neutral-800">
           <div className="flex flex-col items-center gap-3 sm:gap-4 max-w-xl mx-auto">
             <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-3 sm:px-4 py-2 rounded-lg w-full">

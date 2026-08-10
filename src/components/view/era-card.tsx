@@ -242,8 +242,8 @@ export const EraCard = memo(function EraCard({
               )}
               {era.era_dates && era.era_dates.length > 0 && (
                 <div className="mb-3 px-1">
-                  {era.era_dates.map((ed, i) => (
-                    <p key={`${ed.date}-${ed.event}-${i}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
+                  {era.era_dates.map((ed) => (
+                    <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
                       {ed.date}{ed.event ? ` — ${ed.event}` : ""}
                     </p>
                   ))}
@@ -259,9 +259,9 @@ export const EraCard = memo(function EraCard({
                       onDownload={() => downloadTracker(eraKey, cat)}
                     />
                     <div className="space-y-1.5 sm:space-y-2">
-                      {(tracks as TALeak[]).map((track, i) => (
+                      {(tracks as TALeak[]).map((track) => (
                         <TrackRow
-                          key={`${eraKey}-${cat}-${i}-${track.id || track.url || track.name}`}
+                          key={`${eraKey}-${cat}-${track.id || track.url || track.name}`}
                           track={track}
                           era={era}
                           computeTrackState={computeTrackState}
