@@ -32,6 +32,7 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
 }: WaveformSeekbarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const peaksRef = useRef<Float32Array | null>(null);
+  const draggingRef = useRef(false);
 
   useEffect(() => {
     if (!audioUrl || !trackId) {
@@ -120,26 +121,41 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     draw();
   }, [draw]);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const valueFromEvent = useCallback(
+    (clientX: number): number => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return 0;
       const rect = canvas.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-      onSeekStart((pct / 100) * duration);
+      const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+      return (pct / 100) * duration;
     },
-    [duration, onSeekStart]
+    [duration]
   );
 
-  const handlePointerUp = useCallback(
+  const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-      onSeekEnd((pct / 100) * duration);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      draggingRef.current = true;
+      onSeekStart(valueFromEvent(e.clientX));
     },
-    [duration, onSeekEnd]
+    [onSeekStart, valueFromEvent]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!draggingRef.current) return;
+      onSeekStart(valueFromEvent(e.clientX));
+    },
+    [onSeekStart, valueFromEvent]
+  );
+
+  const handlePointerEnd = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      onSeekEnd(valueFromEvent(e.clientX));
+    },
+    [onSeekEnd, valueFromEvent]
   );
 
   return (
@@ -148,7 +164,10 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       className={`w-full cursor-pointer ${className}`}
       style={{ height: `${height}px` }}
       onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onLostPointerCapture={handlePointerEnd}
     />
   );
 });
