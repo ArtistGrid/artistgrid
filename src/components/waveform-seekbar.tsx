@@ -16,6 +16,14 @@ interface WaveformSeekbarProps {
   showHandle?: boolean;
 }
 
+interface Bar {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  r: number;
+}
+
 export const WaveformSeekbar = memo(function WaveformSeekbar({
   audioUrl,
   trackId,
@@ -33,10 +41,16 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const peaksRef = useRef<Float32Array | null>(null);
   const draggingRef = useRef(false);
+  const progressRef = useRef(progress);
+  const barsRef = useRef<Bar[] | null>(null);
+  const barsKeyRef = useRef("");
+  const drawRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!audioUrl || !trackId) {
       peaksRef.current = null;
+      barsRef.current = null;
+      barsKeyRef.current = "";
       return;
     }
 
@@ -45,6 +59,9 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       const result = await waveformGenerator.getWaveform(audioUrl, trackId);
       if (cancelled || !result) return;
       peaksRef.current = result.peaks;
+      barsRef.current = null;
+      barsKeyRef.current = "";
+      drawRef.current();
     })();
 
     return () => { cancelled = true; };
@@ -59,9 +76,11 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
+    const targetW = Math.round(w * dpr);
+    const targetH = Math.round(h * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
       ctx.scale(dpr, dpr);
     }
 
@@ -74,32 +93,49 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       return;
     }
 
-    const numBars = Math.min(peaks.length, Math.floor(w / 2.5));
-    const samplesPerBar = Math.max(1, Math.floor(peaks.length / numBars));
-    const barWidth = Math.max(1, (w / numBars) * 0.65);
-    const gap = (w / numBars) * 0.35;
-    const centerY = h / 2;
-    const progressX = (progress / 100) * w;
+    let bars = barsRef.current;
+    const key = `${peaks.length}:${Math.round(w)}:${Math.round(h)}`;
+    if (!bars || barsKeyRef.current !== key) {
+      const numBars = Math.min(peaks.length, Math.floor(w / 2.5));
+      const samplesPerBar = Math.max(1, Math.floor(peaks.length / numBars));
+      const barWidth = Math.max(1, (w / numBars) * 0.65);
+      const gap = (w / numBars) * 0.35;
+      const centerY = h / 2;
+      const newBars: Bar[] = [];
 
-    for (let i = 0; i < numBars; i++) {
-      let maxPeak = 0;
-      const startIdx = i * samplesPerBar;
-      const endIdx = Math.min(startIdx + samplesPerBar, peaks.length);
-      for (let j = startIdx; j < endIdx; j++) {
-        if (peaks[j] > maxPeak) maxPeak = peaks[j];
+      for (let i = 0; i < numBars; i++) {
+        let maxPeak = 0;
+        const startIdx = i * samplesPerBar;
+        const endIdx = Math.min(startIdx + samplesPerBar, peaks.length);
+        for (let j = startIdx; j < endIdx; j++) {
+          if (peaks[j] > maxPeak) maxPeak = peaks[j];
+        }
+
+        const barH = Math.max(2, maxPeak * h * 0.85);
+        newBars.push({
+          x: i * (barWidth + gap),
+          y: centerY - barH / 2,
+          w: barWidth,
+          h: barH,
+          r: Math.min(barWidth / 2, barH / 2),
+        });
       }
 
-      const barH = Math.max(2, maxPeak * h * 0.85);
-      const x = i * (barWidth + gap);
-      const y = centerY - barH / 2;
+      bars = newBars;
+      barsRef.current = newBars;
+      barsKeyRef.current = key;
+    }
 
-      ctx.fillStyle = x + barWidth <= progressX ? playedColor : barColor;
-      const radius = Math.min(barWidth / 2, barH / 2);
+    const progressX = (progressRef.current / 100) * w;
+
+    for (let i = 0; i < bars.length; i++) {
+      const bar = bars[i];
+      ctx.fillStyle = bar.x + bar.w <= progressX ? playedColor : barColor;
       ctx.beginPath();
       if (typeof ctx.roundRect === "function") {
-        ctx.roundRect(x, y, barWidth, barH, radius);
+        ctx.roundRect(bar.x, bar.y, bar.w, bar.h, bar.r);
       } else {
-        ctx.rect(x, y, barWidth, barH);
+        ctx.rect(bar.x, bar.y, bar.w, bar.h);
       }
       ctx.fill();
     }
@@ -110,16 +146,19 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       ctx.shadowColor = "rgba(0,0,0,0.5)";
       ctx.shadowBlur = 4;
       ctx.beginPath();
-      ctx.roundRect(handleX - 1, centerY - h * 0.4, 2.5, h * 0.8, 1);
+      ctx.roundRect(handleX - 1, h / 2 - h * 0.4, 2.5, h * 0.8, 1);
       ctx.fill();
       ctx.shadowBlur = 0;
     }
-  }, [progress, barColor, playedColor, handleColor, showHandle]);
+  }, [barColor, playedColor, handleColor, showHandle]);
+
+  drawRef.current = draw;
 
   useEffect(() => {
-    // oxlint-disable-next-line react-doctor/no-pass-data-to-parent -- draw() only redraws this component's own canvas; parent callbacks fire from pointer events, not effects
-    draw();
-  }, [draw]);
+    if (draggingRef.current) return;
+    progressRef.current = progress;
+    drawRef.current();
+  }, [progress, draw]);
 
   const valueFromEvent = useCallback(
     (clientX: number): number => {
@@ -132,37 +171,54 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     [duration]
   );
 
+  const pctFromEvent = useCallback(
+    (clientX: number): number => {
+      const canvas = canvasRef.current;
+      if (!canvas) return 0;
+      const rect = canvas.getBoundingClientRect();
+      return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+    },
+    []
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       draggingRef.current = true;
+      progressRef.current = pctFromEvent(e.clientX);
+      drawRef.current();
       onSeekStart(valueFromEvent(e.clientX));
     },
-    [onSeekStart, valueFromEvent]
+    [onSeekStart, valueFromEvent, pctFromEvent]
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!draggingRef.current) return;
+      progressRef.current = pctFromEvent(e.clientX);
+      drawRef.current();
       onSeekStart(valueFromEvent(e.clientX));
     },
-    [onSeekStart, valueFromEvent]
+    [onSeekStart, valueFromEvent, pctFromEvent]
   );
 
   const handlePointerEnd = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!draggingRef.current) return;
+      const value = valueFromEvent(e.clientX);
+      progressRef.current = pctFromEvent(e.clientX);
+      drawRef.current();
       draggingRef.current = false;
-      onSeekEnd(valueFromEvent(e.clientX));
+      onSeekEnd(value);
     },
-    [onSeekEnd, valueFromEvent]
+    [onSeekEnd, valueFromEvent, pctFromEvent]
   );
 
   return (
     <canvas
       ref={canvasRef}
-      className={`w-full cursor-pointer ${className}`}
-      style={{ height: `${height}px` }}
+      className={`w-full cursor-pointer select-none ${className}`}
+      style={{ height: `${height}px`, touchAction: "none" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}

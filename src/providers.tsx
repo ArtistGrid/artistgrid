@@ -536,7 +536,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const seekableEnd = audio.seekable.end(audio.seekable.length - 1);
       const seekableStart = audio.seekable.start(0);
       const clampedTime = Math.max(seekableStart, Math.min(time, seekableEnd));
-      if (Math.abs(audio.currentTime - clampedTime) > 0.1) audio.currentTime = clampedTime;
+      if (Math.abs(audio.currentTime - clampedTime) > 0.1) {
+        audio.currentTime = clampedTime;
+        setCurrentTime(clampedTime);
+      }
     } catch (error) {
       logError("Seek failed:", error);
     }
