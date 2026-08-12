@@ -41,6 +41,8 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Can't find variable: CONFIG",
   "Can't find variable: EmptyRanges",
   "Can't find variable: __gCrWeb",
+  "Can't find variable: _G",
+  "vc_text_indicators_context is not defined",
   "e.useCache",
   "e.target.tagName.toLowerCase",
   "M_ID",
