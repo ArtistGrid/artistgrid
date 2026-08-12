@@ -146,7 +146,11 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       ctx.shadowColor = "rgba(0,0,0,0.5)";
       ctx.shadowBlur = 4;
       ctx.beginPath();
-      ctx.roundRect(handleX - 1, h / 2 - h * 0.4, 2.5, h * 0.8, 1);
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(handleX - 1, h / 2 - h * 0.4, 2.5, h * 0.8, 1);
+      } else {
+        ctx.rect(handleX - 1, h / 2 - h * 0.4, 2.5, h * 0.8);
+      }
       ctx.fill();
       ctx.shadowBlur = 0;
     }
