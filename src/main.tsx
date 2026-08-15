@@ -72,12 +72,30 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "Fetch is aborted",
   "writeText",
   "Document is not focused",
+  "DarkReader",
+  "lyrics-plus-backend",
+  "__DLD__",
+  "frontend.min.js",
+];
+
+const EXTENSION_STACK_MARKERS = [
+  "chrome-extension://",
+  "moz-extension://",
+  "safari-extension://",
+  "edge-extension://",
+  "__DLD__",
+  "frontend.min.js",
 ];
 
 function shouldDropError(msg: string, type: string): boolean {
   if (type.includes("React ErrorBoundary")) return true;
   if (msg === "Aa" || msg === "fa" || msg === "Ba") return true;
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
+}
+
+function hasExtensionFrame(event: { exception?: { values?: Array<{ stacktrace?: { frames?: Array<{ filename?: string }> } }> } }): boolean {
+  const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
+  return frames.some((f) => EXTENSION_STACK_MARKERS.some((m) => (f.filename ?? "").includes(m)));
 }
 
 function installStaleAssetRecovery() {
@@ -102,7 +120,7 @@ function initSentry() {
         beforeSend(event) {
           const value = event.exception?.values?.[0]?.value ?? event.message ?? "";
           const type = event.exception?.values?.[0]?.type ?? "";
-          if (shouldDropError(value, type)) {
+          if (shouldDropError(value, type) || hasExtensionFrame(event)) {
             return null;
           }
           return event;

@@ -107,7 +107,7 @@ export const LyricsPanel = memo(function LyricsPanel() {
       el.ttml = ttml;
     }
 
-    el.fetchLyrics();
+    el.fetchLyrics().catch(() => {});
   }, [currentTrack, settings.lyrics.syncedOnly, ttml]);
 
   useEffect(() => {
