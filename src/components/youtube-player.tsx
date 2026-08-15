@@ -14,12 +14,12 @@ export function YouTubePlayer({ url, onClose }: { url: string; onClose: () => vo
   return (
     <DraggablePanel label="YouTube" onClose={onClose}>
       <iframe
-        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
         width="320"
         height="180"
-        allow="autoplay; encrypted-media; fullscreen"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
-        sandbox="allow-scripts allow-popups allow-presentation"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
         className="block"
         title="YouTube video"
       />

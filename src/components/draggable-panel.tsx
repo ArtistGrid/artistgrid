@@ -60,18 +60,22 @@ export function DraggablePanel({
       className="fixed z-[80] glass-elevated rounded-2xl overflow-hidden shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: 320 }}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         aria-label="Drag to reposition player"
         className="w-full flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none border-b border-white/[0.08] bg-transparent"
         onMouseDown={onDragStart}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") e.preventDefault();
+        }}
       >
         <GripHorizontal className="w-3.5 h-3.5 text-white/30" />
         <span className="text-xs font-medium text-white/50">{label}</span>
         <Button variant="ghost" size="icon" onClick={onClose} className="ml-auto h-6 w-6 text-white/30 hover:text-white hover:bg-white/10 rounded-lg" aria-label="Close player">
           <X className="w-3 h-3" />
         </Button>
-      </button>
+      </div>
       {children}
     </div>
   );
