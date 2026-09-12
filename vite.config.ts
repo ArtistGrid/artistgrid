@@ -141,12 +141,27 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{ico,png,jpg,jpeg,webp,avif,gif,svg}"],
+        globPatterns: [
+          "**/*.{ico,png,jpg,jpeg,webp,avif,gif,svg}",
+          "index.html",
+          "assets/*.{js,css}",
+          "manifest.webmanifest",
+        ],
         globIgnores: [],
-        navigateFallback: null,
         clientsClaim: true,
         skipWaiting: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-navigations",
+              expiration: {
+                maxEntries: 32,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/trackerapi\.artistgrid\.cx\//,
             handler: "NetworkFirst",
@@ -190,9 +205,17 @@ export default defineConfig(({ command }) => ({
       "@": path.resolve(__dirname, "."),
     },
   },
+  esbuild: {
+    target: "es2022",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2022",
+    },
+  },
   build: {
     sourcemap: false,
-    target: "es2020",
+    target: "es2022",
     minify: false,
     cssMinify: false,
     rollupOptions: {

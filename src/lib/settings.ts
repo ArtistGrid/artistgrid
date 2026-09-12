@@ -1,7 +1,5 @@
 import { safeSetItem } from "@/src/lib/storage";
-
 type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
-
 export interface Settings {
   lyrics: {
     syncedOnly: boolean;
@@ -43,7 +41,6 @@ export interface Settings {
   };
   font: string;
 }
-
 export const DEFAULT_SETTINGS: Settings = {
   lyrics: {
     syncedOnly: false,
@@ -85,18 +82,17 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   font: "IBM Plex Sans",
 };
-
 const STORAGE_KEY = "artistgrid-settings:v1";
-
 let cachedRaw: string | null | undefined = undefined;
 let cachedSettings: Settings | null = null;
-
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === STORAGE_KEY) cachedRaw = undefined;
   });
 }
-
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -105,17 +101,28 @@ export function loadSettings(): Settings {
     if (!raw) {
       settings = { ...DEFAULT_SETTINGS };
     } else {
-      const parsed = JSON.parse(raw);
+      const parsedUnknown: unknown = JSON.parse(raw);
+      if (!isPlainObject(parsedUnknown)) throw new Error("Settings payload is not an object");
+      const parsed = parsedUnknown as Record<string, unknown>;
+      const section = (key: string): Record<string, unknown> =>
+        isPlainObject(parsed[key]) ? (parsed[key] as Record<string, unknown>) : {};
+      const scrobbling = section("scrobbling");
       settings = {
-        lyrics: { ...DEFAULT_SETTINGS.lyrics, ...parsed.lyrics },
-        downloads: { ...DEFAULT_SETTINGS.downloads, ...parsed.downloads },
-        player: { ...DEFAULT_SETTINGS.player, ...parsed.player },
+        lyrics: { ...DEFAULT_SETTINGS.lyrics, ...section("lyrics") },
+        downloads: { ...DEFAULT_SETTINGS.downloads, ...section("downloads") },
+        player: { ...DEFAULT_SETTINGS.player, ...section("player") },
         scrobbling: {
-          lastfm: { ...DEFAULT_SETTINGS.scrobbling.lastfm, ...parsed.scrobbling?.lastfm },
-          listenbrainz: { ...DEFAULT_SETTINGS.scrobbling.listenbrainz, ...parsed.scrobbling?.listenbrainz },
+          lastfm: {
+            ...DEFAULT_SETTINGS.scrobbling.lastfm,
+            ...(isPlainObject(scrobbling.lastfm) ? scrobbling.lastfm : {}),
+          },
+          listenbrainz: {
+            ...DEFAULT_SETTINGS.scrobbling.listenbrainz,
+            ...(isPlainObject(scrobbling.listenbrainz) ? scrobbling.listenbrainz : {}),
+          },
         },
-        behavior: { ...DEFAULT_SETTINGS.behavior, ...parsed.behavior },
-        font: parsed.font ?? DEFAULT_SETTINGS.font,
+        behavior: { ...DEFAULT_SETTINGS.behavior, ...section("behavior") },
+        font: typeof parsed.font === "string" && parsed.font.trim() ? parsed.font : DEFAULT_SETTINGS.font,
       };
     }
     cachedRaw = raw;
@@ -127,7 +134,6 @@ export function loadSettings(): Settings {
     return cachedSettings;
   }
 }
-
 export function saveSettings(settings: Settings): void {
   const raw = JSON.stringify(settings);
   cachedRaw = raw;

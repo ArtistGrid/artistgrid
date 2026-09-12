@@ -13,36 +13,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Search,
-  X,
-  Play,
-  Filter,
-  Share2,
-  CircleSlash,
-  ListPlus,
-  Download,
-  ExternalLink,
-  Loader2,
-  Radio,
-  AlertTriangle,
-  SkipForward,
-  FolderDown,
-  Settings,
-  Heart,
-  Trash2,
-  Music2,
-  FileSpreadsheet,
-  Layers,
-} from "lucide-react";
+import { Search, X, Filter, Share2, CircleSlash, Loader2, Radio, AlertTriangle, FolderDown, Settings, Heart, Music2, FileSpreadsheet, Layers } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
-import { getCache, setCache } from "@/src/lib/tracker-cache";
+import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
 import { resolvePlayableUrl, getTrackSource, isNetworkSource, transformUrlForOpening } from "@/src/lib/resolve-url";
 import {
   generateTrackId,
@@ -57,47 +35,51 @@ import {
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
 import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
+import { DiscordIcon } from "@/src/components/home/header";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
+import { ChunkErrorBoundary } from "@/src/components/error-boundary";
 import { lazy } from "react";
-const ArtGallery = lazy(() =>
-  import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery }))
-);
-const ImageLightbox = lazy(() =>
-  import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox }))
-);
-const LastFMModal = lazy(() =>
-  import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal }))
-);
+const ArtGallery = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery })));
+const ImageLightbox = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox })));
+const LastFMModal = lazy(() => import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal })));
 import { YouTubePlayer } from "@/src/components/youtube-player";
 import { FloatingVideoPlayer } from "@/src/components/floating-video-player";
 import { useSettings } from "@/src/hooks/use-settings";
 import { useTrackerData } from "@/src/hooks/use-tracker-data";
 import { loadSettings } from "@/src/lib/settings";
 import { useSettingsModal } from "@/src/components/settings-modal-context";
-import { getFavourites, toggleFavourite, clearFavourites, getFavouritedTracks, toggleEraFavourite, isEraFavourited } from "@/src/lib/favourites";
+import {
+  getFavourites,
+  toggleFavourite,
+  clearFavourites,
+  getFavouritedTracks,
+  toggleEraFavourite,
+  isEraFavourited,
+  exportAllFavourites,
+  importFavourites,
+} from "@/src/lib/favourites";
 import { getCustomViews, type CustomView } from "@/src/lib/custom-views";
 import { mergeTabData } from "@/src/lib/merge-tab-data";
 import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
-import {
-  PlayButton,
-  PauseButton,
-  OpenLinkButton,
-  TrackDescription,
-  TrackItemActions,
-  FallbackView,
-  type FilterOptions,
-  type PlayableTrackData,
-} from "@/src/components/view/track-item";
+import { FallbackView, type FilterOptions, type PlayableTrackData } from "@/src/components/view/track-item";
 import { CustomViewManager } from "@/src/components/view/custom-view-manager";
-import { FlatTrackCard, FlatTrackList } from "@/src/components/view/flat-track-card";
+import { DownloadConfirmDialog } from "@/src/components/view/download-confirm-dialog";
+import { FavouritesTab } from "@/src/components/view/favourites-tab";
+import { FlatTrackList } from "@/src/components/view/flat-track-card";
 import { EraCard } from "@/src/components/view/era-card";
 const ART_TABS = ["Art"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
-function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialTab }: { trackerId?: string; initialTab?: string } = {}) {
+function TrackerViewContent({
+  trackerId: propTrackerId,
+  initialTab: propInitialTab,
+}: {
+  trackerId?: string;
+  initialTab?: string;
+} = {}) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { state: playerState, playTrack, addToQueue, clearQueue, togglePlayPause, lastfm } = usePlayer();
+  const { state: playerState, playTrack, addToQueue, queueNext, clearQueue, togglePlayPause, lastfm } = usePlayer();
   const downloadManager = useDownloadManager();
   const { settings } = useSettings();
   const { setSettingsOpen } = useSettingsModal();
@@ -106,7 +88,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(() => searchParams.get("artist"));
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState<FilterOptions>({ showPlayableOnly: false, qualityFilter: [], sourceFilter: [] });
+  const [filters, setFilters] = useState<FilterOptions>({
+    showPlayableOnly: false,
+    qualityFilter: [],
+    sourceFilter: [],
+  });
   const trackerData = useTrackerData(setExpandedEras);
   const {
     data,
@@ -125,6 +111,8 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     setTabEmpty,
     hasLoaded,
     setHasLoaded,
+    credits,
+    discord,
     baseEraImages,
     isPreloading,
     resolveProgress,
@@ -151,16 +139,27 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   const [downloadConfirm, setDownloadConfirm] = useState<{
     artistName: string;
     eraName: string | undefined;
-    items: Array<{ track: TALeak; era: Era; playableUrl: string }>;
+    items: Array<{
+      track: TALeak;
+      era: Era;
+      playableUrl: string;
+    }>;
   } | null>(null);
   const pendingTrackUrlRef = useRef<string | null>(null);
   const [favourites, setFavourites] = useState<string[]>(() => getFavourites(trackerId));
   const [customViews, setCustomViews] = useState<CustomView[]>(() => getCustomViews(trackerId));
+  useEffect(() => {
+    setFavourites(getFavourites(trackerId));
+    setCustomViews(getCustomViews(trackerId));
+    setActiveCustomView(null);
+  }, [trackerId]);
   const [activeCustomView, setActiveCustomView] = useState<CustomView | null>(null);
   const isFavouritesTab = currentTab === "Favourites";
   const isCustomTab = currentTab === "Custom";
-  const showTrackerContent = ((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty)) || hasLoaded;
-  const pageTabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
+  const showTrackerContent =
+    ((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty)) || hasLoaded;
+  const pageTabSlug =
+    !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
   const pageTabPart = pageTabSlug ? `/${pageTabSlug}` : "";
   const displayTabs = useMemo(() => {
     const tabs = [...tabsList];
@@ -169,8 +168,14 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     return tabs;
   }, [tabsList]);
   const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
-  const cleanArtistName = useMemo(() => artistNameFromUrl ? getCleanArtistName(artistNameFromUrl) : "", [artistNameFromUrl]);
-  usePageMeta({ title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`, url: `https://artistgrid.cx/sh/${trackerId}${pageTabPart}?artist=${encodeURIComponent(cleanArtistName || "")}` });
+  const cleanArtistName = useMemo(
+    () => (artistNameFromUrl ? getCleanArtistName(artistNameFromUrl) : ""),
+    [artistNameFromUrl]
+  );
+  usePageMeta({
+    title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`,
+    url: `https://artistgrid.cx/sh/${trackerId}${pageTabPart}?artist=${encodeURIComponent(cleanArtistName || "")}`,
+  });
   const getEraImage = useCallback(
     (era: Era): string | undefined => {
       if (era.image) return era.image;
@@ -185,10 +190,7 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     for (const [key, era] of Object.entries(data.eras)) result[key] = { ...era, image: getEraImage(era) };
     return result;
   }, [data?.eras, getEraImage]);
-  const eraFontList = useMemo(
-    () => (data?.eras ? Object.values(data.eras).map((e) => e.font) : []),
-    [data?.eras]
-  );
+  const eraFontList = useMemo(() => (data?.eras ? Object.values(data.eras).map((e) => e.font) : []), [data?.eras]);
   useEraFonts(eraFontList);
   const isArtTab = ART_TABS.some((t) => currentTab.toLowerCase().includes(t.toLowerCase()));
   const isFlat = !!data?.isFlat;
@@ -240,7 +242,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
           let playableUrl: string | null = null;
           for (const u of allUrls) {
             const resolved = resolvedUrls.get(u);
-            if (resolved) { url = u; playableUrl = resolved; break; }
+            if (resolved) {
+              url = u;
+              playableUrl = resolved;
+              break;
+            }
             if (!url) url = u;
           }
           if (url && playableUrl) tracks.push({ track, era, url, playableUrl });
@@ -267,7 +273,11 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
         let playableUrl: string | null = null;
         for (const u of allUrls) {
           const resolved = resolvedUrls.get(u);
-          if (resolved) { url = u; playableUrl = resolved; break; }
+          if (resolved) {
+            url = u;
+            playableUrl = resolved;
+            break;
+          }
           if (!url) url = u;
         }
         if (!url || !playableUrl) return null;
@@ -312,7 +322,10 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
   }, [searchParams]);
   useEffect(() => {
     if (highlightedTrackRef.current && highlightedTrackUrl) {
-      const id = setTimeout(() => highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
+      const id = setTimeout(
+        () => highlightedTrackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        500
+      );
       return () => clearTimeout(id);
     }
   }, [highlightedTrackUrl, data]);
@@ -332,7 +345,6 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
     }
   }, [data, resolvedUrls, playTrack, createTrackObject]);
   const tabChangeInProgress = useRef(false);
-  // oxlint-disable-next-line react-doctor/no-derived-state-effect -- this is a data-loading effect (guarded ref to avoid double-load), not derived state
   useEffect(() => {
     if (!trackerId) return;
     if (tabChangeInProgress.current) {
@@ -345,7 +357,7 @@ function TrackerViewContent({ trackerId: propTrackerId, initialTab: propInitialT
       loadTrackerData(trackerId);
     }
   }, [trackerId, loadTrackerData, propInitialTab]);
-const handleLoad = useCallback(() => {
+  const handleLoad = useCallback(() => {
     if (!inputValue.trim()) {
       toast({ title: "Invalid input", description: "Enter a tracker ID or Google Sheets link" });
       return;
@@ -368,25 +380,41 @@ const handleLoad = useCallback(() => {
     const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
     navigate(`/sh/${trackerId}${artistQs}`);
   }, [inputValue, navigate, toast, cleanArtistName]);
-  const handleShare = useCallback(() => {
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+  const handleShare = useCallback(async () => {
     const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
-    const tabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
+    const tabSlug =
+      !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
     const tabPart = tabSlug ? `/${tabSlug}` : "";
     const url = `${window.location.origin}/sh/${trackerId}${tabPart}${artistQs}`;
-    navigator.clipboard.writeText(url);
-    toast({ title: "Copied!", description: "Share link copied to clipboard" });
-  }, [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef]);
+    if (await copyToClipboard(url)) {
+      toast({ title: "Copied!", description: "Share link copied to clipboard" });
+    } else {
+      toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
+    }
+  }, [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]);
   const handleShareTrack = useCallback(
-    (trackUrl: string, trackName: string) => {
+    async (trackUrl: string, trackName: string) => {
       const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
-      const tabSlug = !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
+      const tabSlug =
+        !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
       const tabPart = tabSlug ? `/${tabSlug}` : "";
       const encodedTrack = encodeTrackForUrl(trackUrl);
       const shareUrl = `${window.location.origin}/sh/${trackerId}${tabPart}?track=${encodedTrack}${artistQs}`;
-      navigator.clipboard.writeText(shareUrl);
-      toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
+      if (await copyToClipboard(shareUrl)) {
+        toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
+      } else {
+        toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
+      }
     },
-    [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef]
+    [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]
   );
   const handleTabChange = useCallback(
     (tabName: string) => {
@@ -406,7 +434,10 @@ const handleLoad = useCallback(() => {
       if (!slug) {
         const normalized = tabName.trim().normalize("NFC");
         for (const [name, s] of Object.entries(tabSlugsRef.current)) {
-          if (name.trim().normalize("NFC") === normalized) { slug = s; break; }
+          if (name.trim().normalize("NFC") === normalized) {
+            slug = s;
+            break;
+          }
         }
       }
       slug = slug ?? tabName;
@@ -435,7 +466,7 @@ const handleLoad = useCallback(() => {
           view.tabs.map(async (tabName) => {
             const slug = tabSlugsRef.current[tabName] ?? tabName;
             const gid = tabGidsRef.current[tabName] || "";
-            const cached = getCache(trackerId, gid || slug);
+            const cached = await getCacheAsync(trackerId, gid || slug);
             if (cached) return cached.data;
             const endpoint = gid ? `/sh/${trackerId}/gid/${gid}` : `/sh/${trackerId}/tab/${encodeURIComponent(slug)}`;
             const res = await fetchWithFallback(endpoint, { signal: controller.signal });
@@ -464,7 +495,8 @@ const handleLoad = useCallback(() => {
         hasLoadedRef.current = true;
         setHasLoaded(true);
         if (valid.length > 0 && valid[0].tabs?.length) setTabsList(valid[0].tabs);
-        if (valid.length > 0 && valid[0].tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...valid[0].tabSlugs };
+        if (valid.length > 0 && valid[0].tabSlugs)
+          tabSlugsRef.current = { ...tabSlugsRef.current, ...valid[0].tabSlugs };
         if (valid.length > 0 && valid[0].tabGids) tabGidsRef.current = { ...tabGidsRef.current, ...valid[0].tabGids };
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -509,10 +541,15 @@ const handleLoad = useCallback(() => {
     if (s.behavior.openInNewTab) {
       window.open(transformUrlForOpening(url), "_blank", "noopener,noreferrer");
     } else {
-      const w = 600, h = 700;
+      const w = 600,
+        h = 700;
       const left = (screen.width - w) / 2;
       const top = (screen.height - h) / 2;
-      window.open(transformUrlForOpening(url), "_blank", `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`);
+      window.open(
+        transformUrlForOpening(url),
+        "_blank",
+        `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`
+      );
     }
   }, []);
   const handleToggleFavourite = useCallback(
@@ -528,7 +565,11 @@ const handleLoad = useCallback(() => {
       const added = toggleEraFavourite(trackerId, era);
       setFavourites(getFavourites(trackerId));
       const count = era.data ? Object.values(era.data).flat().length : 0;
-      toast({ title: added ? `Favourited ${count} track${count !== 1 ? "s" : ""}` : `Removed ${count} track${count !== 1 ? "s" : ""} from favourites` });
+      toast({
+        title: added
+          ? `Favourited ${count} track${count !== 1 ? "s" : ""}`
+          : `Removed ${count} track${count !== 1 ? "s" : ""} from favourites`,
+      });
     },
     [trackerId, toast]
   );
@@ -537,20 +578,74 @@ const handleLoad = useCallback(() => {
     setFavourites([]);
     toast({ title: "Favourites cleared" });
   }, [trackerId, toast]);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const handleExportFavourites = useCallback(() => {
+    try {
+      const data = exportAllFavourites();
+      if (Object.keys(data.trackers).length === 0) {
+        toast({ title: "Nothing to export", description: "No favourites saved yet" });
+        return;
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `artistgrid-favourites-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch {
+      toast({ title: "Export failed", description: "Could not create the export file" });
+    }
+  }, [toast]);
+  const handleImportFavourites = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed: unknown = JSON.parse(text);
+        const added = importFavourites(parsed, "merge");
+        setFavourites(getFavourites(trackerId));
+        toast({
+          title: added > 0 ? `Imported ${added} favourite${added !== 1 ? "s" : ""}` : "Nothing new to import",
+          description: added === 0 ? "All favourites in the file already exist" : undefined,
+        });
+      } catch {
+        toast({ title: "Import failed", description: "That file doesn't look like a valid favourites export" });
+      }
+    },
+    [trackerId, toast]
+  );
   const handlePlayTrack = useCallback(
     async (rawTrack: TALeak, era: Era) => {
       const allUrls = getAllTrackUrls(rawTrack);
       if (allUrls.length === 0) return;
       const playingUrl = allUrls.find((u) => playerState.currentTrack?.url === u);
-      if (playingUrl) { togglePlayPause(); return; }
+      if (playingUrl) {
+        togglePlayPause();
+        return;
+      }
       let resolvedUrl: string | null = null;
       let chosenUrl: string | null = null;
       for (const u of allUrls) {
         const result = await resolvePlayableUrl(u);
-        if (result) { resolvedUrl = result; chosenUrl = u; break; }
+        if (result) {
+          resolvedUrl = result;
+          chosenUrl = u;
+          break;
+        }
       }
-      if (!resolvedUrl || !chosenUrl) { handleOpenUrl(allUrls[0]); return; }
-      if (isVideoUrl(resolvedUrl)) { setVideoUrl(resolvedUrl); return; }
+      if (!resolvedUrl || !chosenUrl) {
+        handleOpenUrl(allUrls[0]);
+        return;
+      }
+      if (isVideoUrl(resolvedUrl)) {
+        setVideoUrl(resolvedUrl);
+        return;
+      }
       const track = createTrackObject(rawTrack, era, chosenUrl, resolvedUrl);
       clearQueue();
       playTrack(track);
@@ -582,17 +677,22 @@ const handleLoad = useCallback(() => {
       let chosenUrl: string | null = null;
       for (const u of allUrls) {
         const result = await resolvePlayableUrl(u);
-        if (result) { resolvedUrl = result; chosenUrl = u; break; }
+        if (result) {
+          resolvedUrl = result;
+          chosenUrl = u;
+          break;
+        }
       }
       if (!resolvedUrl || !chosenUrl) {
         toast({ title: "Cannot queue", description: "Track is not playable" });
         return;
       }
       const track = createTrackObject(rawTrack, era, chosenUrl, resolvedUrl);
-      addToQueue(track);
+      if (mode === "next") queueNext(track);
+      else addToQueue(track);
       toast({ title: mode === "next" ? "Playing next" : "Added to queue", description: track.name });
     },
-    [addToQueue, toast, createTrackObject]
+    [addToQueue, queueNext, toast, createTrackObject]
   );
   const handlePlayNext = useCallback(
     (rawTrack: TALeak, era: Era) => handleQueueTrack(rawTrack, era, "next"),
@@ -609,12 +709,18 @@ const handleLoad = useCallback(() => {
       let playableUrl: string | null = null;
       for (const u of allUrls) {
         const cached = resolvedUrls.get(u);
-        if (cached) { playableUrl = cached; break; }
+        if (cached) {
+          playableUrl = cached;
+          break;
+        }
       }
       if (!playableUrl) {
         for (const u of allUrls) {
           const result = await resolvePlayableUrl(u);
-          if (result) { playableUrl = result; break; }
+          if (result) {
+            playableUrl = result;
+            break;
+          }
         }
       }
       if (!playableUrl) {
@@ -641,7 +747,10 @@ const handleLoad = useCallback(() => {
           const res = await fetch(playableUrl);
           if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
           const blob = await res.blob();
-          const meta: { title?: string; artist?: string } = {
+          const meta: {
+            title?: string;
+            artist?: string;
+          } = {
             title: rawTrack.name || undefined,
             artist: artistDisplayName || undefined,
           };
@@ -680,28 +789,44 @@ const handleLoad = useCallback(() => {
     setLightboxImage({ src: imageUrl, alt: name, originalUrl: linkUrl || imageUrl, description });
   }, []);
   const downloadTracker = useCallback(
-    async (eraKey?: string, catKey?: string, prebuiltCandidates?: Array<{ track: TALeak; era: Era; url: string }>) => {
+    async (
+      eraKey?: string,
+      catKey?: string,
+      prebuiltCandidates?: Array<{
+        track: TALeak;
+        era: Era;
+        url: string;
+      }>
+    ) => {
       if (!data?.eras) return;
-      const candidates = prebuiltCandidates ?? (() => {
-        const c: Array<{ track: TALeak; era: Era; url: string }> = [];
-        if (eraKey && catKey) {
-          const era = data.eras[eraKey];
-          const catTracks = era?.data?.[catKey];
-          if (Array.isArray(catTracks)) {
-            for (const track of catTracks) {
+      const candidates =
+        prebuiltCandidates ??
+        (() => {
+          const c: Array<{
+            track: TALeak;
+            era: Era;
+            url: string;
+          }> = [];
+          if (eraKey && catKey) {
+            const era = data.eras[eraKey];
+            const catTracks = era?.data?.[catKey];
+            if (Array.isArray(catTracks)) {
+              for (const track of catTracks) {
+                const allUrls = getAllTrackUrls(track);
+                if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
+              }
+            }
+          } else {
+            const erasToDownload = eraKey
+              ? { [eraKey]: (filteredData ?? data.eras)[eraKey] ?? data.eras[eraKey] }
+              : (filteredData ?? data.eras);
+            forEachEraTrack(erasToDownload, (track, era) => {
               const allUrls = getAllTrackUrls(track);
               if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
-            }
+            });
           }
-        } else {
-          const erasToDownload = eraKey ? { [eraKey]: (filteredData ?? data.eras)[eraKey] ?? data.eras[eraKey] } : (filteredData ?? data.eras);
-          forEachEraTrack(erasToDownload, (track, era) => {
-            const allUrls = getAllTrackUrls(track);
-            if (allUrls.length > 0) c.push({ track, era, url: allUrls[0] });
-          });
-        }
-        return c;
-      })();
+          return c;
+        })();
       if (candidates.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
@@ -715,18 +840,30 @@ const handleLoad = useCallback(() => {
         a.style.cssText = "display:none";
         document.body.appendChild(a);
         a.click();
-        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 500);
       };
       fireProbe();
       setTimeout(fireProbe, 100);
-      const unresolvedUrls = candidates.reduce((acc: string[], c: { track: TALeak; url: string }) => {
-        for (const u of getAllTrackUrls(c.track)) {
-          if (resolvedUrls.get(u) === undefined && isNetworkSource(getTrackSource(u)) && !acc.includes(u)) {
-            acc.push(u);
+      const unresolvedUrls = candidates.reduce(
+        (
+          acc: string[],
+          c: {
+            track: TALeak;
+            url: string;
           }
-        }
-        return acc;
-      }, []);
+        ) => {
+          for (const u of getAllTrackUrls(c.track)) {
+            if (resolvedUrls.get(u) === undefined && isNetworkSource(getTrackSource(u)) && !acc.includes(u)) {
+              acc.push(u);
+            }
+          }
+          return acc;
+        },
+        []
+      );
       let urlMap = resolvedUrls;
       if (unresolvedUrls.length > 0) {
         const freshlyResolved = await resolveUrls(unresolvedUrls);
@@ -741,7 +878,15 @@ const handleLoad = useCallback(() => {
           }
           return null;
         })
-        .filter((item): item is { track: TALeak; era: Era; playableUrl: string } => !!item && !!item.playableUrl);
+        .filter(
+          (
+            item
+          ): item is {
+            track: TALeak;
+            era: Era;
+            playableUrl: string;
+          } => !!item && !!item.playableUrl
+        );
       if (downloadItems.length === 0) {
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
@@ -751,55 +896,82 @@ const handleLoad = useCallback(() => {
       setDownloadConfirm({
         artistName: artistDisplayName,
         eraName: catDisplayName
-          ? eraDisplayName ? `${eraDisplayName} › ${catDisplayName}` : catDisplayName
+          ? eraDisplayName
+            ? `${eraDisplayName} › ${catDisplayName}`
+            : catDisplayName
           : eraDisplayName,
         items: downloadItems,
       });
     },
     [data, filteredData, resolvedUrls, artistDisplayName, toast, resolveUrls, trackerId, currentTab, tabGidsRef]
   );
-  const computeTrackState = useCallback((track: TALeak) => {
-    const allUrls = getAllTrackUrls(track);
-    let url: string | null = null;
-    let playableUrl: string | null = null;
-    for (const u of allUrls) {
-      const resolved = resolvedUrls.get(u);
-      if (resolved) { url = u; playableUrl = resolved; break; }
-      if (!url && SUPPORTED_SOURCES_SET.has(getTrackSource(u))) url = u;
-    }
-    if (!url) url = allUrls[0] || null;
-    if (!playableUrl && url) playableUrl = resolvedUrls.get(url) || null;
-    const source = url ? getTrackSource(url) : "unknown";
-    const isSupported = SUPPORTED_SOURCES_SET.has(source);
-    const isPlayable =
-      !!playableUrl ||
-      allUrls.some((u) => {
-        const r = resolvedUrls.get(u);
-        return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
-      });
-    const isCurrentlyPlaying = url ? (playerState.currentTrack?.url === url && playerState.isPlaying) : false;
-    const isCurrentTrack = url ? playerState.currentTrack?.url === url : false;
-    const isHighlighted = url === highlightedTrackUrl;
-    const description = getTrackDescription(track) || undefined;
-    const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
-    return { url, source, isSupported, playableUrl, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource };
-  }, [resolvedUrls, playerState.currentTrack, playerState.isPlaying, highlightedTrackUrl]);
+  const computeTrackState = useCallback(
+    (track: TALeak) => {
+      const allUrls = getAllTrackUrls(track);
+      let url: string | null = null;
+      let playableUrl: string | null = null;
+      for (const u of allUrls) {
+        const resolved = resolvedUrls.get(u);
+        if (resolved) {
+          url = u;
+          playableUrl = resolved;
+          break;
+        }
+        if (!url && SUPPORTED_SOURCES_SET.has(getTrackSource(u))) url = u;
+      }
+      if (!url) url = allUrls[0] || null;
+      if (!playableUrl && url) playableUrl = resolvedUrls.get(url) || null;
+      const source = url ? getTrackSource(url) : "unknown";
+      const isSupported = SUPPORTED_SOURCES_SET.has(source);
+      const isPlayable =
+        !!playableUrl ||
+        allUrls.some((u) => {
+          const r = resolvedUrls.get(u);
+          return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
+        });
+      const isCurrentlyPlaying = url ? playerState.currentTrack?.url === url && playerState.isPlaying : false;
+      const isCurrentTrack = url ? playerState.currentTrack?.url === url : false;
+      const isHighlighted = url === highlightedTrackUrl;
+      const description = getTrackDescription(track) || undefined;
+      const shouldShowSource = source !== "unknown" && source !== "juicewrldapi";
+      return {
+        url,
+        source,
+        isSupported,
+        playableUrl,
+        isPlayable,
+        isCurrentlyPlaying,
+        isCurrentTrack,
+        isHighlighted,
+        description,
+        shouldShowSource,
+      };
+    },
+    [resolvedUrls, playerState.currentTrack, playerState.isPlaying, highlightedTrackUrl]
+  );
   const confirmDownload = useCallback(() => {
     if (!downloadConfirm) return;
     downloadManager.startDownload(downloadConfirm);
-    toast({ title: "Download started", description: `Downloading ${downloadConfirm.items.length} tracks in background` });
+    toast({
+      title: "Download started",
+      description: `Downloading ${downloadConfirm.items.length} tracks in background`,
+    });
     setDownloadConfirm(null);
   }, [downloadConfirm, downloadManager, toast]);
   const qualities = useMemo(() => {
     if (!data?.eras) return [];
     const set = new Set<string>();
-    forEachEraTrack(data.eras, (t) => { if (t.quality && !isUrl(t.quality)) set.add(t.quality); });
+    forEachEraTrack(data.eras, (t) => {
+      if (t.quality && !isUrl(t.quality)) set.add(t.quality);
+    });
     return Array.from(set);
   }, [data]);
   const sources = useMemo(() => {
     if (!data?.eras) return [];
     const set = new Set<Track["source"]>();
-    forEachEraTrack(data.eras, (t) => { for (const u of getAllTrackUrls(t)) set.add(getTrackSource(u)); });
+    forEachEraTrack(data.eras, (t) => {
+      for (const u of getAllTrackUrls(t)) set.add(getTrackSource(u));
+    });
     return Array.from(set).sort();
   }, [data]);
   const stats = useMemo(() => {
@@ -813,10 +985,13 @@ const handleLoad = useCallback(() => {
             total += tracks.length;
             for (const t of tracks) {
               const allUrls = getAllTrackUrls(t);
-              if (allUrls.some((u) => {
-                const r = resolvedUrls.get(u);
-                return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
-              })) playable++;
+              if (
+                allUrls.some((u) => {
+                  const r = resolvedUrls.get(u);
+                  return !!r || (r === undefined && SUPPORTED_SOURCES_SET.has(getTrackSource(u)));
+                })
+              )
+                playable++;
             }
           }
         }
@@ -863,7 +1038,9 @@ const handleLoad = useCallback(() => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => window.open(getSheetViewUrl(trackerId, settings.behavior.sheetsHtmlview), "_blank", "noopener,noreferrer")}
+          onClick={() =>
+            window.open(getSheetViewUrl(trackerId, settings.behavior.sheetsHtmlview), "_blank", "noopener,noreferrer")
+          }
           className="glass-flat rounded-xl text-white/50 hover:text-white h-9 w-9 sm:h-10 sm:w-10"
           aria-label="Open Google Sheet"
         >
@@ -896,35 +1073,38 @@ const handleLoad = useCallback(() => {
       </Button>
     </div>
   );
-  if (status === "fallback") return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
-
+  if (status === "fallback")
+    return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
   const renderEraCards = (data: Record<string, Era>) =>
     Object.entries(data).map(([key, era]) => (
-      <EraCard
+      <ChunkErrorBoundary
         key={key}
-        eraKey={key}
-        era={era}
-        resolvedUrls={resolvedUrls}
-        trackerId={trackerId}
-        expandedEras={expandedEras}
-        toggleEra={toggleEra}
-        computeTrackState={computeTrackState}
-        handlePlayTrack={handlePlayTrack}
-        handleOpenUrl={handleOpenUrl}
-        handleShareTrack={handleShareTrack}
-        handlePlayNext={handlePlayNext}
-        handleAddToQueue={handleAddToQueue}
-        handleDownload={handleDownload}
-        handleToggleFavourite={handleToggleFavourite}
-        handleOpenOriginal={handleOpenOriginal}
-        handleToggleEraFavourite={handleToggleEraFavourite}
-        isEraFavourited={isEraFavourited}
-        downloadTracker={downloadTracker}
-        favourites={favourites}
-        highlightedTrackRef={highlightedTrackRef}
-      />
+        fallback={<div className="glass rounded-2xl p-4 text-sm text-white/50">This era failed to render.</div>}
+      >
+        <EraCard
+          eraKey={key}
+          era={era}
+          resolvedUrls={resolvedUrls}
+          trackerId={trackerId}
+          expandedEras={expandedEras}
+          toggleEra={toggleEra}
+          computeTrackState={computeTrackState}
+          handlePlayTrack={handlePlayTrack}
+          handleOpenUrl={handleOpenUrl}
+          handleShareTrack={handleShareTrack}
+          handlePlayNext={handlePlayNext}
+          handleAddToQueue={handleAddToQueue}
+          handleDownload={handleDownload}
+          handleToggleFavourite={handleToggleFavourite}
+          handleOpenOriginal={handleOpenOriginal}
+          handleToggleEraFavourite={handleToggleEraFavourite}
+          isEraFavourited={isEraFavourited}
+          downloadTracker={downloadTracker}
+          favourites={favourites}
+          highlightedTrackRef={highlightedTrackRef}
+        />
+      </ChunkErrorBoundary>
     ));
-
   return (
     <motion.div
       className="min-h-screen bg-black pb-32 sm:pb-28"
@@ -954,68 +1134,17 @@ const handleLoad = useCallback(() => {
         )}
       </Suspense>
       {downloadConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setDownloadConfirm(null)}
-            aria-label="Close download dialog"
-            tabIndex={-1}
-          />
-          {/* oxlint-disable-next-line react-doctor/no-transition-all -- tailwindcss-animate `animate-in`/`duration-200` compile to keyframe animation, not `transition: all` */}
-          <div className="relative z-10 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-2xl w-full max-w-sm animate-in fade-in-0 zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center flex-shrink-0">
-                  <FolderDown className="w-4 h-4 text-neutral-300" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-white">
-                    Download {downloadConfirm.items.length} track{downloadConfirm.items.length !== 1 ? "s" : ""}
-                  </h2>
-                  <p className="text-sm text-neutral-400 mt-0.5">
-                    {downloadConfirm.eraName ?? downloadConfirm.artistName}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5 mb-5 space-y-2.5">
-                <div className="flex gap-2 text-sm text-neutral-300">
-                  <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                  <span>
-                    Your browser is asking for permission to download multiple files.{" "}
-                    <span className="text-white font-medium">Click Allow</span> in the popup before continuing.
-                  </span>
-                </div>
-                <div className="flex gap-2 text-sm text-neutral-400">
-                  <Download className="w-4 h-4 text-neutral-500 flex-shrink-0 mt-0.5" />
-                  <span>Large downloads are automatically split into 900 MB ZIP files.</span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  className="flex-1 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
-                  onClick={() => setDownloadConfirm(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-white text-black hover:bg-neutral-200"
-                  onClick={confirmDownload}
-                >
-                  Start Download
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DownloadConfirmDialog
+          trackCount={downloadConfirm.items.length}
+          subtitle={downloadConfirm.eraName ?? downloadConfirm.artistName}
+          onCancel={() => setDownloadConfirm(null)}
+          onConfirm={confirmDownload}
+        />
       )}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {status === "idle" && (
           <div className="text-center py-16 sm:py-24">
-            <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">
-              Enter a Tracker ID to get started
-            </h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">Enter a Tracker ID to get started</h2>
             <p className="text-sm sm:text-base text-white/55">Tracker IDs are exactly 44 characters long</p>
           </div>
         )}
@@ -1062,44 +1191,38 @@ const handleLoad = useCallback(() => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
-                {data?.credits && (
+                {credits && (
                   <p className="text-xs text-white/55 mt-0.5">
-                    by {data.credits}
-                    {data.discord && (
+                    by {credits}
+                    {discord && (
                       <a
-                        href={data.discord}
+                        href={discord}
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Discord"
                         className="inline-flex items-center ml-1.5 text-white/55 hover:text-white/60 transition-colors align-middle"
                         title="Discord"
                       >
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                        </svg>
+                        <DiscordIcon className="w-3 h-3" />
                       </a>
                     )}
                   </p>
                 )}
-                {!data?.credits && data?.discord && (
+                {!credits && discord && (
                   <a
-                    href={data.discord}
+                    href={discord}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Discord"
                     className="inline-flex items-center text-xs text-white/55 hover:text-white/60 transition-colors mt-0.5"
                     title="Discord"
                   >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 mr-1">
-                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                    </svg>
+                    <DiscordIcon className="w-3.5 h-3.5 mr-1" />
                     Discord
                   </a>
                 )}
                 {data?.lastUpdated && (
-                  <p className="text-xs text-white/50 mt-0.5">
-                    Last updated {formatRelativeTime(data.lastUpdated)}
-                  </p>
+                  <p className="text-xs text-white/50 mt-0.5">Last updated {formatRelativeTime(data.lastUpdated)}</p>
                 )}
               </div>
               {!isArtTab && stats.playable > 0 && (
@@ -1122,13 +1245,11 @@ const handleLoad = useCallback(() => {
                     type="button"
                     key={tab}
                     onClick={() => handleTabChange(tab)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors flex-shrink-0 flex items-center gap-1.5 ${
-                      currentTab === tab
-                        ? "bg-white text-black"
-                        : "glass-flat text-white/55 hover:text-white"
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors flex-shrink-0 flex items-center gap-1.5 ${currentTab === tab ? "bg-white text-black" : "glass-flat text-white/55 hover:text-white"}`}
                   >
-                    {tab === "Favourites" && <Heart className={`w-3 h-3 ${favourites.length > 0 ? "fill-current" : ""}`} />}
+                    {tab === "Favourites" && (
+                      <Heart className={`w-3 h-3 ${favourites.length > 0 ? "fill-current" : ""}`} />
+                    )}
                     {tab === "Custom" && <Layers className="w-3 h-3" />}
                     {tab}
                   </button>
@@ -1145,6 +1266,7 @@ const handleLoad = useCallback(() => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="glass-flat rounded-xl text-white pl-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/50"
+                    data-global-search="1"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -1159,7 +1281,9 @@ const handleLoad = useCallback(() => {
                     ) : resolvedUrls.size > 0 ? (
                       <span className="text-xs sm:text-sm text-white/55">
                         {stats.playable}/{stats.total} playable
-                        {stats.favourites > 0 && <span className="ml-2 text-red-400/70">• {stats.favourites} favourited</span>}
+                        {stats.favourites > 0 && (
+                          <span className="ml-2 text-red-400/70">• {stats.favourites} favourited</span>
+                        )}
                       </span>
                     ) : null}
                   </div>
@@ -1178,22 +1302,28 @@ const handleLoad = useCallback(() => {
                       align="end"
                       className="w-64 max-h-96 overflow-y-auto glass-elevated border-0 rounded-2xl text-white/80 p-1"
                     >
-                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Filters</DropdownMenuLabel>
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
+                        Filters
+                      </DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                       <DropdownMenuCheckboxItem
-                         checked={filters.showPlayableOnly}
-                         onCheckedChange={(c: boolean | undefined) => setFilters((f: FilterOptions) => ({ ...f, showPlayableOnly: !!c }))}
-                         className="rounded-xl"
-                       >
+                      <DropdownMenuCheckboxItem
+                        checked={filters.showPlayableOnly}
+                        onCheckedChange={(c: boolean | undefined) =>
+                          setFilters((f: FilterOptions) => ({ ...f, showPlayableOnly: !!c }))
+                        }
+                        className="rounded-xl"
+                      >
                         Show playable only
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Quality</DropdownMenuLabel>
-                       <DropdownMenuCheckboxItem
-                         checked={filters.qualityFilter.length === 0}
-                         onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, qualityFilter: [] }))}
-                         className="rounded-xl"
-                       >
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
+                        Quality
+                      </DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.qualityFilter.length === 0}
+                        onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, qualityFilter: [] }))}
+                        className="rounded-xl"
+                      >
                         All qualities
                       </DropdownMenuCheckboxItem>
                       {qualities.map((q) => (
@@ -1214,12 +1344,14 @@ const handleLoad = useCallback(() => {
                         </DropdownMenuCheckboxItem>
                       ))}
                       <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">Source</DropdownMenuLabel>
-                       <DropdownMenuCheckboxItem
-                         checked={filters.sourceFilter.length === 0}
-                         onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, sourceFilter: [] }))}
-                         className="rounded-xl"
-                       >
+                      <DropdownMenuLabel className="text-white/55 text-xs font-medium uppercase tracking-wider px-2 py-1.5">
+                        Source
+                      </DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filters.sourceFilter.length === 0}
+                        onCheckedChange={() => setFilters((f: FilterOptions) => ({ ...f, sourceFilter: [] }))}
+                        className="rounded-xl"
+                      >
                         All sources
                       </DropdownMenuCheckboxItem>
                       {sources.map((s) => (
@@ -1236,7 +1368,7 @@ const handleLoad = useCallback(() => {
                           }
                           className="rounded-xl"
                         >
-                           {getSourceDisplayName(s)}
+                          {getSourceDisplayName(s)}
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuContent>
@@ -1244,106 +1376,49 @@ const handleLoad = useCallback(() => {
                 </div>
               </div>
             )}
-            </>
-          )}
-          <AnimatePresence mode="wait">
-            {showTrackerContent ? (
-              status === "tab-loading" ? (
-                <motion.div
-                  key="tab-loading"
-                  className="flex justify-center py-12 sm:py-20"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <Loader2 className="w-6 h-6 animate-spin text-white/55" />
-                </motion.div>
-              ) : isFavouritesTab ? (
+          </>
+        )}
+        <AnimatePresence mode="wait">
+          {showTrackerContent ? (
+            status === "tab-loading" ? (
               <motion.div
-                key="favourites"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
+                key="tab-loading"
+                className="flex justify-center py-12 sm:py-20"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
               >
-                {favourites.length > 0 && (
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-white/55">{favourites.length} favourite{favourites.length !== 1 ? "s" : ""}</span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        if (favouriteTracks.length === 0) return;
-                        const candidates = favouriteTracks.map(({ track, era, url }) => ({ track, era, url }));
-                        downloadTracker(undefined, undefined, candidates);
-                      }} disabled={isPreloading || favouriteTracks.length === 0} className="text-white/55 hover:text-white">
-                        <FolderDown className="w-3.5 h-3.5 mr-1.5" />
-                        Download
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={handleClearFavourites} className="text-white/55 hover:text-red-400">
-                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                        Clear All
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {favouriteTracks.length > 0 ? (
-                  <div className="space-y-1.5 sm:space-y-2">
-                    {favouriteTracks.map((t) => {
-                      const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } = computeTrackState(t.track);
-                      return (
-                        <div
-                          key={`fav-${t.url}`}
-                          ref={isHighlighted ? highlightedTrackRef : null}
-                          className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
-                        >
-                          <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3">
-                            {isPlayable
-                              ? isCurrentlyPlaying
-                                ? <PauseButton onPlay={() => handlePlayTrack(t.track, t.era)} />
-                                : <PlayButton onPlay={() => handlePlayTrack(t.track, t.era)} />
-                              : <OpenLinkButton onOpenLink={() => url && handleOpenUrl(url)} />
-                            }
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-white text-xs sm:text-sm truncate">
-                                {t.track.name || "Unknown"}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
-                                {t.era.name && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 glass-flat text-white/50">
-                                    {t.era.name}
-                                  </span>
-                                )}
-                                {t.track.extra && <span className="text-xs text-neutral-500 truncate">{t.track.extra}</span>}
-                              </div>
-                            </div>
-                            <TrackItemActions track={t.track} source={source} shouldShowSource={shouldShowSource} url={url} onOpenUrl={url ? () => handleOpenUrl(url) : () => {}} isFavourited={true} onToggleFavourite={url ? () => handleToggleFavourite(url) : undefined}>
-                              {isPlayable && (
-                                <>
-                                  <DropdownMenuItem onClick={() => handlePlayTrack(t.track, t.era)} className="cursor-pointer"><Play className="w-4 h-4 mr-2" />Play</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAddToQueue(t.track, t.era)} className="cursor-pointer"><SkipForward className="w-4 h-4 mr-2" />Play Next</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAddToQueue(t.track, t.era)} className="cursor-pointer"><ListPlus className="w-4 h-4 mr-2" />Add to Queue</DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-neutral-800" />
-                                  <DropdownMenuItem onClick={() => handleDownload(t.track)} className="cursor-pointer"><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
-                                </>
-                              )}
-                              <DropdownMenuItem onClick={() => handleOpenOriginal(t.track)} className="cursor-pointer"><ExternalLink className="w-4 h-4 mr-2" />Open Original URL</DropdownMenuItem>
-                            </TrackItemActions>
-                          </div>
-                          <TrackDescription description={description} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 sm:py-20 flex flex-col items-center">
-                    <Heart className="w-12 h-12 sm:w-16 sm:h-16 text-neutral-700 mb-3 sm:mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium text-neutral-300">No Favourites Yet</h3>
-                    <p className="text-sm sm:text-base text-neutral-500 mt-1">
-                      Tap the heart icon on any track to add it here
-                    </p>
-                  </div>
-                )}
+                <Loader2 className="w-6 h-6 animate-spin text-white/55" />
               </motion.div>
+            ) : isFavouritesTab ? (
+              <FavouritesTab
+                favourites={favourites}
+                favouriteTracks={favouriteTracks}
+                isPreloading={isPreloading}
+                computeTrackState={computeTrackState}
+                handlePlayTrack={handlePlayTrack}
+                handleOpenUrl={handleOpenUrl}
+                handlePlayNext={handlePlayNext}
+                handleAddToQueue={handleAddToQueue}
+                handleDownload={handleDownload}
+                handleToggleFavourite={handleToggleFavourite}
+                handleOpenOriginal={handleOpenOriginal}
+                onDownloadAll={() => {
+                  if (favouriteTracks.length === 0) return;
+                  downloadTracker(
+                    undefined,
+                    undefined,
+                    favouriteTracks.map(({ track, era, url }) => ({ track, era, url }))
+                  );
+                }}
+                onExport={handleExportFavourites}
+                importFileRef={importFileRef}
+                onImportClick={() => importFileRef.current?.click()}
+                onImportFile={handleImportFavourites}
+                onClearAll={handleClearFavourites}
+                highlightedTrackRef={highlightedTrackRef}
+              />
             ) : isCustomTab ? (
               <motion.div
                 key="custom-view"
@@ -1362,9 +1437,7 @@ const handleLoad = useCallback(() => {
                   tabSlugs={tabSlugsRef.current}
                 />
                 {activeCustomView && filteredData && Object.keys(filteredData).length > 0 && (
-                  <div className="space-y-4 sm:space-y-5 mt-4">
-                    {renderEraCards(filteredData)}
-                  </div>
+                  <div className="space-y-4 sm:space-y-5 mt-4">{renderEraCards(filteredData)}</div>
                 )}
               </motion.div>
             ) : tabError ? (
@@ -1413,12 +1486,12 @@ const handleLoad = useCallback(() => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-              {flatTracks.length > 200 ? (
                 <FlatTrackList
                   tracks={flatTracks}
                   computeTrackState={computeTrackState}
                   handlePlayTrack={handlePlayTrack}
                   handleAddToQueue={handleAddToQueue}
+                  handlePlayNext={handlePlayNext}
                   handleOpenUrl={handleOpenUrl}
                   handleOpenOriginal={handleOpenOriginal}
                   handleToggleFavourite={handleToggleFavourite}
@@ -1429,24 +1502,6 @@ const handleLoad = useCallback(() => {
                   clearQueue={clearQueue}
                   playTrack={playTrack}
                 />
-              ) : (
-                <div className="space-y-1.5 sm:space-y-2">
-                  {flatTracks.map((t) => {
-                    const flatKey = `flat-${t.id || t.url || t.name}`;
-                    const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource, playableUrl } = computeTrackState(t);
-                    const fakeEra: Era = { name: t.eraName ?? "", backgroundColor: t.eraColor, textColor: t.eraTextColor, font: t.eraFont };
-                    return (
-                      <div
-                        key={flatKey}
-                        ref={isHighlighted ? highlightedTrackRef : null}
-                        className={`rounded-xl transition-colors ${isHighlighted ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20" : isCurrentTrack ? "bg-white/[0.08] border border-white/[0.15]" : "glass-flat"}`}
-                      >
-                        <FlatTrackCard t={t} fakeEra={fakeEra} url={url} source={source} isPlayable={isPlayable} isCurrentlyPlaying={isCurrentlyPlaying} description={description} shouldShowSource={shouldShowSource} playableUrl={playableUrl} handlePlayTrack={handlePlayTrack} handleOpenUrl={handleOpenUrl} handleToggleFavourite={handleToggleFavourite} handleOpenOriginal={handleOpenOriginal} handleDownload={handleDownload} handleAddToQueue={handleAddToQueue} favourites={favourites} createTrackObject={createTrackObject} clearQueue={clearQueue} playTrack={playTrack} />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
               </motion.div>
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <motion.div
@@ -1474,8 +1529,9 @@ const handleLoad = useCallback(() => {
                   {searchQuery ? `No results for "${searchQuery}"` : "Try adjusting your filters"}
                 </p>
               </motion.div>
-              )) : null}
-            </AnimatePresence>
+            )
+          ) : null}
+        </AnimatePresence>
         <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-b border-neutral-800">
           <div className="flex flex-col items-center gap-3 sm:gap-4 max-w-xl mx-auto">
             <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-3 sm:px-4 py-2 rounded-lg w-full">
@@ -1492,15 +1548,26 @@ const handleLoad = useCallback(() => {
     </motion.div>
   );
 }
-
-function TrackerViewWithProvider({ trackerId, initialTab }: { trackerId?: string; initialTab?: string } = {}) {
+function TrackerViewWithProvider({
+  trackerId,
+  initialTab,
+}: {
+  trackerId?: string;
+  initialTab?: string;
+} = {}) {
   return (
     <DownloadProvider>
       <TrackerViewContent trackerId={trackerId} initialTab={initialTab} />
     </DownloadProvider>
   );
 }
-export default function TrackerViewPage({ trackerId, initialTab }: { trackerId?: string; initialTab?: string } = {}) {
+export default function TrackerViewPage({
+  trackerId,
+  initialTab,
+}: {
+  trackerId?: string;
+  initialTab?: string;
+} = {}) {
   return (
     <Suspense
       fallback={

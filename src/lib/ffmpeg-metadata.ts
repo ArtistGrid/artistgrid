@@ -1,15 +1,11 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
-
 let ffmpegInstance: FFmpeg | null = null;
 let loadingPromise: Promise<FFmpeg> | null = null;
-
 let operationChain: Promise<unknown> = Promise.resolve();
-
 async function getFFmpeg(): Promise<FFmpeg> {
   if (ffmpegInstance) return ffmpegInstance;
   if (loadingPromise) return loadingPromise;
-
   loadingPromise = (async () => {
     const ffmpeg = new FFmpeg();
     const baseURL = "https://cdn.hopjs.net/npm/@ffmpeg/core@0.12.6/dist/esm";
@@ -20,7 +16,6 @@ async function getFFmpeg(): Promise<FFmpeg> {
     ffmpegInstance = ffmpeg;
     return ffmpeg;
   })();
-
   try {
     return await loadingPromise;
   } catch (e) {
@@ -28,13 +23,11 @@ async function getFFmpeg(): Promise<FFmpeg> {
     throw e;
   }
 }
-
 let tempCounter = 0;
 function nextTempId(): string {
   tempCounter = (tempCounter + 1) % Number.MAX_SAFE_INTEGER;
   return `ag_${Date.now().toString(36)}_${tempCounter.toString(36)}`;
 }
-
 export interface MetadataInput {
   title?: string;
   artist?: string;
@@ -42,20 +35,27 @@ export interface MetadataInput {
   year?: string;
   coverUrl?: string;
 }
-
 type TranscodeFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
-
-function getTranscodeArgs(format: TranscodeFormat): { args: string[]; ext: string; mime: string } {
+function getTranscodeArgs(format: TranscodeFormat): {
+  args: string[];
+  ext: string;
+  mime: string;
+} {
   switch (format) {
-    case "mp3":   return { args: ["-c:a", "libmp3lame", "-q:a", "2"], ext: "mp3",  mime: "audio/mpeg" };
-    case "opus":  return { args: ["-c:a", "libopus", "-b:a", "128k"], ext: "opus", mime: "audio/opus" };
-    case "ogg":   return { args: ["-c:a", "libvorbis", "-q:a", "4"], ext: "ogg",  mime: "audio/ogg" };
-    case "flac":  return { args: ["-c:a", "flac"], ext: "flac", mime: "audio/flac" };
-    case "wav":   return { args: ["-c:a", "pcm_s16le"], ext: "wav", mime: "audio/wav" };
-    default:      return { args: ["-c:a", "copy"], ext: "", mime: "" };
+    case "mp3":
+      return { args: ["-c:a", "libmp3lame", "-q:a", "2"], ext: "mp3", mime: "audio/mpeg" };
+    case "opus":
+      return { args: ["-c:a", "libopus", "-b:a", "128k"], ext: "opus", mime: "audio/opus" };
+    case "ogg":
+      return { args: ["-c:a", "libvorbis", "-q:a", "4"], ext: "ogg", mime: "audio/ogg" };
+    case "flac":
+      return { args: ["-c:a", "flac"], ext: "flac", mime: "audio/flac" };
+    case "wav":
+      return { args: ["-c:a", "pcm_s16le"], ext: "wav", mime: "audio/wav" };
+    default:
+      return { args: ["-c:a", "copy"], ext: "", mime: "" };
   }
 }
-
 function getAudioExtension(blob: Blob): string {
   const t = blob.type;
   if (t.includes("flac")) return "flac";
@@ -67,7 +67,6 @@ function getAudioExtension(blob: Blob): string {
   if (t.includes("mpeg") || t.includes("mp3")) return "mp3";
   return "mp3";
 }
-
 function buildMetadataArgs(metadata: MetadataInput): string[] {
   const args: string[] = [];
   if (metadata.title) args.push("-metadata", `title=${metadata.title}`);
@@ -76,43 +75,50 @@ function buildMetadataArgs(metadata: MetadataInput): string[] {
   if (metadata.year) args.push("-metadata", `date=${metadata.year}`);
   return args;
 }
-
 async function fetchCoverArt(
   ffmpeg: FFmpeg,
   coverUrl: string,
   coverName: string
-): Promise<{ args: string[]; cleanup: () => Promise<void> }> {
+): Promise<{
+  args: string[];
+  cleanup: () => Promise<void>;
+}> {
   const noop = async () => {};
   try {
     const res = await fetch(coverUrl, { referrerPolicy: "no-referrer" });
     if (!res.ok) return { args: ["-c", "copy"], cleanup: noop };
     const coverBlob = await res.blob();
     if (!coverBlob.type.startsWith("image/")) return { args: ["-c", "copy"], cleanup: noop };
-
     const coverExt = coverBlob.type.includes("png") ? "png" : "jpg";
     const coverMime = coverExt === "png" ? "image/png" : "image/jpeg";
     const coverData = new Uint8Array(await coverBlob.arrayBuffer());
     const coverFile = `${coverName}.${coverExt}`;
     await ffmpeg.writeFile(coverFile, coverData);
-
     return {
       args: [
-        "-i", coverFile,
-        "-map", "0:a:0",
-        "-map", "1:0",
-        "-c:a", "copy",
-        "-id3v2_version", "3",
-        "-metadata:s:v", `mime_type=${coverMime}`,
+        "-i",
+        coverFile,
+        "-map",
+        "0:a:0",
+        "-map",
+        "1:0",
+        "-c:a",
+        "copy",
+        "-id3v2_version",
+        "3",
+        "-metadata:s:v",
+        `mime_type=${coverMime}`,
       ],
       cleanup: async () => {
-        try { await ffmpeg.deleteFile(coverFile); } catch {}
+        try {
+          await ffmpeg.deleteFile(coverFile);
+        } catch {}
       },
     };
   } catch {
     return { args: ["-c", "copy"], cleanup: noop };
   }
 }
-
 export async function embedMetadata(
   audioBlob: Blob,
   metadata: MetadataInput,
@@ -123,44 +129,43 @@ export async function embedMetadata(
   const transcode = getTranscodeArgs(format);
   const outputName = `${id}_out.${transcode.ext || getAudioExtension(audioBlob)}`;
   const coverName = `${id}_cover`;
-
   const run = operationChain.then(async () => {
     const ffmpeg = await getFFmpeg();
     let coverCleanup: () => Promise<void> = async () => {};
     try {
       const audioData = new Uint8Array(await audioBlob.arrayBuffer());
       await ffmpeg.writeFile(inputName, audioData);
-
       const cover = metadata.coverUrl
         ? await fetchCoverArt(ffmpeg, metadata.coverUrl, coverName)
         : { args: ["-c", "copy"] as string[], cleanup: async () => {} };
       coverCleanup = cover.cleanup;
-
       const args = [
-        "-i", inputName,
+        "-i",
+        inputName,
         ...cover.args,
         ...transcode.args,
         ...buildMetadataArgs(metadata),
-        "-y", outputName,
+        "-y",
+        outputName,
       ];
-
       await ffmpeg.exec(args);
-
       const outputData = await ffmpeg.readFile(outputName);
       const outputType = transcode.mime || audioBlob.type || "audio/mpeg";
       const outputBlob = new Blob([new Uint8Array(outputData as Uint8Array)], { type: outputType });
       return outputBlob;
     } finally {
-      try { await ffmpeg.deleteFile(inputName); } catch {}
-      try { await ffmpeg.deleteFile(outputName); } catch {}
+      try {
+        await ffmpeg.deleteFile(inputName);
+      } catch {}
+      try {
+        await ffmpeg.deleteFile(outputName);
+      } catch {}
       await coverCleanup();
     }
   });
-
   operationChain = run.then(
     () => undefined,
     () => undefined
   );
-
   return run;
 }

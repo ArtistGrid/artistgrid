@@ -100,6 +100,10 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 120px;
+  }
 }
 
 @keyframes card-enter {

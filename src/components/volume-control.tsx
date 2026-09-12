@@ -1,5 +1,4 @@
 import { Volume2, VolumeX } from "lucide-react";
-
 interface VolumeControlProps {
   volume: number;
   isMuted: boolean;
@@ -9,7 +8,6 @@ interface VolumeControlProps {
   buttonClassName?: string;
   rangeClassName?: string;
 }
-
 export function VolumeControl({
   volume,
   isMuted,

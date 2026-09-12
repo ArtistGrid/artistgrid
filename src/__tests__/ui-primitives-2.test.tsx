@@ -5,19 +5,24 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Toast, ToastTitle, ToastDescription, ToastProvider, ToastViewport, ToastClose } from "@/components/ui/toast";
-
 describe("Select", () => {
   it("renders options and fires change", () => {
     const onChange = vi.fn();
     render(
-      <Select value="a" onChange={onChange} options={[{ value: "a", label: "A" }, { value: "b", label: "B" }]} />
+      <Select
+        value="a"
+        onChange={onChange}
+        options={[
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ]}
+      />
     );
     expect(screen.getByText("A")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "b" } });
     expect(onChange).toHaveBeenCalled();
   });
 });
-
 describe("Input", () => {
   it("renders and updates value", () => {
     const onChange = vi.fn();
@@ -27,7 +32,6 @@ describe("Input", () => {
     expect(onChange).toHaveBeenCalled();
   });
 });
-
 describe("Tabs", () => {
   it("renders triggers and switches content", async () => {
     render(
@@ -46,7 +50,6 @@ describe("Tabs", () => {
     expect(screen.getByText("Content Two")).toBeInTheDocument();
   });
 });
-
 describe("Toast", () => {
   it("renders title and description", () => {
     render(

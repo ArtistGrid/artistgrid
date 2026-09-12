@@ -1,72 +1,58 @@
 import { describe, it, expect } from "vitest";
 import { getTrackSource, isNetworkSource, normalizePillowsUrl, resolvePlayableUrl } from "../lib/resolve-url";
-
 describe("normalizePillowsUrl", () => {
   it("converts pillowcase.su to pillows.su", () => {
     expect(normalizePillowsUrl("https://pillowcase.su/f/abc")).toBe("https://pillows.su/f/abc");
   });
-
   it("leaves pillows.su unchanged", () => {
     expect(normalizePillowsUrl("https://pillows.su/f/abc")).toBe("https://pillows.su/f/abc");
   });
-
   it("leaves other URLs unchanged", () => {
     expect(normalizePillowsUrl("https://example.com")).toBe("https://example.com");
   });
 });
-
 describe("getTrackSource", () => {
   it("identifies pillows URLs", () => {
     expect(getTrackSource("https://pillows.su/f/abc123")).toBe("pillows");
   });
-
   it("identifies pillowcase.su URLs (normalized)", () => {
     expect(getTrackSource("https://pillowcase.su/f/abc123")).toBe("pillows");
   });
-
   it("identifies youtube URLs", () => {
     expect(getTrackSource("https://www.youtube.com/watch?v=abc")).toBe("youtube");
   });
-
   it("identifies youtu.be URLs", () => {
     expect(getTrackSource("https://youtu.be/abc")).toBe("youtube");
   });
-
   it("identifies pixeldrain download URLs", () => {
     expect(getTrackSource("https://pixeldrain.com/d/abc123")).toBe("pixeldrain");
   });
-
   it("identifies pixeldrain upload URLs", () => {
     expect(getTrackSource("https://pixeldrain.com/u/abc123")).toBe("pixeldrain");
   });
-
   it("identifies imgur URLs", () => {
     expect(getTrackSource("https://imgur.gg/f/abc123")).toBe("imgur");
   });
-
   it("identifies soundcloud URLs", () => {
     expect(getTrackSource("https://soundcloud.com/artist/track")).toBe("soundcloud");
   });
-
   it("identifies juicewrldapi URLs", () => {
     expect(getTrackSource("https://juicewrldapi.com/juicewrld/something")).toBe("juicewrldapi");
   });
-
   it("identifies Google Drive URLs", () => {
-    expect(getTrackSource("https://drive.google.com/file/d/1LaQlf07pASxx7mebC-WEpfxBcAxNOR7Z/view")).toBe("googledrive");
+    expect(getTrackSource("https://drive.google.com/file/d/1LaQlf07pASxx7mebC-WEpfxBcAxNOR7Z/view")).toBe(
+      "googledrive"
+    );
   });
-
   it("returns unknown for unrecognized URLs", () => {
     expect(getTrackSource("https://example.com/file.mp3")).toBe("unknown");
   });
 });
-
 describe("isNetworkSource", () => {
   it("returns true for network sources", () => {
     expect(isNetworkSource("imgur")).toBe(true);
     expect(isNetworkSource("pixeldrain")).toBe(true);
   });
-
   it("returns false for non-network sources", () => {
     expect(isNetworkSource("pillows")).toBe(false);
     expect(isNetworkSource("youtube")).toBe(false);
@@ -74,13 +60,11 @@ describe("isNetworkSource", () => {
     expect(isNetworkSource("unknown")).toBe(false);
   });
 });
-
 describe("resolvePlayableUrl", () => {
   it("resolves pixeldrain download URLs to fuck-unvaulted", async () => {
     const result = await resolvePlayableUrl("https://pixeldrain.com/d/abc123");
     expect(result).toBe("https://fuck-unvaulted.artistgrid.cx/abc123");
   });
-
   it("resolves pixeldrain upload URLs to fuck-unvaulted", async () => {
     const result = await resolvePlayableUrl("https://pixeldrain.com/u/abc123");
     expect(result).toBe("https://fuck-unvaulted.artistgrid.cx/abc123");

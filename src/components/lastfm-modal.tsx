@@ -40,7 +40,10 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
       setToken(null);
       onClose();
     } catch (e) {
-      toast({ title: "Connection failed", description: e instanceof Error ? e.message : "Could not complete Last.fm authentication" });
+      toast({
+        title: "Connection failed",
+        description: e instanceof Error ? e.message : "Could not complete Last.fm authentication",
+      });
     } finally {
       setActiveFlow((cur) => (cur === flow ? null : cur));
     }

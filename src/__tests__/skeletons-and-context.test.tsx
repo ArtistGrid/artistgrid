@@ -2,14 +2,12 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { GallerySkeleton } from "@/src/components/home/skeletons";
 import { SettingsModalContext, useSettingsModal } from "@/src/components/settings-modal-context";
-
 describe("GallerySkeleton", () => {
   it("renders 18 skeleton cells", () => {
     const { container } = render(<GallerySkeleton />);
     expect(container.querySelectorAll(".aspect-square").length).toBe(18);
   });
 });
-
 describe("useSettingsModal", () => {
   it("reads context values", () => {
     let captured: boolean | null = null;

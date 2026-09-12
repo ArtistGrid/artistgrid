@@ -1,16 +1,10 @@
 import type { Era, EraDate, TrackerResponse } from "@/src/types";
-
 function latestTimestamp(a?: string, b?: string): string | undefined {
   if (!a) return b;
   if (!b) return a;
   return a > b ? a : b;
 }
-
-function mergeEraDates(
-  target: EraDate[],
-  seen: Set<string>,
-  sources?: EraDate[]
-): void {
+function mergeEraDates(target: EraDate[], seen: Set<string>, sources?: EraDate[]): void {
   if (!sources?.length) return;
   for (const ed of sources) {
     const key = `${ed.era}|${ed.date}|${ed.event}`;
@@ -20,11 +14,7 @@ function mergeEraDates(
     }
   }
 }
-
-function mergeFlatTracks(
-  merged: Record<string, Era>,
-  era: Era
-): void {
+function mergeFlatTracks(merged: Record<string, Era>, era: Era): void {
   if (!merged._flat) {
     merged._flat = { ...era, data: {} };
   }
@@ -35,11 +25,9 @@ function mergeFlatTracks(
     }
   }
 }
-
 function findEraByKey(eras: Record<string, Era>, label: string): string | undefined {
   return Object.keys(eras).find((k) => (eras[k].name || k) === label);
 }
-
 function mergeEraInto(target: Era, source: Era): void {
   if (!target.data) target.data = {};
   if (source.data) {
@@ -61,7 +49,6 @@ function mergeEraInto(target: Era, source: Era): void {
     }
   }
 }
-
 function sortErasByNumericKey(eras: Record<string, Era>): Record<string, Era> {
   const entries = Object.entries(eras);
   entries.sort((a, b) => {
@@ -76,7 +63,6 @@ function sortErasByNumericKey(eras: Record<string, Era>): Record<string, Era> {
   for (const [k, v] of entries) sorted[k] = v;
   return sorted;
 }
-
 export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
   const merged: TrackerResponse = {
     name: responses[0]?.name ?? null,
@@ -85,7 +71,7 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
     current_tab: "Custom View",
     eras: {},
     isFlat: false,
-    credits: responses[0]?.credits ?? '',
+    credits: responses[0]?.credits ?? "",
     era_dates: [],
     discord: responses[0]?.discord,
     lastUpdated: responses.reduce(
@@ -93,21 +79,16 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
       undefined as string | undefined
     ),
   };
-
   const seenDates = new Set<string>();
-
   for (const res of responses) {
     mergeEraDates(merged.era_dates!, seenDates, res.era_dates);
-
     for (const [key, era] of Object.entries(res.eras)) {
       if (key === "_flat") {
         mergeFlatTracks(merged.eras, era);
         continue;
       }
-
       const label = era.name || key;
       const existingKey = findEraByKey(merged.eras, label);
-
       if (existingKey) {
         mergeEraInto(merged.eras[existingKey], era);
       } else {
@@ -115,7 +96,6 @@ export function mergeTabData(responses: TrackerResponse[]): TrackerResponse {
       }
     }
   }
-
   merged.eras = sortErasByNumericKey(merged.eras);
   return merged;
 }

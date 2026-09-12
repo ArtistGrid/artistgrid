@@ -43,8 +43,6 @@ export function getAllTrackUrls(track: TALeak): string[] {
 export function getTrackDescription(track: TALeak): string | null {
   return track.description || track.notes || track.info || null;
 }
-
-
 export function encodeTrackForUrl(url: string): string {
   return btoa(url).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

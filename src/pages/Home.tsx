@@ -10,11 +10,12 @@ import {
   getImageFilename,
   getCleanArtistName,
   hashString,
+  isAnnouncementDismissed,
+  computeDismissalHash,
 } from "@/src/lib/artist-utils";
 import {
   LOCAL_STORAGE_KEYS,
   ARTISTS_CSV,
-
   HOME_CACHE_EXPIRY,
   DEFAULT_FILTER_OPTIONS,
   ANNOUNCEMENT_MESSAGE,
@@ -32,8 +33,12 @@ import { ArtistGridDisplay } from "@/src/components/home/artist-card";
 import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/components/home/header";
 import { Footer } from "@/src/components/home/footer";
 import { useHeaderSlots } from "@/src/components/layout";
-const LazyAnnouncementModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.AnnouncementModal })));
-const LazyDonationModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.DonationModal })));
+const LazyAnnouncementModal = lazy(() =>
+  import("@/src/components/home/modals").then((m) => ({ default: m.AnnouncementModal }))
+);
+const LazyDonationModal = lazy(() =>
+  import("@/src/components/home/modals").then((m) => ({ default: m.DonationModal }))
+);
 const LazyInfoModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.InfoModal })));
 import { TRIPLE_BOOL_YES } from "@/lib/utils";
 import { Dice6 } from "lucide-react";
@@ -45,10 +50,13 @@ function parseCSVRow(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (c === '"') {
-      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) {
-      fields.push(cur); cur = "";
+      if (inQ && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else inQ = !inQ;
+    } else if (c === "," && !inQ) {
+      fields.push(cur);
+      cur = "";
     } else {
       cur += c;
     }
@@ -56,8 +64,25 @@ function parseCSVRow(line: string): string[] {
   fields.push(cur);
   return fields;
 }
+interface FuseLike {
+  search(query: string): Array<{
+    item: Artist;
+  }>;
+}
+type FuseConstructor = new (
+  list: Artist[],
+  options: {
+    keys: string[];
+    threshold: number;
+    ignoreLocation: boolean;
+  }
+) => FuseLike;
 export default function ArtistGallery() {
-  usePageMeta({ title: "ArtistGrid", description: "Discover and track unreleased music from your favorite artists.", url: "https://artistgrid.cx/" });
+  usePageMeta({
+    title: "ArtistGrid",
+    description: "Discover and track unreleased music from your favorite artists.",
+    url: "https://artistgrid.cx/",
+  });
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
   const { settings } = useSettings();
@@ -66,30 +91,31 @@ export default function ArtistGallery() {
   const [errorMessage, setErrorMessage] = useState("");
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState(() => {
+    const qParam = new URLSearchParams(window.location.search).get("q");
+    if (qParam) return qParam;
     if (settings.behavior.rememberSearch) {
       return localStorage.getItem("artistgrid-search") || "";
     }
     return "";
   });
   const [activeModal, setActiveModal] = useState<null | "info" | "donate" | "announcement">(() => {
-    const currentHash = hashString(ANNOUNCEMENT_MESSAGE);
+    const legacyHash = hashString(ANNOUNCEMENT_MESSAGE);
     const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
-    return storedHash !== currentHash ? "announcement" : null;
+    return isAnnouncementDismissed(storedHash, legacyHash) ? null : "announcement";
   });
-
   const [filterOptions, setFilterOptions] = useLocalStorage<ArtistFilterOptions>(
     LOCAL_STORAGE_KEYS.FILTER_OPTIONS,
     DEFAULT_FILTER_OPTIONS
   );
   const deferredQuery = useDeferredValue(searchQuery.trim());
-  const [fuseModule, setFuseModule] = useState<any>(null);
+  const [fuseModule, setFuseModule] = useState<FuseConstructor | null>(null);
   useEffect(() => {
     if (!fuseModule && deferredQuery) {
       let cancelled = false;
       import("fuse.js")
         .then((m) => {
-          const cls = m.default || m;
-          if (!cancelled) setFuseModule(() => cls);
+          const cls = (m.default || m) as unknown as FuseConstructor;
+          if (!cancelled && typeof cls === "function") setFuseModule(() => cls);
         })
         .catch((err) => {
           console.warn("Failed to load fuse.js dynamically:", err);
@@ -102,25 +128,32 @@ export default function ArtistGallery() {
   const hashProcessed = useRef(false);
   const prevQueryRef = useRef("");
   const hasCachedData = useRef(false);
-
   useEffect(() => {
     if (settings.behavior.rememberSearch) {
       safeSetItem("artistgrid-search", searchQuery);
     }
   }, [searchQuery, settings.behavior.rememberSearch]);
+  const storeDismissalHash = useCallback(() => {
+    void computeDismissalHash(ANNOUNCEMENT_MESSAGE).then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h));
+  }, []);
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
-    safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
-  }, []);
+    storeDismissalHash();
+  }, [storeDismissalHash]);
   const handleAnnouncementDonate = useCallback(() => {
-    safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, hashString(ANNOUNCEMENT_MESSAGE));
+    storeDismissalHash();
     setActiveModal("donate");
+  }, [storeDismissalHash]);
+  useEffect(() => {
+    const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
+    if (storedHash && !storedHash.startsWith("v2:") && storedHash === hashString(ANNOUNCEMENT_MESSAGE)) {
+      void computeDismissalHash(ANNOUNCEMENT_MESSAGE).then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h));
+    }
   }, []);
   useEffect(() => {
     if (deferredQuery && deferredQuery !== prevQueryRef.current) trackEvent("Search", { query: deferredQuery });
     prevQueryRef.current = deferredQuery;
   }, [deferredQuery]);
-
   useEffect(() => {
     const controller = new AbortController();
     const loadData = async () => {
@@ -138,14 +171,15 @@ export default function ArtistGallery() {
         const response = await fetch(ARTISTS_CSV, { signal: controller.signal });
         if (!response.ok) throw new Error(`Status ${response.status}`);
         const text = await response.text();
-        const rows = text.split("\n");
-        const headers = parseCSVRow(rows[0]);
+        const rows = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+        const headers = parseCSVRow(rows[0] ?? "");
         const nameIdx = headers.indexOf("name");
         const urlIdx = headers.indexOf("url");
         const linksWorkIdx = headers.indexOf("links_work");
         const updatedIdx = headers.indexOf("updated");
         const bestIdx = headers.indexOf("best");
         const parsed: Artist[] = [];
+        if (nameIdx === -1 || urlIdx === -1) throw new Error("Malformed artists CSV: missing columns");
         const nameCount: Record<string, number> = {};
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i].trim();
@@ -169,6 +203,10 @@ export default function ArtistGallery() {
             isStarred: best,
           });
         }
+        if (parsed.length === 0 && cached?.data?.length) {
+          setStatus("success");
+          return;
+        }
         if (!cached?.data || !artistsEqual(parsed, cached.data)) {
           setCachedData(cacheKey, parsed);
           setAllArtists(parsed);
@@ -184,6 +222,10 @@ export default function ArtistGallery() {
       }
     };
     const loadVisitorCount = async () => {
+      const timeoutController = new AbortController();
+      const onOuterAbort = () => timeoutController.abort();
+      controller.signal.addEventListener("abort", onOuterAbort);
+      const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
       try {
         const cached = sessionStorage.getItem("visitor-count");
         const cachedTime = sessionStorage.getItem("visitor-count-time");
@@ -191,20 +233,32 @@ export default function ArtistGallery() {
           setVisitorCount(Number(cached));
           return;
         }
-        const res = await fetch("https://121124.edideaur.works/artistgrid.cx/", { signal: controller.signal });
+        const res = await fetch("https://121124.edideaur.works/artistgrid.cx/", { signal: timeoutController.signal });
         if (res.ok) {
-          const count = Number((await res.json()).count);
-          setVisitorCount(count);
-          sessionStorage.setItem("visitor-count", String(count));
-          sessionStorage.setItem("visitor-count-time", String(Date.now()));
+          const parsed: unknown = await res.json();
+          const count = Number(
+            (
+              parsed as {
+                count?: unknown;
+              } | null
+            )?.count
+          );
+          if (Number.isFinite(count)) {
+            setVisitorCount(count);
+            sessionStorage.setItem("visitor-count", String(count));
+            sessionStorage.setItem("visitor-count-time", String(Date.now()));
+          }
         }
-      } catch {}
+      } catch {
+      } finally {
+        clearTimeout(timeoutId);
+        controller.signal.removeEventListener("abort", onOuterAbort);
+      }
     };
     loadData();
     loadVisitorCount();
     return () => controller.abort();
   }, []);
-
   const preloadedRef = useRef(false);
   useEffect(() => {
     if (allArtists.length === 0 || preloadedRef.current) return;
@@ -222,7 +276,6 @@ export default function ArtistGallery() {
       document.head.appendChild(link);
     }
   }, [allArtists]);
-  const sortedArtists = allArtists;
   const handleFilterChange = useCallback(
     (key: keyof ArtistFilterOptions, value: boolean) => {
       trackEvent("Filter Change", { filter: key, enabled: value });
@@ -232,21 +285,19 @@ export default function ArtistGallery() {
   );
   const artistsPassingFilters = useMemo(
     () =>
-      sortedArtists.filter(
+      allArtists.filter(
         (artist) =>
           (filterOptions.showWorking ? artist.isLinkWorking : true) &&
           (filterOptions.showUpdated ? artist.isUpdated : true) &&
           (filterOptions.showStarred ? artist.isStarred : true) &&
           (filterOptions.showAlts ? true : !artist.name.toLowerCase().includes("[alt"))
       ),
-    [sortedArtists, filterOptions]
+    [allArtists, filterOptions]
   );
   const fuse = useMemo(() => {
     if (!fuseModule) return null;
     try {
-      const FuseClass = (typeof fuseModule === "function" ? fuseModule : (fuseModule as any).default) as any;
-      if (typeof FuseClass !== "function") return null;
-      return new FuseClass(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true });
+      return new fuseModule(artistsPassingFilters, { keys: ["name"], threshold: 0.35, ignoreLocation: true });
     } catch (err) {
       console.warn("Failed to instantiate Fuse:", err);
       return null;
@@ -256,7 +307,7 @@ export default function ArtistGallery() {
     if (!deferredQuery) return artistsPassingFilters;
     if (fuse) {
       try {
-        return fuse.search(deferredQuery).map((r: any) => r.item);
+        return fuse.search(deferredQuery).map((r) => r.item);
       } catch (err) {
         console.warn("Fuse search failed, falling back to substring filter:", err);
       }
@@ -276,11 +327,14 @@ export default function ArtistGallery() {
     },
     [navigate]
   );
-  const handleSheetClick = useCallback((url: string) => {
-    trackEvent("Sheet Click", { url });
-    const finalUrl = settings.behavior.sheetsHtmlview ? url.replace(/\/edit$/, "/htmlview") : url;
-    window.open(finalUrl, "_blank", "noopener,noreferrer");
-  }, [settings.behavior.sheetsHtmlview]);
+  const handleSheetClick = useCallback(
+    (url: string) => {
+      trackEvent("Sheet Click", { url });
+      const finalUrl = settings.behavior.sheetsHtmlview ? url.replace(/\/edit$/, "/htmlview") : url;
+      window.open(finalUrl, "_blank", "noopener,noreferrer");
+    },
+    [settings.behavior.sheetsHtmlview]
+  );
   useEffect(() => {
     if (status === "success" && !hashProcessed.current && window.location.hash) {
       const hash = window.location.hash.substring(1);
@@ -359,7 +413,11 @@ export default function ArtistGallery() {
           message={ANNOUNCEMENT_MESSAGE}
           onDonate={handleAnnouncementDonate}
         />
-        <LazyDonationModal key={String(activeModal === "donate")} isOpen={activeModal === "donate"} onClose={closeModal} />
+        <LazyDonationModal
+          key={String(activeModal === "donate")}
+          isOpen={activeModal === "donate"}
+          onClose={closeModal}
+        />
         <LazyInfoModal
           isOpen={activeModal === "info"}
           onClose={closeModal}

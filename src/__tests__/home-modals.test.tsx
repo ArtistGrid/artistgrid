@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnnouncementModal } from "@/src/components/home/modals";
-
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });
@@ -10,7 +9,6 @@ beforeAll(() => {
     Object.defineProperty(this, "open", { value: false, configurable: true });
   });
 });
-
 describe("AnnouncementModal", () => {
   it("renders markdown headings and closes", () => {
     const onClose = vi.fn();
@@ -21,7 +19,6 @@ describe("AnnouncementModal", () => {
     fireEvent.click(screen.getByText("Got it!"));
     expect(onClose).toHaveBeenCalled();
   });
-
   it("renders donate link when onDonate provided", () => {
     const onDonate = vi.fn();
     render(<AnnouncementModal isOpen onClose={() => {}} message="hi" onDonate={onDonate} />);

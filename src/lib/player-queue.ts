@@ -1,19 +1,17 @@
 import type { Track } from "@/src/types";
-
 export type RepeatMode = "off" | "all" | "one";
-
 export function addToQueue(queue: Track[], track: Track): Track[] {
   return [...queue, track];
 }
-
+export function insertNext(queue: Track[], track: Track): Track[] {
+  return [track, ...queue];
+}
 export function removeFromQueue(queue: Track[], index: number): Track[] {
   return queue.filter((_, i) => i !== index);
 }
-
 export function clearQueue(): Track[] {
   return [];
 }
-
 export function reorderQueue(queue: Track[], fromIndex: number, toIndex: number): Track[] {
   const newQueue = [...queue];
   const [removed] = newQueue.splice(fromIndex, 1);
@@ -21,12 +19,10 @@ export function reorderQueue(queue: Track[], fromIndex: number, toIndex: number)
   newQueue.splice(toIndex, 0, removed);
   return newQueue;
 }
-
 export function cycleRepeatMode(current: RepeatMode): RepeatMode {
   const modes: RepeatMode[] = ["off", "all", "one"];
   return modes[(modes.indexOf(current) + 1) % modes.length];
 }
-
 export function shuffleQueue(queue: Track[]): Track[] {
   if (queue.length < 2) return [...queue];
   const shuffled = [...queue];
@@ -36,12 +32,10 @@ export function shuffleQueue(queue: Track[]): Track[] {
   }
   return shuffled;
 }
-
 export interface QueueState {
   queue: Track[];
   isShuffled: boolean;
 }
-
 export function toggleShuffleState(state: QueueState): QueueState {
   const newShuffled = !state.isShuffled;
   if (newShuffled && state.queue.length > 1) {

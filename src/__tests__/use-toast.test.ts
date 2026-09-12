@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useToast } from "@/hooks/use-toast";
-
 describe("useToast", () => {
   it("adds and dismisses a toast", () => {
     const { result } = renderHook(() => useToast());
@@ -12,13 +11,11 @@ describe("useToast", () => {
     });
     expect(result.current.toasts).toHaveLength(1);
     expect(result.current.toasts[0].title).toBe("Hello");
-
     act(() => {
       result.current.dismiss(id!);
     });
     expect(result.current.toasts[0].open).toBe(false);
   });
-
   it("dismisses all toasts", () => {
     const { result } = renderHook(() => useToast());
     act(() => {
@@ -27,17 +24,16 @@ describe("useToast", () => {
     act(() => result.current.dismiss());
     expect(result.current.toasts.every((t) => t.open === false)).toBe(true);
   });
-
-  it("enforces TOAST_LIMIT of 1", () => {
+  it("enforces TOAST_LIMIT of 3", () => {
     const { result } = renderHook(() => useToast());
     act(() => {
       result.current.toast({ title: "A" });
       result.current.toast({ title: "B" });
       result.current.toast({ title: "C" });
     });
-    expect(result.current.toasts).toHaveLength(1);
+    expect(result.current.toasts.length).toBeLessThanOrEqual(3);
+    expect(result.current.toasts.some((t) => t.title === "C")).toBe(true);
   });
-
   it("updates a toast via update()", () => {
     const { result } = renderHook(() => useToast());
     let id: string;

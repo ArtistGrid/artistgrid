@@ -1,3 +1,6 @@
+import * as t from "io-ts";
+import { isLeft } from "fp-ts/Either";
+import { assertDownloadManagerContract } from "@/src/lib/contracts";
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
 import { Archive, CheckCircle2, Loader2, Maximize2, Minimize2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,10 +8,27 @@ import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
 import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
+import { safeSetItem } from "@/src/lib/storage";
 import { stripEmojis } from "@/lib/utils";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
+const JOBS_STORAGE_KEY = "artistgrid-downloads:v1";
+const MAX_RESTORED_ITEMS = 200;
+const StoredItemCodec = t.intersection([
+  t.interface({ id: t.string, playableUrl: t.string }),
+  t.partial({
+    trackName: t.string,
+    eraName: t.string,
+    status: t.string,
+    progress: t.number,
+    retryCount: t.number,
+  }),
+]);
+const StoredJobCodec = t.intersection([
+  t.interface({ id: t.string, items: t.array(StoredItemCodec) }),
+  t.partial({ name: t.string, artistName: t.string, eraName: t.string }),
+]);
 interface DownloadItem {
   id: string;
   trackName: string;
@@ -17,6 +37,8 @@ interface DownloadItem {
   status: "pending" | "downloading" | "completed" | "failed";
   progress: number;
   retryCount: number;
+  bytesLoaded?: number;
+  bytesTotal?: number;
 }
 interface DownloadJob {
   id: string;
@@ -39,7 +61,7 @@ interface DownloadQueueItem {
   eraName: string;
   retryCount: number;
 }
-interface DownloadContextType {
+export interface DownloadContextType {
   jobs: DownloadJob[];
   isMinimized: boolean;
   setIsMinimized: (v: boolean) => void;
@@ -59,6 +81,9 @@ const DownloadContext = createContext<DownloadContextType | null>(null);
 export function useDownloadManager() {
   const ctx = use(DownloadContext);
   if (!ctx) throw new Error("useDownloadManager must be used within DownloadProvider");
+  if (!assertDownloadManagerContract(ctx)) {
+    throw new Error("DownloadManager context does not satisfy its runtime contract");
+  }
   return ctx;
 }
 function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch: Partial<DownloadItem>): DownloadJob[] {
@@ -66,6 +91,58 @@ function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch:
     if (job.id !== jobId) return job;
     return { ...job, items: job.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) };
   });
+}
+function withRecountedTotals(job: DownloadJob): DownloadJob {
+  return {
+    ...job,
+    completedCount: job.items.filter((i) => i.status === "completed").length,
+    failedCount: job.items.filter((i) => i.status === "failed").length,
+  };
+}
+function parseStoredJobs(raw: string): DownloadJob[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const arrayResult = t.UnknownArray.decode(parsed);
+  if (isLeft(arrayResult)) return [];
+  const jobs: DownloadJob[] = [];
+  let restoredCount = 0;
+  for (const entry of arrayResult.right) {
+    if (restoredCount >= MAX_RESTORED_ITEMS) break;
+    const jobResult = StoredJobCodec.decode(entry);
+    if (isLeft(jobResult)) continue;
+    const storedJob = jobResult.right;
+    const restoredItems: DownloadItem[] = [];
+    for (const storedItem of storedJob.items) {
+      if (restoredCount >= MAX_RESTORED_ITEMS) break;
+      restoredItems.push({
+        id: storedItem.id,
+        trackName: storedItem.trackName ?? "Unknown",
+        eraName: storedItem.eraName ?? "Unknown Era",
+        playableUrl: storedItem.playableUrl,
+        status: "pending",
+        progress: 0,
+        retryCount: 0,
+      });
+      restoredCount++;
+    }
+    if (restoredItems.length > 0) {
+      jobs.push({
+        id: storedJob.id,
+        name: storedJob.name ?? "Restored download",
+        artistName: storedJob.artistName ?? "",
+        eraName: storedJob.eraName,
+        items: restoredItems,
+        status: "active",
+        completedCount: 0,
+        failedCount: 0,
+      });
+    }
+  }
+  return jobs;
 }
 function sanitizeFilename(name: string): string {
   const settings = loadSettings();
@@ -77,21 +154,37 @@ function sanitizeFilename(name: string): string {
       .trim() || "unknown"
   );
 }
-function getFileExtension(url: string, contentType?: string): string {
+const AUDIO_EXTENSIONS = ["mp3", "m4a", "ogg", "wav", "flac", "opus", "aac", "weba", "webm"] as const;
+export function getFileExtension(url: string, contentType?: string): string {
   if (contentType) {
     if (contentType.includes("audio/mpeg") || contentType.includes("audio/mp3")) return "mp3";
     if (contentType.includes("audio/mp4") || contentType.includes("audio/m4a")) return "m4a";
-    if (contentType.includes("audio/ogg")) return "ogg";
+    if (contentType.includes("audio/ogg") || contentType.includes("audio/opus"))
+      return contentType.includes("opus") ? "opus" : "ogg";
     if (contentType.includes("audio/wav")) return "wav";
     if (contentType.includes("audio/flac")) return "flac";
   }
-  const urlLower = url.toLowerCase();
-  if (urlLower.includes(".mp3") || urlLower.includes("mp3")) return "mp3";
-  if (urlLower.includes(".m4a") || urlLower.includes("m4a")) return "m4a";
-  if (urlLower.includes(".ogg")) return "ogg";
-  if (urlLower.includes(".wav")) return "wav";
-  if (urlLower.includes(".flac")) return "flac";
+  let pathname = url;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {}
+  const match = pathname.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const ext = match?.[1];
+  if (ext && (AUDIO_EXTENSIONS as readonly string[]).includes(ext)) return ext;
   return "mp3";
+}
+const DOWNLOAD_TIMEOUT_MS = 120000;
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toFixed(1)} ${units[unit]}`;
 }
 async function downloadFileAsBlob(
   url: string,
@@ -101,7 +194,11 @@ async function downloadFileAsBlob(
   contentType: string;
 } | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  let timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  const resetTimeout = () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  };
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) return null;
@@ -117,6 +214,7 @@ async function downloadFileAsBlob(
     let loaded = 0;
     let lastReported = -1;
     while (true) {
+      resetTimeout();
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
@@ -228,7 +326,13 @@ function DownloadFloatingUI() {
                       <div key={item.id} className="text-[10px] text-neutral-400 truncate flex items-center gap-1">
                         <Loader2 className="w-2 h-2 animate-spin flex-shrink-0" />
                         <span className="flex-1 truncate">{item.trackName}</span>
-                        {item.progress > 0 && <span className="text-neutral-600">{item.progress}%</span>}
+                        {item.bytesTotal ? (
+                          <span className="text-neutral-500 tabular-nums">
+                            {formatBytes(item.bytesLoaded ?? 0)} / {formatBytes(item.bytesTotal)}
+                          </span>
+                        ) : item.progress > 0 ? (
+                          <span className="text-neutral-600">{item.progress}%</span>
+                        ) : null}
                       </div>
                     ))}
                     {downloadingItems.length > 5 && (
@@ -257,7 +361,18 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const activeDownloadsRef = useRef(0);
   const downloadQueueRef = useRef<DownloadQueueItem[]>([]);
-  const zipDataRef = useRef<Map<string, Map<string, { blob: Blob; ext: string }>>>(new Map());
+  const zipDataRef = useRef<
+    Map<
+      string,
+      Map<
+        string,
+        {
+          blob: Blob;
+          ext: string;
+        }
+      >
+    >
+  >(new Map());
   const processQueueRef = useRef<() => void>(() => {});
   const creatingZipsRef = useRef<Set<string>>(new Set());
   const zipsRunningRef = useRef(false);
@@ -265,59 +380,87 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     if (item.retryCount < MAX_RETRY_ATTEMPTS) {
       item.retryCount += 1;
       downloadQueueRef.current.push(item);
-      setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "pending", retryCount: item.retryCount }));
+      setJobs((prev) =>
+        patchJobItem(prev, item.jobId, item.itemId, { status: "pending", retryCount: item.retryCount })
+      );
     } else {
-      setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "failed" }));
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === item.jobId
+            ? withRecountedTotals({
+                ...job,
+                items: job.items.map((i) => (i.id === item.itemId ? { ...i, status: "failed" as const } : i)),
+              })
+            : job
+        )
+      );
     }
   }, []);
-  const downloadSingleItem = useCallback(async (item: DownloadQueueItem) => {
-    setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { status: "downloading", progress: 0 }));
-    try {
-      const result = await downloadFileAsBlob(item.playableUrl, (loaded, total) => {
-        const progress = Math.round((loaded / total) * 100);
-        setJobs((prev) => patchJobItem(prev, item.jobId, item.itemId, { progress }));
-      });
-      if (result) {
-        let finalBlob = result.blob;
-        const s = loadSettings();
-        const format = s.downloads.format || "original";
-        if (s.downloads.embedMetadata) {
-          try {
-            const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
-            finalBlob = await embedMetadata(result.blob, {
-              title: item.trackName,
-              artist: item.artistName,
-            }, format);
-          } catch (e) {
-            logError("Metadata embedding failed for batch download:", e);
+  const downloadSingleItem = useCallback(
+    async (item: DownloadQueueItem) => {
+      setJobs((prev) =>
+        patchJobItem(prev, item.jobId, item.itemId, { status: "downloading", progress: 0, bytesLoaded: 0 })
+      );
+      try {
+        const result = await downloadFileAsBlob(item.playableUrl, (loaded, total) => {
+          const progress = Math.round((loaded / total) * 100);
+          setJobs((prev) =>
+            patchJobItem(prev, item.jobId, item.itemId, { progress, bytesLoaded: loaded, bytesTotal: total })
+          );
+        });
+        if (result) {
+          let finalBlob = result.blob;
+          const s = loadSettings();
+          const format = s.downloads.format || "original";
+          if (s.downloads.embedMetadata) {
+            try {
+              const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
+              finalBlob = await embedMetadata(
+                result.blob,
+                {
+                  title: item.trackName,
+                  artist: item.artistName,
+                },
+                format
+              );
+            } catch (e) {
+              logError("Metadata embedding failed for batch download:", e);
+            }
           }
+          const formatExtMap: Record<string, string> = {
+            mp3: "mp3",
+            opus: "opus",
+            ogg: "ogg",
+            flac: "flac",
+            wav: "wav",
+          };
+          const ext =
+            s.downloads.embedMetadata && format !== "original" && formatExtMap[format]
+              ? formatExtMap[format]
+              : getFileExtension(item.playableUrl, result.contentType);
+          if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
+          zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: finalBlob, ext });
+          setJobs((prev) =>
+            prev.map((job) => {
+              if (job.id !== item.jobId) return job;
+              const newItems = job.items.map((i) =>
+                i.id === item.itemId ? { ...i, status: "completed" as const, progress: 100 } : i
+              );
+              return withRecountedTotals({ ...job, items: newItems });
+            })
+          );
+        } else {
+          retryOrFail(item);
         }
-        const formatExtMap: Record<string, string> = { mp3: "mp3", opus: "opus", ogg: "ogg", flac: "flac", wav: "wav" };
-        const ext =
-          s.downloads.embedMetadata && format !== "original" && formatExtMap[format]
-            ? formatExtMap[format]
-            : getFileExtension(item.playableUrl, result.contentType);
-        if (!zipDataRef.current!.has(item.jobId)) zipDataRef.current!.set(item.jobId, new Map());
-        zipDataRef.current!.get(item.jobId)!.set(item.itemId, { blob: finalBlob, ext });
-        setJobs((prev) =>
-          prev.map((job) => {
-            if (job.id !== item.jobId) return job;
-            const newItems = job.items.map((i) =>
-              i.id === item.itemId ? { ...i, status: "completed" as const, progress: 100 } : i
-            );
-            return { ...job, items: newItems, completedCount: newItems.filter((i) => i.status === "completed").length };
-          })
-        );
-      } else {
+      } catch (error) {
+        logError("Download failed:", error);
         retryOrFail(item);
       }
-    } catch (error) {
-      logError("Download failed:", error);
-      retryOrFail(item);
-    }
-    activeDownloadsRef.current--;
-    processQueueRef.current();
-  }, [retryOrFail]);
+      activeDownloadsRef.current--;
+      processQueueRef.current();
+    },
+    [retryOrFail]
+  );
   const processQueue = useCallback(() => {
     while (activeDownloadsRef.current < CONCURRENT_DOWNLOADS && downloadQueueRef.current.length > 0) {
       const item = downloadQueueRef.current.shift();
@@ -329,13 +472,68 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     processQueueRef.current = processQueue;
   }, [processQueue]);
+  const hasRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(JOBS_STORAGE_KEY);
+      if (!raw) return;
+      const restored = parseStoredJobs(raw);
+      if (restored.length === 0) {
+        localStorage.removeItem(JOBS_STORAGE_KEY);
+        return;
+      }
+      setJobs(restored);
+      for (const job of restored) {
+        for (const item of job.items) {
+          downloadQueueRef.current.push({
+            jobId: job.id,
+            itemId: item.id,
+            playableUrl: item.playableUrl,
+            trackName: item.trackName,
+            artistName: job.artistName,
+            eraName: item.eraName,
+            retryCount: 0,
+          });
+        }
+      }
+      processQueueRef.current();
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      const active = jobs.filter((j) => j.status === "active");
+      if (active.length === 0) {
+        localStorage.removeItem(JOBS_STORAGE_KEY);
+        return;
+      }
+      const slim = active.map((j) => ({
+        id: j.id,
+        name: j.name,
+        artistName: j.artistName,
+        eraName: j.eraName,
+        items: j.items.map(({ id, trackName, eraName, playableUrl }) => ({
+          id,
+          trackName,
+          eraName,
+          playableUrl,
+        })),
+      }));
+      safeSetItem(JOBS_STORAGE_KEY, JSON.stringify(slim));
+    } catch {}
+  }, [jobs]);
   const processZips = useCallback(async () => {
     if (zipsRunningRef.current) return;
     zipsRunningRef.current = true;
     try {
       const readyJobs = jobs.filter((job) => {
         if (job.status !== "active" || creatingZipsRef.current!.has(job.id)) return false;
-        return job.items.every((i) => i.status === "completed" || i.status === "failed") && !job.zipBlob && !job.isCreatingZip;
+        return (
+          job.items.every((i) => i.status === "completed" || i.status === "failed") &&
+          !job.zipBlob &&
+          !job.isCreatingZip
+        );
       });
       if (readyJobs.length === 0) return;
       const JSZip = (await import("jszip")).default;
@@ -348,7 +546,13 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         creatingZipsRef.current!.add(job.id);
         setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isCreatingZip: true } : j)));
         try {
-          type ChunkEntry = { item: DownloadItem; fileData: { blob: Blob; ext: string } };
+          type ChunkEntry = {
+            item: DownloadItem;
+            fileData: {
+              blob: Blob;
+              ext: string;
+            };
+          };
           const chunks: ChunkEntry[][] = [[]];
           let chunkBytes = 0;
           for (const item of job.items) {
@@ -364,7 +568,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           }
           const filled = chunks.filter((c) => c.length > 0);
           if (filled.length === 0) {
-            setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j)));
+            setJobs((prev) =>
+              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+            );
             creatingZipsRef.current!.delete(job.id);
             continue;
           }
@@ -377,11 +583,17 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
               await new Promise((r) => setTimeout(r, 1000));
             }
             const zip = new JSZip();
+            const usedPaths = new Set<string>();
             for (const { item, fileData } of chunkItems) {
-              zip.file(
-                `${sanitizeFilename(item.eraName)}/${sanitizeFilename(item.trackName)}.${fileData.ext}`,
-                fileData.blob
-              );
+              const stem = sanitizeFilename(item.trackName);
+              let path = `${sanitizeFilename(item.eraName)}/${stem}.${fileData.ext}`;
+              let n = 2;
+              while (usedPaths.has(path.toLowerCase())) {
+                path = `${sanitizeFilename(item.eraName)}/${stem} (${n}).${fileData.ext}`;
+                n++;
+              }
+              usedPaths.add(path.toLowerCase());
+              zip.file(path, fileData.blob);
             }
             const content = await zip.generateAsync({
               type: "blob",
@@ -431,7 +643,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         playableUrl: string;
       }>;
     }) => {
-      const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const downloadItems: DownloadItem[] = params.items.map((item, idx) => ({
         id: `${jobId}_item_${idx}`,
         trackName: item.track.name || "Unknown",
@@ -476,7 +688,12 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     creatingZipsRef.current!.delete(jobId);
   }, []);
   return (
-    <DownloadContext.Provider value={useMemo(() => ({ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }), [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob])}>
+    <DownloadContext.Provider
+      value={useMemo(
+        () => ({ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }),
+        [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob]
+      )}
+    >
       {children}
       <DownloadFloatingUI />
     </DownloadContext.Provider>

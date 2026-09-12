@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, waitFor, act, cleanup } from "@testing-library/react";
 import App from "@/src/App";
-
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();
@@ -13,22 +12,18 @@ beforeAll(() => {
     Object.defineProperty(this, "open", { value: false, configurable: true });
   });
 });
-
 async function navigateTo(path: string) {
   act(() => {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
 }
-
 describe("App", () => {
   afterEach(() => cleanup());
-
   it("renders the home page at root", async () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText("ArtistGrid")).toBeInTheDocument());
   });
-
   it("renders the donate page on /donate", async () => {
     render(<App />);
     await navigateTo("/donate");

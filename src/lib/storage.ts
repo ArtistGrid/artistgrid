@@ -1,23 +1,13 @@
-
 function isQuotaExceededError(e: unknown): boolean {
   return (
     e instanceof DOMException &&
-    (e.name === "QuotaExceededError" ||
-      e.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
-      e.code === 22 ||
-      e.code === 1014)
+    (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22 || e.code === 1014)
   );
 }
-
 function isNonEssentialKey(key: string | null): boolean {
   if (!key) return false;
-  return (
-    key === "artistgrid-history:v1" ||
-    key.includes("CsvCache") ||
-    key.startsWith("artistgrid-cache")
-  );
+  return key === "artistgrid-history:v1" || key.includes("CsvCache") || key.startsWith("artistgrid-cache");
 }
-
 function evictNonEssential(): void {
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -27,11 +17,9 @@ function evictNonEssential(): void {
   for (const k of keys) {
     try {
       localStorage.removeItem(k);
-    } catch {
-    }
+    } catch {}
   }
 }
-
 export function safeSetItem(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
@@ -49,5 +37,3 @@ export function safeSetItem(key: string, value: string): boolean {
     return false;
   }
 }
-
-

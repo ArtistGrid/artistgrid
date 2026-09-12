@@ -1,24 +1,16 @@
 import { useCallback, useRef, useState } from "react";
-import { getCache, setCache } from "@/src/lib/tracker-cache";
+import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
 import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/src/lib/resolve-url";
 import { forEachEraTrack, mergeAndCache } from "@/src/lib/view-utils";
-import {
-  fetchWithFallback,
-  adaptV3Response,
-  adaptV3FlatResponse,
-  type V3Response,
-} from "@/src/lib/api";
+import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
+import { isValidV3Response } from "@/src/lib/v3-validation";
 import { getAllTrackUrls } from "@/src/lib/track-utils";
 import type { TrackerResponse } from "@/src/types";
-
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
-
 export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Set<string>) => Set<string>)) => void) {
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [baseEraImages, setBaseEraImages] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "tab-loading" | "success" | "error" | "fallback"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "tab-loading" | "success" | "error" | "fallback">("idle");
   const [resolvedUrls, setResolvedUrls] = useState<Map<string, string | null>>(new Map());
   const [resolveProgress, setResolveProgress] = useState({ current: 0, total: 0 });
   const [isPreloading, setIsPreloading] = useState(false);
@@ -31,10 +23,11 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
   const [tabError, setTabError] = useState(false);
   const [tabEmpty, setTabEmpty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-
+  const [credits, setCredits] = useState<string | null>(null);
+  const [discord, setDiscord] = useState<string | null>(null);
   const fetchBaseEraImages = useCallback(async (id: string) => {
     try {
-      const cached = getCache(id);
+      const cached = await getCacheAsync(id);
       if (cached?.data?.eras) {
         const images: Record<string, string> = {};
         for (const [key, era] of Object.entries(cached.data.eras)) {
@@ -56,49 +49,61 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       }
     } catch {}
   }, []);
-  const resolveUrls = useCallback(async (urls: string[]): Promise<Record<string, string | null>> => {
-    if (urls.length === 0) return {};
-    setIsPreloading(true);
-    setResolveProgress({ current: 0, total: urls.length });
-    const resolved: Record<string, string | null> = {};
-    const batchSize = 10;
-    const FLUSH_INTERVAL_MS = 200;
-    let lastFlush = 0;
-    try {
-      for (let i = 0; i < urls.length; i += batchSize) {
-        const batch = urls.slice(i, i + batchSize);
-        const results = await Promise.all(batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) })));
-        for (const { url, playable } of results) resolved[url] = playable;
-        const current = Math.min(i + batchSize, urls.length);
-        const isLast = current >= urls.length;
-        const now = Date.now();
-        if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
-          lastFlush = now;
-          const snapshot = { ...resolved };
-          setResolvedUrls((prev) => {
-            const next = new Map(prev);
-            for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
-            return next;
-          });
-          setResolveProgress({ current, total: urls.length });
-        }
-      }
-    } finally {
-      setIsPreloading(false);
-    }
-    return resolved;
+  const captureMeta = useCallback((json: TrackerResponse | null | undefined) => {
+    if (!json) return;
+    if (json.credits) setCredits(json.credits);
+    if (json.discord) setDiscord(json.discord);
   }, []);
+  const resolveUrls = useCallback(
+    async (urls: string[], signal?: AbortSignal): Promise<Record<string, string | null>> => {
+      if (urls.length === 0) return {};
+      setIsPreloading(true);
+      setResolveProgress({ current: 0, total: urls.length });
+      const resolved: Record<string, string | null> = {};
+      const batchSize = 10;
+      const FLUSH_INTERVAL_MS = 200;
+      let lastFlush = 0;
+      try {
+        for (let i = 0; i < urls.length; i += batchSize) {
+          if (signal?.aborted) break;
+          const batch = urls.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) }))
+          );
+          for (const { url, playable } of results) resolved[url] = playable;
+          const current = Math.min(i + batchSize, urls.length);
+          const isLast = current >= urls.length;
+          const now = Date.now();
+          if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
+            lastFlush = now;
+            const snapshot = { ...resolved };
+            setResolvedUrls((prev) => {
+              const next = new Map(prev);
+              for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
+              return next;
+            });
+            setResolveProgress({ current, total: urls.length });
+          }
+        }
+      } finally {
+        setIsPreloading(false);
+      }
+      return resolved;
+    },
+    []
+  );
   const loadTrackerData = useCallback(
     async (id: string, tab?: string, overrideTabName?: string) => {
       const virtualTabs = ["Favourites", "Custom"];
       const tabName = overrideTabName || tab;
       const applyCachedData = (
-        cached: NonNullable<ReturnType<typeof getCache>>,
+        cached: NonNullable<Awaited<ReturnType<typeof getCacheAsync>>>,
         tab: string | undefined,
         overrideTabName: string | undefined
       ) => {
         setData(cached.data);
         setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
+        captureMeta(cached.data);
         if (tab) {
           const dn = overrideTabName || Object.entries(tabSlugsRef.current).find(([, s]) => s === tab)?.[0] || tab;
           setCurrentTab(dn);
@@ -119,6 +124,7 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         overrideTabName: string | undefined
       ) => {
         setData(json);
+        captureMeta(json);
         setCurrentTab(overrideTabName || json.current_tab);
         if (json.tabs?.length) setTabsList(json.tabs);
         if (json.tabSlugs) tabSlugsRef.current = { ...tabSlugsRef.current, ...json.tabSlugs };
@@ -135,7 +141,7 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
             }
           });
           if (freeUrls.length > 0) {
-            resolveUrls(freeUrls).then((resolved) => mergeAndCache(id, cacheKey, json, resolved));
+            resolveUrls(freeUrls, controller.signal).then((resolved) => mergeAndCache(id, cacheKey, json, resolved));
           }
         }
       };
@@ -150,6 +156,8 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       if (!tab) {
         setData(null);
         setResolvedUrls(new Map());
+        setCredits(null);
+        setDiscord(null);
         setExpandedEras(new Set());
         setTabsList([]);
         tabSlugsRef.current = {};
@@ -157,17 +165,26 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       }
       setTabError(false);
       setTabEmpty(false);
-      const gid = tab ? (tabGidsRef.current[overrideTabName || ""] || "") : "";
+      let tabNameForGid = overrideTabName || "";
+      if (tab && !tabNameForGid) {
+        for (const [name, slug] of Object.entries(tabSlugsRef.current)) {
+          if (slug === tab) {
+            tabNameForGid = name;
+            break;
+          }
+        }
+      }
+      const gid = tab ? tabGidsRef.current[tabNameForGid] || "" : "";
       const cacheKey = gid || tab;
-      const cached = getCache(id, cacheKey);
+      setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
+      if (tab) fetchBaseEraImages(id);
+      const cached = await getCacheAsync(id, cacheKey);
       if (cached) {
         applyCachedData(cached, tab, overrideTabName);
         return;
       }
       const controller = new AbortController();
       abortRef.current = controller;
-      setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
-      if (tab) fetchBaseEraImages(id);
       const endpoint = tab ? (gid ? `/sh/${id}/gid/${gid}` : `/sh/${id}/tab/${encodeURIComponent(tab)}`) : `/sh/${id}/`;
       const fail = () => {
         if (controller.signal.aborted) return;
@@ -182,8 +199,16 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       try {
         const res = await fetchWithFallback(endpoint, { signal: controller.signal });
         if (controller.signal.aborted) return;
-        if (!res.ok) { fail(); return; }
-        const v3: V3Response = await res.json();
+        if (!res.ok) {
+          fail();
+          return;
+        }
+        const rawPayload: unknown = await res.json();
+        if (controller.signal.aborted) return;
+        if (!isValidV3Response(rawPayload)) {
+          console.warn("[tracker] V3 payload failed schema validation; decoding best-effort");
+        }
+        const v3 = rawPayload as V3Response;
         if (controller.signal.aborted) return;
         if (!hasPayload(v3)) {
           if (tab) {
@@ -195,9 +220,10 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
           }
           return;
         }
-        const json = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0
-          ? adaptV3FlatResponse(v3)
-          : adaptV3Response(v3);
+        const json =
+          v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0
+            ? adaptV3FlatResponse(v3)
+            : adaptV3Response(v3);
         applySuccessData(id, cacheKey, json, overrideTabName);
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -205,9 +231,8 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         fail();
       }
     },
-    [fetchBaseEraImages, resolveUrls, setExpandedEras]
+    [captureMeta, fetchBaseEraImages, resolveUrls, setExpandedEras]
   );
-
   return {
     data,
     setData,
@@ -225,6 +250,8 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
     setTabEmpty,
     hasLoaded,
     setHasLoaded,
+    credits,
+    discord,
     baseEraImages,
     isPreloading,
     resolveProgress,

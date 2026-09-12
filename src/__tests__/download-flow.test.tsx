@@ -2,15 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import type { Era, TALeak } from "@/src/types";
-
 const track: TALeak = { name: "Song", url: "https://x.com/a.mp3", id: "t1" };
 const era: Era = { name: "Era" };
-
 const createObjectURL = vi.fn(() => "blob:mock");
 const revokeObjectURL = vi.fn();
 let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
 let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
-
 function Consumer() {
   const dm = useDownloadManager();
   const job = dm.jobs[0];
@@ -18,7 +15,11 @@ function Consumer() {
     <div>
       <span data-testid="count">{dm.jobs.length}</span>
       <span data-testid="status">{job ? job.status : "none"}</span>
-      <span data-testid="debug">{JSON.stringify(dm.jobs.map((j) => ({ s: j.status, items: j.items.map((i) => i.status + ":" + i.retryCount) })))}</span>
+      <span data-testid="debug">
+        {JSON.stringify(
+          dm.jobs.map((j) => ({ s: j.status, items: j.items.map((i) => i.status + ":" + i.retryCount) }))
+        )}
+      </span>
       <button
         onClick={() =>
           dm.startDownload({
@@ -36,11 +37,9 @@ function Consumer() {
     </div>
   );
 }
-
 function wrap(ui: React.ReactNode) {
   return <DownloadProvider>{ui}</DownloadProvider>;
 }
-
 function mockFetch(ok: boolean) {
   vi.stubGlobal(
     "fetch",
@@ -53,7 +52,6 @@ function mockFetch(ok: boolean) {
     }))
   );
 }
-
 describe("DownloadProvider flow", () => {
   beforeEach(() => {
     originalCreateObjectURL = globalThis.URL.createObjectURL;
@@ -68,7 +66,6 @@ describe("DownloadProvider flow", () => {
     globalThis.URL.createObjectURL = originalCreateObjectURL as typeof URL.createObjectURL;
     globalThis.URL.revokeObjectURL = originalRevokeObjectURL as typeof URL.revokeObjectURL;
   });
-
   it("downloads all items and marks the job completed with a zip", async () => {
     mockFetch(true);
     render(wrap(<Consumer />));
@@ -81,7 +78,6 @@ describe("DownloadProvider flow", () => {
     });
     expect(createObjectURL).toHaveBeenCalled();
   });
-
   it("marks the job failed when every item download fails", async () => {
     mockFetch(false);
     render(wrap(<Consumer />));

@@ -1,5 +1,4 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
-
 import type { Track, LastFMClientInfo } from "./types";
 import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
@@ -12,23 +11,19 @@ import {
   removeFromQueue as removeTrackFromQueue,
   clearQueue as emptyQueue,
   reorderQueue as reorderTrackQueue,
+  insertNext as insertTrackNext,
   cycleRepeatMode,
   toggleShuffleState,
 } from "@/src/lib/player-queue";
 import type { RepeatMode } from "@/src/lib/player-queue";
-import { setCurrentTime, setDuration, resetTime } from "@/src/lib/player-time";
-
+import { setCurrentTime, setDuration, resetTime, getDuration } from "@/src/lib/player-time";
 function safePlay(audio: HTMLAudioElement | null | undefined) {
   if (!audio) return;
   try {
-    // play() should return a Promise, but on some engines it can return
-    // undefined or throw synchronously. Guard both so we never crash with
-    // "e.play().catch" / "Cannot read properties of undefined".
     const p = audio.play();
     if (p && typeof p.catch === "function") p.catch(() => {});
   } catch {}
 }
-
 function notify(title: string, options: NotificationOptions) {
   try {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -43,7 +38,6 @@ function notify(title: string, options: NotificationOptions) {
     } catch {}
   }
 }
-
 interface PlayerState {
   currentTrack: Track | null;
   queue: Track[];
@@ -51,6 +45,17 @@ interface PlayerState {
   isShuffled: boolean;
   repeatMode: RepeatMode;
   volume: number;
+}
+const VOLUME_STORAGE_KEY = "artistgrid-volume:v1";
+function loadPersistedVolume(): number {
+  try {
+    const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
+    if (raw === null) return 1;
+    const vol = Number(raw);
+    return Number.isFinite(vol) ? Math.min(1, Math.max(0, vol)) : 1;
+  } catch {
+    return 1;
+  }
 }
 interface LastFMSession {
   key: string;
@@ -63,6 +68,7 @@ interface PlayerContextType {
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
   addToQueue: (track: Track) => void;
+  queueNext: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   playNext: () => void;
@@ -92,7 +98,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isPlaying: false,
       isShuffled: s.player.startupShuffle,
       repeatMode: "off",
-      volume: 1,
+      volume: loadPersistedVolume(),
     };
   });
   const stateRef = useRef<PlayerState | null>(null);
@@ -180,7 +186,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         body: formData,
       });
       if (!response.ok) throw new Error(`Last.fm API error: HTTP ${response.status}`);
-      const data = (await response.json()) as { error?: { code: number; message: string }; [key: string]: unknown };
+      const data = (await response.json()) as {
+        error?: {
+          code: number;
+          message: string;
+        };
+        [key: string]: unknown;
+      };
       if (data.error) throw new Error(data.error.message || "Last.fm API error");
       return data as T;
     },
@@ -336,7 +348,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!next?.playableUrl) return;
     const el = new Audio();
     el.preload = "auto";
-    (el as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
+    (
+      el as HTMLMediaElement & {
+        referrerPolicy?: string;
+      }
+    ).referrerPolicy = "no-referrer";
     el.src = next.playableUrl;
     prefetchRef.current = el;
   }, []);
@@ -345,7 +361,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current = new Audio();
       audioRef.current.volume = state.volume;
       audioRef.current.preload = "metadata";
-      (audioRef.current as HTMLMediaElement & { referrerPolicy?: string }).referrerPolicy = "no-referrer";
+      (
+        audioRef.current as HTMLMediaElement & {
+          referrerPolicy?: string;
+        }
+      ).referrerPolicy = "no-referrer";
     }
     const audio = audioRef.current;
     const controller = new AbortController();
@@ -365,8 +385,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 position,
               });
             }
-          } catch {
-          }
+          } catch {}
         }
       },
       opts
@@ -398,6 +417,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (s.repeatMode === "one" && s.currentTrack?.playableUrl) {
           audio.currentTime = 0;
           safePlay(audio);
+          hasScrobbledRef.current = false;
+          const dur = getDuration();
+          if (dur > 30) scheduleScrobbleRef.current(s.currentTrack, dur);
           setState((prev) => (prev.isPlaying ? prev : { ...prev, isPlaying: true }));
           return;
         }
@@ -430,7 +452,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
             try {
               const raw = localStorage.getItem("artistgrid-history:v1");
-              const hist: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+              const hist: Array<{
+                name: string;
+                artist: string;
+                time: number;
+              }> = raw ? JSON.parse(raw) : [];
               hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
               if (hist.length > 200) hist.splice(0, hist.length - 200);
               safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
@@ -468,19 +494,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       opts
     );
     return () => controller.abort();
-  }, [
-    lastfmSession,
-    clearScrobbleTimer,
-    updateNowPlaying,
-    updateMediaSession,
-    state.volume,
-    prefetchNext,
-  ]);
-
+  }, [lastfmSession, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume, prefetchNext]);
   useEffect(() => {
     const s = loadSettings();
     if (s.behavior.notifications && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+      void Notification.requestPermission();
     }
   }, []);
   const beginPlayback = useCallback(
@@ -515,7 +533,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       try {
         const raw = localStorage.getItem("artistgrid-history:v1");
-        const history: Array<{ name: string; artist: string; time: number }> = raw ? JSON.parse(raw) : [];
+        const history: Array<{
+          name: string;
+          artist: string;
+          time: number;
+        }> = raw ? JSON.parse(raw) : [];
         history.push({ name: track.name, artist: track.artistName || track.eraName || "", time: Date.now() });
         if (history.length > 200) history.splice(0, history.length - 200);
         safeSetItem("artistgrid-history:v1", JSON.stringify(history));
@@ -545,11 +567,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const setVolume = useCallback((volume: number) => {
-    if (audioRef.current) audioRef.current.volume = volume;
-    setState((s) => ({ ...s, volume }));
+    const clamped = Math.min(1, Math.max(0, volume));
+    if (audioRef.current) audioRef.current.volume = clamped;
+    safeSetItem(VOLUME_STORAGE_KEY, String(clamped));
+    setState((s) => ({ ...s, volume: clamped }));
   }, []);
   const addToQueue = useCallback(
     (track: Track) => setState((s) => ({ ...s, queue: addTrackToQueue(s.queue, track) })),
+    []
+  );
+  const queueNext = useCallback(
+    (track: Track) => setState((s) => ({ ...s, queue: insertTrackNext(s.queue, track) })),
     []
   );
   const removeFromQueue = useCallback(
@@ -585,7 +613,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const closePlayer = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.src = "";
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
     }
     clearScrobbleTimer();
     currentTrackRef.current = null;
@@ -601,7 +630,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     token: string;
     url: string;
   }> => {
-    const data = await makeLastFMRequest<{ token: string }>("auth.getToken");
+    const data = await makeLastFMRequest<{
+      token: string;
+    }>("auth.getToken");
     return { token: data.token, url: `https://www.last.fm/api/auth/?api_key=${LASTFM_KEY}&token=${data.token}` };
   }, [makeLastFMRequest]);
   const completeAuth = useCallback(
@@ -611,7 +642,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       success: boolean;
       username: string;
     }> => {
-      const data = await makeLastFMRequest<{ session: { key: string; name: string } }>("auth.getSession", { token });
+      const data = await makeLastFMRequest<{
+        session: {
+          key: string;
+          name: string;
+        };
+      }>("auth.getSession", { token });
       if (data.session) {
         const session = { key: data.session.key, name: data.session.name };
         setLastfmSession(session);
@@ -637,6 +673,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           seekTo,
           setVolume,
           addToQueue,
+          queueNext,
           removeFromQueue,
           clearQueue,
           playNext,
@@ -661,6 +698,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           seekTo,
           setVolume,
           addToQueue,
+          queueNext,
           removeFromQueue,
           clearQueue,
           playNext,

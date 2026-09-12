@@ -220,10 +220,11 @@ class WaveformGenerator {
 
     extractPeaks(audioBuffer) {
         const { length, duration } = audioBuffer;
-        const numPeaks = Math.min(Math.floor(4 * duration), 1000);
+        const targetPeaks = Math.max(100, Math.min(Math.floor(4 * duration), 1000));
+        const numPeaks = Math.max(1, targetPeaks);
         const peaks = new Float32Array(numPeaks);
         const chanData = audioBuffer.getChannelData(0);
-        const step = Math.floor(length / numPeaks);
+        const step = Math.max(1, Math.floor(length / numPeaks));
         const stride = 8;
 
         for (let i = 0; i < numPeaks; i++) {

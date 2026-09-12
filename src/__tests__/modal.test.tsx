@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Modal } from "@/src/components/modal";
-
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });
@@ -10,7 +9,6 @@ beforeAll(() => {
     Object.defineProperty(this, "open", { value: false, configurable: true });
   });
 });
-
 describe("Modal", () => {
   it("renders children when open", () => {
     render(
@@ -20,7 +18,6 @@ describe("Modal", () => {
     );
     expect(screen.getByText("content")).toBeInTheDocument();
   });
-
   it("calls onClose when close button clicked", () => {
     const onClose = vi.fn();
     render(
@@ -31,7 +28,6 @@ describe("Modal", () => {
     fireEvent.click(screen.getByLabelText("Close"));
     expect(onClose).toHaveBeenCalled();
   });
-
   it("renders a dialog element when closed", () => {
     const { container } = render(
       <Modal isOpen={false} onClose={() => {}} ariaLabel="Test">

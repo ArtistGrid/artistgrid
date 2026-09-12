@@ -1,3 +1,4 @@
 {
-  "ignoreFiles": ["functions/**"]
+  "ignoreFiles": ["functions/**"],
+  "ignore": ["public/fonts/fonts.css", "public/ineedthis.js"]
 }

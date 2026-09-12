@@ -43,11 +43,14 @@ export function DonationContent({ onShowQr, urlButtonClassName }: DonationConten
 function CryptoDonationSection({ onShowQr }: CryptoDonationSectionProps) {
   const { toast } = useToast();
   const handleCopy = useCallback(
-    (text: string, name: string) => {
+    async (text: string, name: string) => {
       trackEvent("Copy Address", { crypto: name });
-      navigator.clipboard.writeText(text).then(() => {
+      try {
+        await navigator.clipboard.writeText(text);
         toast({ title: "Copied!", description: `${name} address copied.` });
-      });
+      } catch {
+        toast({ title: "Copy failed", description: "Clipboard is unavailable — select the address manually." });
+      }
     },
     [toast]
   );

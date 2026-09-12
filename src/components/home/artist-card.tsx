@@ -30,14 +30,8 @@ const ArtistCard = memo(function ArtistCard({
       >
         <div className="relative aspect-square w-full overflow-hidden">
           <picture>
-            <source
-              type="image/jxl"
-              srcSet={`${ASSET_BASE}/jxl/${artist.imageFilename.replace(/\.webp$/, ".jxl")}`}
-            />
-            <source
-              type="image/webp"
-              srcSet={`${ASSET_BASE}/webp/${artist.imageFilename}`}
-            />
+            <source type="image/jxl" srcSet={`${ASSET_BASE}/jxl/${artist.imageFilename.replace(/\.webp$/, ".jxl")}`} />
+            <source type="image/webp" srcSet={`${ASSET_BASE}/webp/${artist.imageFilename}`} />
             <img
               src={`${ASSET_BASE}/jpg/${artist.imageFilename.replace(/\.webp$/, ".jpg")}`}
               alt=""
@@ -81,7 +75,6 @@ function getColumns(width: number) {
   for (const bp of COLUMN_BREAKPOINTS) if (width >= bp.min) return bp.cols;
   return 2;
 }
-
 export const ArtistGridDisplay = memo(
   ({
     artists,
@@ -93,18 +86,14 @@ export const ArtistGridDisplay = memo(
     onSheetClick: (url: string) => void;
   }) => {
     const parentRef = useRef<HTMLDivElement>(null);
-    const [cols, setCols] = useState(() =>
-      typeof window !== "undefined" ? getColumns(window.innerWidth) : 6
-    );
+    const [cols, setCols] = useState(() => (typeof window !== "undefined" ? getColumns(window.innerWidth) : 6));
     const [scrollMargin, setScrollMargin] = useState(0);
-
     useEffect(() => {
       const update = () => setCols(getColumns(window.innerWidth));
       update();
       window.addEventListener("resize", update);
       return () => window.removeEventListener("resize", update);
     }, []);
-
     useLayoutEffect(() => {
       const measure = () => {
         if (parentRef.current) {
@@ -119,7 +108,6 @@ export const ArtistGridDisplay = memo(
         window.removeEventListener("resize", measure);
       };
     }, []);
-
     const rowCount = Math.ceil(artists.length / cols);
     const virtualizer = useWindowVirtualizer({
       count: rowCount,
@@ -127,13 +115,8 @@ export const ArtistGridDisplay = memo(
       overscan: 6,
       scrollMargin,
     });
-
     return (
-      <div
-        ref={parentRef}
-        className="relative w-full"
-        style={{ height: virtualizer.getTotalSize() }}
-      >
+      <div ref={parentRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * cols;
           const rowArtists = artists.slice(start, start + cols);
@@ -145,10 +128,7 @@ export const ArtistGridDisplay = memo(
               className="absolute left-0 w-full pb-4 sm:pb-6"
               style={{ transform: `translateY(${virtualRow.start - scrollMargin}px)` }}
             >
-              <div
-                className="grid gap-4 sm:gap-6"
-                style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-              >
+              <div className="grid gap-4 sm:gap-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                 {rowArtists.map((artist, i) => (
                   <ArtistCard
                     key={artist.imageFilename}

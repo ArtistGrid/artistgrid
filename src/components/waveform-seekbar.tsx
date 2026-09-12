@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect, useCallback } from "react";
 import { waveformGenerator } from "../../js/waveform.js";
-
+import { idbGet, idbSet } from "@/src/lib/indexeddb-cache";
 interface WaveformSeekbarProps {
   audioUrl: string | null;
   trackId: string | null;
@@ -15,7 +15,6 @@ interface WaveformSeekbarProps {
   handleColor?: string;
   showHandle?: boolean;
 }
-
 interface Bar {
   x: number;
   y: number;
@@ -23,7 +22,6 @@ interface Bar {
   h: number;
   r: number;
 }
-
 export const WaveformSeekbar = memo(function WaveformSeekbar({
   audioUrl,
   trackId,
@@ -45,7 +43,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
   const barsRef = useRef<Bar[] | null>(null);
   const barsKeyRef = useRef("");
   const drawRef = useRef<() => void>(() => {});
-
   useEffect(() => {
     if (!audioUrl || !trackId) {
       peaksRef.current = null;
@@ -53,26 +50,42 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       barsKeyRef.current = "";
       return;
     }
-
     let cancelled = false;
     (async () => {
+      const cacheKey = `wf:${trackId}`;
+      try {
+        const cached = await idbGet<{
+          peaks: number[];
+          duration: number;
+        }>(cacheKey);
+        if (cached && Array.isArray(cached.peaks) && cached.peaks.length > 0) {
+          if (cancelled) return;
+          peaksRef.current = Float32Array.from(cached.peaks);
+          barsRef.current = null;
+          barsKeyRef.current = "";
+          drawRef.current();
+          return;
+        }
+      } catch {}
       const result = await waveformGenerator.getWaveform(audioUrl, trackId);
       if (cancelled || !result) return;
       peaksRef.current = result.peaks;
       barsRef.current = null;
       barsKeyRef.current = "";
       drawRef.current();
+      try {
+        await idbSet(cacheKey, { peaks: Array.from(result.peaks), duration: result.duration });
+      } catch {}
     })();
-
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [audioUrl, trackId]);
-
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
@@ -83,16 +96,13 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       canvas.height = targetH;
       ctx.scale(dpr, dpr);
     }
-
     ctx.clearRect(0, 0, w, h);
-
     const peaks = peaksRef.current;
     if (!peaks || peaks.length === 0) {
       ctx.fillStyle = barColor;
       ctx.fillRect(0, h * 0.4, w, h * 0.2);
       return;
     }
-
     let bars = barsRef.current;
     const key = `${peaks.length}:${Math.round(w)}:${Math.round(h)}`;
     if (!bars || barsKeyRef.current !== key) {
@@ -102,7 +112,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       const gap = (w / numBars) * 0.35;
       const centerY = h / 2;
       const newBars: Bar[] = [];
-
       for (let i = 0; i < numBars; i++) {
         let maxPeak = 0;
         const startIdx = i * samplesPerBar;
@@ -110,7 +119,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
         for (let j = startIdx; j < endIdx; j++) {
           if (peaks[j] > maxPeak) maxPeak = peaks[j];
         }
-
         const barH = Math.max(2, maxPeak * h * 0.85);
         newBars.push({
           x: i * (barWidth + gap),
@@ -120,14 +128,11 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
           r: Math.min(barWidth / 2, barH / 2),
         });
       }
-
       bars = newBars;
       barsRef.current = newBars;
       barsKeyRef.current = key;
     }
-
     const progressX = (progressRef.current / 100) * w;
-
     for (let i = 0; i < bars.length; i++) {
       const bar = bars[i];
       ctx.fillStyle = bar.x + bar.w <= progressX ? playedColor : barColor;
@@ -139,7 +144,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       }
       ctx.fill();
     }
-
     if (showHandle) {
       const handleX = progressX;
       ctx.fillStyle = handleColor;
@@ -155,15 +159,12 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       ctx.shadowBlur = 0;
     }
   }, [barColor, playedColor, handleColor, showHandle]);
-
   drawRef.current = draw;
-
   useEffect(() => {
     if (draggingRef.current) return;
     progressRef.current = progress;
     drawRef.current();
   }, [progress, draw]);
-
   const valueFromEvent = useCallback(
     (clientX: number): number => {
       const canvas = canvasRef.current;
@@ -174,17 +175,12 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     },
     [duration]
   );
-
-  const pctFromEvent = useCallback(
-    (clientX: number): number => {
-      const canvas = canvasRef.current;
-      if (!canvas) return 0;
-      const rect = canvas.getBoundingClientRect();
-      return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    },
-    []
-  );
-
+  const pctFromEvent = useCallback((clientX: number): number => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 0;
+    const rect = canvas.getBoundingClientRect();
+    return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+  }, []);
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -195,7 +191,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     },
     [onSeekStart, valueFromEvent, pctFromEvent]
   );
-
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!draggingRef.current) return;
@@ -205,7 +200,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     },
     [onSeekStart, valueFromEvent, pctFromEvent]
   );
-
   const handlePointerEnd = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!draggingRef.current) return;
@@ -217,7 +211,6 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
     },
     [onSeekEnd, valueFromEvent, pctFromEvent]
   );
-
   return (
     <canvas
       ref={canvasRef}

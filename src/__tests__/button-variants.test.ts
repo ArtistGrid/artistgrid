@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { buttonVariants } from "@/components/ui/button-variants";
-
 describe("buttonVariants", () => {
   it("returns base classes by default", () => {
     const c = buttonVariants();

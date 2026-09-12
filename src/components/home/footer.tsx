@@ -59,7 +59,12 @@ export const Footer = memo(
         <div className="text-center space-y-2 pt-4 border-t border-white/[0.07] w-full">
           <p className="text-sm text-white/55">
             Maintained by{" "}
-            <a href="https://instagram.com/edideaur" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white transition-colors underline underline-offset-2">
+            <a
+              href="https://instagram.com/edideaur"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/70 hover:text-white transition-colors underline underline-offset-2"
+            >
               edideaur
             </a>
           </p>

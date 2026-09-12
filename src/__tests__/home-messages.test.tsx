@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ErrorMessage, NoResultsMessage } from "@/src/components/home/messages";
-
 describe("ErrorMessage", () => {
   it("renders the message", () => {
     render(<ErrorMessage message="boom" />);
@@ -9,7 +8,6 @@ describe("ErrorMessage", () => {
     expect(screen.getByText("Error Loading Artists")).toBeInTheDocument();
   });
 });
-
 describe("NoResultsMessage", () => {
   it("renders with search query", () => {
     render(<NoResultsMessage searchQuery="kanye" />);

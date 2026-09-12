@@ -1,6 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useMemo } from "react";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
-
 import { PlayerProvider } from "./providers";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
@@ -8,14 +7,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
 import { ChunkErrorBoundary } from "@/src/components/error-boundary";
 import Home from "./pages/Home";
-
 const View = lazy(() => import("./pages/View"));
 const Donate = lazy(() => import("./pages/Donate"));
 const SettingsModal = lazy(() => import("./pages/Settings"));
 const GlobalPlayer = lazy(() => import("@/components/global-player").then((m) => ({ default: m.GlobalPlayer })));
-
 import { SettingsModalContext } from "./components/settings-modal-context";
-
 function IframeNotice() {
   const [visible, setVisible] = useState(() => {
     try {
@@ -30,8 +26,8 @@ function IframeNotice() {
       <div className="max-w-md mx-4 p-8 rounded-2xl glass-elevated text-center space-y-4">
         <h1 className="text-xl font-bold text-white">ArtistGrid</h1>
         <p className="text-sm text-neutral-300 leading-relaxed">
-          Hi. ArtistGrid has not received anything in donations in over a year and a half.
-          Please consider supporting us so we can keep building and improving the site.
+          Hi. ArtistGrid has not received anything in donations in over a year and a half. Please consider supporting us
+          so we can keep building and improving the site.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <a
@@ -62,10 +58,11 @@ function IframeNotice() {
     </div>
   );
 }
-
 function ShTrackerView() {
-  const { trackerId, tabSlug } = useParams<{ trackerId: string; tabSlug: string }>();
-
+  const { trackerId, tabSlug } = useParams<{
+    trackerId: string;
+    tabSlug: string;
+  }>();
   return (
     <ChunkErrorBoundary>
       <Suspense fallback={null}>
@@ -74,62 +71,57 @@ function ShTrackerView() {
     </ChunkErrorBoundary>
   );
 }
-
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const modalCtx = useMemo(() => ({ settingsOpen, setSettingsOpen }), [settingsOpen]);
-
   return (
     <BrowserRouter>
       <SettingsModalContext.Provider value={modalCtx}>
         <SettingsProvider>
           <PlayerProvider>
             <Routes>
-                <Route element={<Layout />}>
-                  <Route path="/" element={<Home />} />
-                  <Route
-                    path="/view"
-                    element={
-                      <ChunkErrorBoundary>
-                        <Suspense fallback={null}>
-                          <View />
-                        </Suspense>
-                      </ChunkErrorBoundary>
-                    }
-                  />
-                  <Route
-                    path="/sh/:trackerId/:tabSlug?"
-                    element={<ShTrackerView />}
-                  />
-                  <Route
-                    path="/donate"
-                    element={
-                      <ChunkErrorBoundary>
-                        <Suspense fallback={null}>
-                          <Donate />
-                        </Suspense>
-                      </ChunkErrorBoundary>
-                    }
-                  />
-                </Route>
-              </Routes>
-              <Suspense fallback={null}>
-                <GlobalPlayer />
-              </Suspense>
-              <KeyboardShortcuts />
-              <Toaster />
-              <IframeNotice />
-              {settingsOpen ? (
-                <ChunkErrorBoundary>
-                  <Suspense fallback={null}>
-                    <SettingsModal onClose={closeSettings} />
-                  </Suspense>
-                </ChunkErrorBoundary>
-              ) : null}
-            </PlayerProvider>
-          </SettingsProvider>
-        </SettingsModalContext.Provider>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Home />} />
+                <Route
+                  path="/view"
+                  element={
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={null}>
+                        <View />
+                      </Suspense>
+                    </ChunkErrorBoundary>
+                  }
+                />
+                <Route path="/sh/:trackerId/:tabSlug?" element={<ShTrackerView />} />
+                <Route
+                  path="/donate"
+                  element={
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={null}>
+                        <Donate />
+                      </Suspense>
+                    </ChunkErrorBoundary>
+                  }
+                />
+              </Route>
+            </Routes>
+            <Suspense fallback={null}>
+              <GlobalPlayer />
+            </Suspense>
+            <KeyboardShortcuts />
+            <Toaster />
+            <IframeNotice />
+            {settingsOpen ? (
+              <ChunkErrorBoundary>
+                <Suspense fallback={null}>
+                  <SettingsModal onClose={closeSettings} />
+                </Suspense>
+              </ChunkErrorBoundary>
+            ) : null}
+          </PlayerProvider>
+        </SettingsProvider>
+      </SettingsModalContext.Provider>
     </BrowserRouter>
   );
 }

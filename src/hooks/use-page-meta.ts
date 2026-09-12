@@ -1,19 +1,16 @@
 import { useEffect } from "react";
-
 export type PageMeta = {
   title?: string;
   description?: string;
   image?: string;
   url?: string;
 };
-
 export function usePageMeta({ title, description, image, url }: PageMeta = {}) {
   useEffect(() => {
     const prevTitle = document.title;
     const prevDesc = document.querySelector('meta[name="description"]')?.getAttribute("content") ?? null;
     const prevOgImage = document.querySelector('meta[property="og:image"]')?.getAttribute("content") ?? null;
     const prevOgUrl = document.querySelector('meta[property="og:url"]')?.getAttribute("content") ?? null;
-
     if (title) document.title = title;
     if (description) {
       let meta = document.querySelector('meta[name="description"]');
@@ -45,7 +42,6 @@ export function usePageMeta({ title, description, image, url }: PageMeta = {}) {
         ogUrl.setAttribute("content", url);
       }
     }
-
     return () => {
       document.title = prevTitle;
       const descEl = document.querySelector('meta[name="description"]');

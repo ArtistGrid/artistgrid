@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/src/components/modal";
 import { DonationContent, type QrCodeData } from "@/src/components/crypto-donation-section";
 const QRCode = lazy(() => import("qrcode.react").then((mod) => ({ default: mod.QRCodeSVG })));
-
 function MarkdownContent({ text }: { text: string }) {
   return (
     <>
@@ -33,9 +32,18 @@ function MarkdownContent({ text }: { text: string }) {
     </>
   );
 }
-
 export const AnnouncementModal = memo(
-  ({ isOpen, onClose, message, onDonate }: { isOpen: boolean; onClose: () => void; message: string; onDonate?: () => void }) => (
+  ({
+    isOpen,
+    onClose,
+    message,
+    onDonate,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    message: string;
+    onDonate?: () => void;
+  }) => (
     <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Announcement">
       <div className="p-6 pt-12">
         <MarkdownContent text={message} />
@@ -76,7 +84,6 @@ export const AnnouncementModal = memo(
     </Modal>
   )
 );
-
 const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; onClose: () => void }) => (
   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 rounded-xl">
     <button
@@ -89,7 +96,11 @@ const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; o
     <div className="relative z-10 flex flex-col items-center">
       <div className="bg-white p-4 rounded-lg shadow-2xl">
         <Suspense fallback={<div className="w-[240px] h-[240px] rounded-lg bg-neutral-800 animate-pulse" />}>
-          <QRCode value={qrCodeData.uriScheme ? `${qrCodeData.uriScheme}:${qrCodeData.value}` : qrCodeData.value} size={240} level="H" />
+          <QRCode
+            value={qrCodeData.uriScheme ? `${qrCodeData.uriScheme}:${qrCodeData.value}` : qrCodeData.value}
+            size={240}
+            level="H"
+          />
         </Suspense>
       </div>
       <p className="text-sm font-semibold text-white mt-4">{qrCodeData.name}</p>
@@ -104,7 +115,6 @@ const QrCodeOverlay = memo(({ qrCodeData, onClose }: { qrCodeData: QrCodeData; o
     </div>
   </div>
 ));
-
 export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [activeQrCode, setActiveQrCode] = useState<QrCodeData | null>(null);
   const handleShowQr = useCallback((data: QrCodeData) => setActiveQrCode(data), []);
@@ -122,7 +132,6 @@ export const DonationModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClo
     </Modal>
   );
 });
-
 export const InfoModal = memo(
   ({
     isOpen,
@@ -148,7 +157,8 @@ export const InfoModal = memo(
               className="underline hover:text-white"
             >
               edideaur
-            </a>.
+            </a>
+            .
           </p>
           <p>
             Original trackers are in{" "}

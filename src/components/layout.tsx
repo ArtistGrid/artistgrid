@@ -2,7 +2,6 @@ import { createPortal } from "react-dom";
 import { Link, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useState } from "react";
-
 export function useHeaderSlots(center: ReactNode, right?: ReactNode) {
   const [ready, setReady] = useState(false);
   useLayoutEffect(() => {
@@ -19,7 +18,6 @@ export function useHeaderSlots(center: ReactNode, right?: ReactNode) {
     </>
   );
 }
-
 export function Layout() {
   return (
     <>

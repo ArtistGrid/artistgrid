@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { toTTML } from "../lib/lyrics";
 import { stripEmojis } from "../../lib/utils";
 import type { LyricsData } from "../lib/lyrics";
-
 describe("toTTML", () => {
   it("converts synced lyrics to TTML with timings", () => {
     const data: LyricsData = {
@@ -22,7 +21,6 @@ describe("toTTML", () => {
     expect(ttml).toContain('<p begin="00:00:01.000" end="00:00:05.000">First</p>');
     expect(ttml).toContain('<p begin="00:00:05.000" end="00:00:09.000">Second</p>');
   });
-
   it("converts plain lyrics to unsynced TTML (zero timings)", () => {
     const data: LyricsData = {
       plainLyrics: "Line one\nLine two",
@@ -37,7 +35,6 @@ describe("toTTML", () => {
     expect(ttml).toContain('<p begin="00:00:00.000" end="00:00:00.000">Line one</p>');
     expect(ttml).toContain('<p begin="00:00:00.000" end="00:00:00.000">Line two</p>');
   });
-
   it("escapes XML special characters", () => {
     const data: LyricsData = {
       plainLyrics: "Rock & Roll <3",
@@ -52,7 +49,6 @@ describe("toTTML", () => {
     expect(ttml).toContain("Rock &amp; Roll &lt;3");
   });
 });
-
 describe("stripEmojis", () => {
   it("removes emojis and collapses whitespace", () => {
     expect(stripEmojis("🎵 My Song 🔥")).toBe("My Song");

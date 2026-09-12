@@ -5,21 +5,57 @@ import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
 import type { Era, TALeak } from "@/src/types";
 import { useImageProxy } from "@/src/hooks/use-image-proxy";
+import { useResolvedImage } from "@/src/hooks/use-image-resolve";
+import { syncImageUrl } from "@/src/lib/image-resolve";
 
-function getImageUrl(url: string): string | null {
-  if (url.includes("ibb.co")) {
-    const match = url.match(/ibb\.co\/([a-zA-Z0-9]+)/);
-    if (match) return `https://i.ibb.co/${match[1]}/image.jpg`;
+// The cover image for an era in the Art tab: the first artwork whose name
+// matches the era name exactly (case-insensitive, trimmed), falling back to
+// the era's own image. This surfaces the "cover art" track as the era cover.
+function getEraCoverImage(era: Era): string | null {
+  if (era.data) {
+    const target = era.name.trim().toLowerCase();
+    for (const items of Object.values(era.data)) {
+      if (!Array.isArray(items)) continue;
+      const hit = (items as TALeak[]).find((it) => (it.name || "").trim().toLowerCase() === target);
+      if (hit) return hit.image || hit.url || (hit.urls && hit.urls[0]) || null;
+    }
   }
-  if (url.includes("imgur.com") || url.includes("i.imgur.com")) {
-    const match = url.match(/imgur\.com\/([a-zA-Z0-9]+)/);
-    if (match) return `https://i.imgur.com/${match[1]}.jpg`;
-  }
-  if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return url;
-  if (url.includes("docs.google.com/sheets-images-rt") || url.includes("googleusercontent.com")) return url;
-  return null;
+  return era.image || null;
 }
 
+function ArtImage({
+  src,
+  alt,
+  className,
+  clickable = false,
+}: {
+  src: string | null;
+  alt: string;
+  className?: string;
+  clickable?: boolean;
+}) {
+  const resolved = useResolvedImage(src);
+  const { proxyImageSrcSet } = useImageProxy();
+  const proxied = resolved ? proxyImageSrcSet(resolved) : null;
+  if (!proxied) {
+    return <div className={`${className ?? ""} bg-white/[0.05]`} />;
+  }
+  return (
+    <picture>
+      <source type="image/jxl" srcSet={proxied.jxl} />
+      <source type="image/webp" srcSet={proxied.webp} />
+      <img
+        src={proxied.original}
+        alt={alt}
+        className={`${className ?? ""} ${clickable ? "transition-transform duration-300 group-hover:scale-105" : ""}`}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+      />
+    </picture>
+  );
+}
 export function ArtGallery({
   eras,
   onImageClick,
@@ -28,7 +64,6 @@ export function ArtGallery({
   onImageClick: (imageUrl: string, name: string, description?: string, linkUrl?: string) => void;
 }) {
   const [expandedEras, setExpandedEras] = useState<Set<string>>(() => new Set([Object.keys(eras)[0] || ""]));
-  const { proxyImageSrcSet } = useImageProxy();
   const toggleEra = (eraKey: string) => {
     setExpandedEras((prev) => {
       const next = new Set(prev);
@@ -39,32 +74,21 @@ export function ArtGallery({
   };
   return (
     <div className="space-y-4 sm:space-y-5">
-      {Object.entries(eras).map(([key, era]) => (
+       {Object.entries(eras).map(([key, era]) => {
+        const eraCover = getEraCoverImage(era);
+        return (
         <div key={key} className="glass rounded-2xl overflow-hidden">
           <button
             type="button"
             className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
             onClick={() => toggleEra(key)}
           >
-            {era.image ? (
-              (() => {
-                const srcs = proxyImageSrcSet(era.image);
-                return (
-                  <picture>
-                    <source type="image/jxl" srcSet={srcs.jxl} />
-                    <source type="image/webp" srcSet={srcs.webp} />
-                    <img
-                      src={srcs.original}
-                      alt={era.name}
-                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
-                    />
-                  </picture>
-                );
-              })()
+            {eraCover ? (
+              <ArtImage
+                src={eraCover}
+                alt={era.name}
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover bg-white/[0.08] flex-shrink-0"
+              />
             ) : (
               <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-white/[0.08] flex-shrink-0" />
             )}
@@ -89,86 +113,74 @@ export function ArtGallery({
                 transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               >
                 <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-              {Object.entries(era.data).map(([cat, items]) => (
-                <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
-                  {cat !== "Default" && (
-                    <h4 className="text-xs sm:text-sm font-semibold text-white/50 pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
-                      {cat}
-                    </h4>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-                    {(items as TALeak[]).map((item) => {
-                      const url = item.url || (item.urls && item.urls[0]);
-                      const urlAsImage = url ? getImageUrl(url) : null;
-                      const ownImageSrc = item.image || urlAsImage;
-                       const displaySrc = ownImageSrc || era.image || null;
-                      const clickTarget = ownImageSrc || null;
-                       const stableKey = `${cat}-${item.id || item.url || item.name || "unknown"}`;
-                      const proxied = displaySrc ? proxyImageSrcSet(displaySrc) : null;
-                      const cardContent = (
-                        <>
-                          <div className="aspect-square relative bg-white/[0.05] overflow-hidden">
-                            {proxied ? (
-                              <picture>
-                                <source type="image/jxl" srcSet={proxied.jxl} />
-                                <source type="image/webp" srcSet={proxied.webp} />
-                                <img
-                                  src={proxied.original}
-                                  alt={item.name}
-                                  className={`w-full h-full object-cover transition-transform duration-300 ${
-                                    clickTarget ? "group-hover:scale-105" : "opacity-40"
-                                  }`}
-                                  loading="lazy"
-                                  decoding="async"
-                                  referrerPolicy="no-referrer"
-                                  crossOrigin="anonymous"
-                                />
-                              </picture>
-                            ) : (
-                              <div className="w-full h-full bg-white/[0.05]" />
-                            )}
-                          </div>
-                          <div className="p-2 sm:p-3">
-                            <p className="text-xs sm:text-sm font-medium text-white truncate">{item.name}</p>
-                            {item.description && (
-                              <p className="text-xs text-white/55 truncate mt-0.5 sm:mt-1 hidden sm:block">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
-                        </>
-                      );
-                      return clickTarget ? (
-                        <button
-                          key={stableKey}
-                          type="button"
-                          className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-pointer text-left w-full"
-                          onClick={() => onImageClick(ownImageSrc || era.image || "", item.name, item.description, url)}
-                        >
-                          {cardContent}
-                        </button>
-                      ) : (
-                        <div
-                          key={stableKey}
-                          className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-default"
-                        >
-                          {cardContent}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {Object.entries(era.data).map(([cat, items]) => (
+                    <div key={cat} className="mb-4 sm:mb-6 last:mb-0">
+                      {cat !== "Default" && (
+                        <h4 className="text-xs sm:text-sm font-semibold text-white/50 pb-2 sm:pb-3 mb-2 sm:mb-3 border-b border-white/[0.08]">
+                          {cat}
+                        </h4>
+                      )}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                         {(items as TALeak[]).map((item) => {
+                           const url = item.url || (item.urls && item.urls[0]);
+                           const urlAsImage = url ? syncImageUrl(url) : null;
+                           const ownImageSrc = item.image || urlAsImage;
+                           const displaySrc = ownImageSrc || eraCover || null;
+                           const clickable = !!ownImageSrc;
+                           const stableKey = `${cat}-${item.id || item.url || item.name || "unknown"}`;
+                           const cardContent = (
+                             <>
+                               <div className="aspect-square relative bg-white/[0.05] overflow-hidden">
+                                 <ArtImage
+                                   src={displaySrc}
+                                   alt={item.name}
+                                   clickable={clickable}
+                                   className={`w-full h-full object-cover ${clickable ? "" : "opacity-40"}`}
+                                 />
+                               </div>
+                               <div className="p-2 sm:p-3">
+                                 <p className="text-xs sm:text-sm font-medium text-white truncate">{item.name}</p>
+                                 {item.description && (
+                                   <p className="text-xs text-white/55 truncate mt-0.5 sm:mt-1 hidden sm:block">
+                                     {item.description}
+                                   </p>
+                                 )}
+                               </div>
+                             </>
+                           );
+                           return clickable ? (
+                             <button
+                               key={stableKey}
+                               type="button"
+                               className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-pointer text-left w-full"
+                               onClick={() =>
+                                 onImageClick(ownImageSrc || eraCover || "", item.name, item.description, url)
+                               }
+                             >
+                               {cardContent}
+                             </button>
+                           ) : (
+                             <div
+                               key={stableKey}
+                               className="group glass-flat rounded-xl overflow-hidden transition-transform cursor-default"
+                             >
+                               {cardContent}
+                             </div>
+                           );
+                         })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 }
-
 export function ImageLightbox({
   src,
   alt,
@@ -183,8 +195,9 @@ export function ImageLightbox({
   onClose: () => void;
 }) {
   useKeyPress("Escape", onClose);
+  const resolved = useResolvedImage(src);
   const { proxyImageSrcSet } = useImageProxy();
-  const srcs = proxyImageSrcSet(src);
+  const srcs = proxyImageSrcSet(resolved || src);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4"
@@ -197,7 +210,10 @@ export function ImageLightbox({
         if (e.key === "Escape") onClose();
       }}
     >
-      <div className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           className="max-w-full max-h-full p-0 bg-transparent border-0"
@@ -217,9 +233,7 @@ export function ImageLightbox({
             />
           </picture>
         </button>
-        {description && (
-          <p className="mt-3 text-sm text-white/60 text-center max-w-lg">{description}</p>
-        )}
+        {description && <p className="mt-3 text-sm text-white/60 text-center max-w-lg">{description}</p>}
         <Button
           variant="ghost"
           size="icon"

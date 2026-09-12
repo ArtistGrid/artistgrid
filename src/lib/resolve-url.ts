@@ -1,29 +1,23 @@
 import type { Track } from "@/src/types";
 import { logError } from "./logger";
 const IMGUR_API = "https://imgur.gg/api/file/";
-
 export function normalizePillowsUrl(url: string): string {
   return url.replace(/pillowcase\.su/g, "pillows.su");
 }
-
 function extractImgurId(url: string): string | null {
   let match = url.match(/\/f\/([a-zA-Z0-9]+)/);
   if (match) return match[1];
   match = url.match(/\/([a-zA-Z0-9]+)(?:\?|$)/);
   return match ? match[1] : null;
 }
-
 function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
 }
-
 const NETWORK_SOURCES = new Set<Track["source"]>(["imgur", "pixeldrain"]);
-
 export function isNetworkSource(source: Track["source"]): boolean {
   return NETWORK_SOURCES.has(source);
 }
-
 export function getTrackSource(url: string): Track["source"] {
   const normalized = normalizePillowsUrl(url);
   if (/https?:\/\/pillows\.su\/f\//.test(normalized)) return "pillows";
@@ -35,11 +29,9 @@ export function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/drive\.google\.com\/file\/d\//.test(normalized)) return "googledrive";
   return "unknown";
 }
-
 export async function resolvePlayableUrl(url: string): Promise<string | null> {
   const normalized = normalizePillowsUrl(url);
   const source = getTrackSource(normalized);
-
   try {
     switch (source) {
       case "pillows": {

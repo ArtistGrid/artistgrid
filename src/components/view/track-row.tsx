@@ -2,12 +2,27 @@ import { memo } from "react";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Share, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
-import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, TrackItemActions } from "@/src/components/view/track-item";
-
+import {
+  PlayButton,
+  PauseButton,
+  OpenLinkButton,
+  TrackDescription,
+  TrackItemActions,
+} from "@/src/components/view/track-item";
 interface TrackRowProps {
   track: TALeak;
   era: Era;
-  computeTrackState: (t: TALeak) => { url: string | null; source: TrackSource; isPlayable: boolean; isCurrentlyPlaying: boolean; isCurrentTrack: boolean; isHighlighted: boolean; description: string | undefined; shouldShowSource: boolean; playableUrl: string | null };
+  computeTrackState: (t: TALeak) => {
+    url: string | null;
+    source: TrackSource;
+    isPlayable: boolean;
+    isCurrentlyPlaying: boolean;
+    isCurrentTrack: boolean;
+    isHighlighted: boolean;
+    description: string | undefined;
+    shouldShowSource: boolean;
+    playableUrl: string | null;
+  };
   handlePlayTrack: (t: TALeak, era: Era) => void;
   handleOpenUrl: (url: string) => void;
   handleShareTrack: (url: string, name: string) => void;
@@ -19,7 +34,6 @@ interface TrackRowProps {
   favourites: string[];
   highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
 }
-
 export const TrackRow = memo(function TrackRow({
   track,
   era,
@@ -35,19 +49,12 @@ export const TrackRow = memo(function TrackRow({
   favourites,
   highlightedTrackRef,
 }: TrackRowProps) {
-  const {
-    url,
-    source,
-    isPlayable,
-    isCurrentlyPlaying,
-    isCurrentTrack,
-    isHighlighted,
-    description,
-    shouldShowSource,
-  } = computeTrackState(track);
+  const { url, source, isPlayable, isCurrentlyPlaying, isCurrentTrack, isHighlighted, description, shouldShowSource } =
+    computeTrackState(track);
   return (
     <div
       ref={isHighlighted ? highlightedTrackRef : null}
+      data-track-anchor={track.url || track.id || undefined}
       className={`rounded-xl transition-colors ${
         isHighlighted
           ? "bg-yellow-400/15 border border-yellow-400/40 ring-2 ring-yellow-400/20"
@@ -77,7 +84,9 @@ export const TrackRow = memo(function TrackRow({
                 <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.type}</span>
               )}
               {track.track_length && track.track_length !== "N/A" && track.track_length !== "?:??" && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">{track.track_length}</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded text-neutral-400">
+                  {track.track_length}
+                </span>
               )}
               {track.art_used && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-400">

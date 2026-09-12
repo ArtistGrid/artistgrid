@@ -5,7 +5,12 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
-function DropdownMenuContent({ className, sideOffset = 4, ref, ...props }: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Content>) {
+function DropdownMenuContent({
+  className,
+  sideOffset = 4,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -21,7 +26,14 @@ function DropdownMenuContent({ className, sideOffset = 4, ref, ...props }: React
   );
 }
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
-function DropdownMenuItem({ className, inset, ref, ...props }: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Item> & { inset?: boolean }) {
+function DropdownMenuItem({
+  className,
+  inset,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Item> & {
+  inset?: boolean;
+}) {
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}
@@ -35,7 +47,13 @@ function DropdownMenuItem({ className, inset, ref, ...props }: React.ComponentPr
   );
 }
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
-function DropdownMenuCheckboxItem({ className, children, checked, ref, ...props }: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.CheckboxItem>) {
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  checked,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.CheckboxItem>) {
   return (
     <DropdownMenuPrimitive.CheckboxItem
       ref={ref}
@@ -56,7 +74,14 @@ function DropdownMenuCheckboxItem({ className, children, checked, ref, ...props 
   );
 }
 DropdownMenuCheckboxItem.displayName = DropdownMenuPrimitive.CheckboxItem.displayName;
-function DropdownMenuLabel({ className, inset, ref, ...props }: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Label> & { inset?: boolean }) {
+function DropdownMenuLabel({
+  className,
+  inset,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Label> & {
+  inset?: boolean;
+}) {
   return (
     <DropdownMenuPrimitive.Label
       ref={ref}
@@ -66,7 +91,11 @@ function DropdownMenuLabel({ className, inset, ref, ...props }: React.ComponentP
   );
 }
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;
-function DropdownMenuSeparator({ className, ref, ...props }: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Separator>) {
+function DropdownMenuSeparator({
+  className,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof DropdownMenuPrimitive.Separator>) {
   return <DropdownMenuPrimitive.Separator ref={ref} className={cn("-mx-1 my-1 h-px bg-muted", className)} {...props} />;
 }
 DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;

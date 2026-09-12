@@ -1,4 +1,5 @@
 import type { Artist } from "@/src/types";
+import { xxh3Hash } from "./hash";
 export function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -20,9 +21,8 @@ export function getSheetViewUrl(url: string, htmlview = true): string {
   if (trackerId && !url.startsWith("http")) return `https://${url}`;
   return url;
 }
-
 export function extractTrackerId(input: string): string | null {
-  const cleanInput = input.replace(/\./g, '');
+  const cleanInput = input.replace(/\./g, "");
   const pubhtml = input.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9_-]+)\//);
   if (pubhtml) return pubhtml[1];
   const match = input.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]{20,})/);
@@ -31,8 +31,7 @@ export function extractTrackerId(input: string): string | null {
     const url = new URL(input.trim());
     const hostname = url.hostname;
     if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(hostname)) return hostname;
-  } catch {
-  }
+  } catch {}
   if (/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(input.trim())) return input.trim();
   if (/^[a-zA-Z0-9_-]+$/.test(cleanInput)) return cleanInput;
   return null;
@@ -46,4 +45,11 @@ export function artistsEqual(a: Artist[], b: Artist[]): boolean {
 }
 export function getCleanArtistName(name: string): string {
   return name.replace(/\s*[\(\[\{][^\)\]\}]*[\)\]\}]\s*/g, "").trim();
+}
+export function isAnnouncementDismissed(storedHash: string | null, legacyHash: string): boolean {
+  if (!storedHash) return false;
+  return storedHash.startsWith("v2:") || storedHash === legacyHash;
+}
+export async function computeDismissalHash(message: string): Promise<string> {
+  return `v2:${await xxh3Hash(message)}`;
 }

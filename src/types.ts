@@ -1,12 +1,5 @@
 export type TrackSource =
-  | "pillows"
-  | "juicewrldapi"
-  | "imgur"
-  | "pixeldrain"
-  | "soundcloud"
-  | "youtube"
-  | "googledrive"
-  | "unknown";
+  "pillows" | "juicewrldapi" | "imgur" | "pixeldrain" | "soundcloud" | "youtube" | "googledrive" | "unknown";
 export interface Track {
   id: string;
   name: string;
@@ -91,7 +84,13 @@ export interface ArtistFilterOptions {
 export interface LastFMClientInfo {
   isAuthenticated: boolean;
   username: string | null;
-  getAuthUrl: () => Promise<{ token: string; url: string }>;
-  completeAuth: (token: string) => Promise<{ success: boolean; username: string }>;
+  getAuthUrl: () => Promise<{
+    token: string;
+    url: string;
+  }>;
+  completeAuth: (token: string) => Promise<{
+    success: boolean;
+    username: string;
+  }>;
   disconnect: () => void;
 }

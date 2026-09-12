@@ -32,7 +32,12 @@ const toastVariants = cva(
     },
   }
 );
-function Toast({ className, variant, ref, ...props }: React.ComponentPropsWithRef<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>) {
+function Toast({
+  className,
+  variant,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>) {
   return <ToastPrimitives.Root ref={ref} className={cn(toastVariants({ variant }), className)} {...props} />;
 }
 Toast.displayName = ToastPrimitives.Root.displayName;
@@ -69,7 +74,11 @@ function ToastTitle({ className, ref, ...props }: React.ComponentPropsWithRef<ty
   return <ToastPrimitives.Title ref={ref} className={cn("text-sm font-semibold", className)} {...props} />;
 }
 ToastTitle.displayName = ToastPrimitives.Title.displayName;
-function ToastDescription({ className, ref, ...props }: React.ComponentPropsWithRef<typeof ToastPrimitives.Description>) {
+function ToastDescription({
+  className,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof ToastPrimitives.Description>) {
   return <ToastPrimitives.Description ref={ref} className={cn("text-sm opacity-90", className)} {...props} />;
 }
 ToastDescription.displayName = ToastPrimitives.Description.displayName;

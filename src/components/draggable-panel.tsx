@@ -1,7 +1,22 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { GripHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+const PANEL_WIDTH = 320;
+const PANEL_HEIGHT_MIN = 220;
+function clampPos(
+  x: number,
+  y: number
+): {
+  x: number;
+  y: number;
+} {
+  const maxX = Math.max(0, window.innerWidth - PANEL_WIDTH);
+  const maxY = Math.max(0, window.innerHeight - PANEL_HEIGHT_MIN);
+  return {
+    x: Math.min(Math.max(0, x), maxX),
+    y: Math.min(Math.max(0, y), maxY),
+  };
+}
 export function DraggablePanel({
   label,
   onClose,
@@ -11,34 +26,38 @@ export function DraggablePanel({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
-    x: window.innerWidth - 352,
-    y: window.innerHeight - 260,
-  }));
+  const dragState = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+  const [pos, setPos] = useState<{
+    x: number;
+    y: number;
+  }>(() => clampPos(window.innerWidth - 352, window.innerHeight - 260));
   const posRef = useRef(pos);
   useEffect(() => {
     posRef.current = pos;
   }, [pos]);
-
+  useEffect(() => {
+    const reclamp = () => setPos((p) => clampPos(p.x, p.y));
+    window.addEventListener("resize", reclamp);
+    return () => window.removeEventListener("resize", reclamp);
+  }, []);
   const onMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
   const onMouseUpRef = useRef<() => void>(() => {});
-
   useEffect(() => {
     onMouseMoveRef.current = (e: MouseEvent) => {
       if (!dragState.current) return;
       const dx = e.clientX - dragState.current.startX;
       const dy = e.clientY - dragState.current.startY;
-      setPos({
-        x: Math.max(0, Math.min(window.innerWidth - 320, dragState.current.origX + dx)),
-        y: Math.max(0, Math.min(window.innerHeight - 220, dragState.current.origY + dy)),
-      });
+      setPos(clampPos(dragState.current.origX + dx, dragState.current.origY + dy));
     };
     onMouseUpRef.current = () => {
       dragState.current = null;
     };
   }, []);
-
   useEffect(() => {
     const move = (e: MouseEvent) => onMouseMoveRef.current(e);
     const up = () => onMouseUpRef.current();
@@ -49,30 +68,47 @@ export function DraggablePanel({
       window.removeEventListener("mouseup", up);
     };
   }, []);
-
   const onDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     dragState.current = { startX: e.clientX, startY: e.clientY, origX: posRef.current.x, origY: posRef.current.y };
   }, []);
-
   return (
     <div
       className="fixed z-[80] glass-elevated rounded-2xl overflow-hidden shadow-2xl"
-      style={{ left: pos.x, top: pos.y, width: 320 }}
+      style={{ left: pos.x, top: pos.y, width: PANEL_WIDTH }}
     >
       <div
         role="button"
         tabIndex={0}
-        aria-label="Drag to reposition player"
+        aria-label="Drag to reposition player. Use arrow keys to move."
         className="w-full flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none border-b border-white/[0.08] bg-transparent"
         onMouseDown={onDragStart}
         onKeyDown={(e) => {
-          if (e.key === " " || e.key === "Enter") e.preventDefault();
+          const step = e.shiftKey ? 32 : 8;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            setPos((p) => clampPos(p.x - step, p.y));
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            setPos((p) => clampPos(p.x + step, p.y));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setPos((p) => clampPos(p.x, p.y - step));
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setPos((p) => clampPos(p.x, p.y + step));
+          }
         }}
       >
         <GripHorizontal className="w-3.5 h-3.5 text-white/30" />
         <span className="text-xs font-medium text-white/50">{label}</span>
-        <Button variant="ghost" size="icon" onClick={onClose} className="ml-auto h-6 w-6 text-white/30 hover:text-white hover:bg-white/10 rounded-lg" aria-label="Close player">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="ml-auto h-6 w-6 text-white/30 hover:text-white hover:bg-white/10 rounded-lg"
+          aria-label="Close player"
+        >
           <X className="w-3 h-3" />
         </Button>
       </div>

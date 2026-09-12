@@ -1,36 +1,49 @@
 import type { Track, Era, TALeak } from "@/src/types";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Play, Pause, ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
-
 export interface FilterOptions {
   showPlayableOnly: boolean;
   qualityFilter: string[];
   sourceFilter: Track["source"][];
 }
-
 export interface PlayableTrackData {
   track: TALeak;
   era: Era;
   url: string;
   playableUrl: string;
 }
-
-function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource, artUsed }: {
-  source: Track["source"]; type?: string; quality?: string; trackLength?: string; shouldShowSource: boolean; artUsed?: boolean;
+function TrackMetaBadges({
+  source,
+  type,
+  quality,
+  trackLength,
+  shouldShowSource,
+  artUsed,
+}: {
+  source: Track["source"];
+  type?: string;
+  quality?: string;
+  trackLength?: string;
+  shouldShowSource: boolean;
+  artUsed?: boolean;
 }) {
   return (
     <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-      {shouldShowSource && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{getSourceDisplayName(source)}</span>}
-      {type && type !== "Unknown" && type !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{type}</span>}
-      {quality && !isUrl(quality) && quality !== "N/A" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{quality}</span>}
-      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{trackLength}</span>}
+      {shouldShowSource && (
+        <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{getSourceDisplayName(source)}</span>
+      )}
+      {type && type !== "Unknown" && type !== "N/A" && (
+        <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{type}</span>
+      )}
+      {quality && !isUrl(quality) && quality !== "N/A" && (
+        <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{quality}</span>
+      )}
+      {trackLength && trackLength !== "N/A" && trackLength !== "?:??" && (
+        <span className="text-xs px-2 py-0.5 glass-flat rounded-lg text-white/55">{trackLength}</span>
+      )}
       {artUsed && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
           ✓ Used
@@ -39,31 +52,42 @@ function TrackMetaBadges({ source, type, quality, trackLength, shouldShowSource,
     </div>
   );
 }
-
 export function PlayButton({ onPlay, label = "Play" }: { onPlay: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95">
+    <button
+      type="button"
+      onClick={onPlay}
+      aria-label={label}
+      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95"
+    >
       <Play className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5 ml-0.5" />
     </button>
   );
 }
-
 export function PauseButton({ onPlay, label = "Pause" }: { onPlay: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onPlay} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95">
+    <button
+      type="button"
+      onClick={onPlay}
+      aria-label={label}
+      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95"
+    >
       <Pause className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
 }
-
 export function OpenLinkButton({ onOpenLink, label = "Open link" }: { onOpenLink: () => void; label?: string }) {
   return (
-    <button type="button" onClick={onOpenLink} aria-label={label} className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-transform active:scale-95">
+    <button
+      type="button"
+      onClick={onOpenLink}
+      aria-label={label}
+      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full glass text-white/60 hover:text-white hover:scale-105 transition-transform active:scale-95"
+    >
       <LinkIcon className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
     </button>
   );
 }
-
 export function TrackDescription({ description }: { description: string | undefined }) {
   if (!description) return null;
   return (
@@ -72,34 +96,64 @@ export function TrackDescription({ description }: { description: string | undefi
     </div>
   );
 }
-
-export function TrackItemActions({ track, source, shouldShowSource, url, onOpenUrl, isFavourited, onToggleFavourite, children }: {
-  track: TALeak; source: Track["source"]; shouldShowSource: boolean; url: string | null | undefined;
-  onOpenUrl: () => void; isFavourited?: boolean; onToggleFavourite?: () => void; children: React.ReactNode;
+export function TrackItemActions({
+  track,
+  source,
+  shouldShowSource,
+  url,
+  onOpenUrl,
+  isFavourited,
+  onToggleFavourite,
+  children,
+}: {
+  track: TALeak;
+  source: Track["source"];
+  shouldShowSource: boolean;
+  url: string | null | undefined;
+  onOpenUrl: () => void;
+  isFavourited?: boolean;
+  onToggleFavourite?: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <>
-      <TrackMetaBadges source={source} type={track.type} quality={track.quality} trackLength={track.track_length} shouldShowSource={shouldShowSource} artUsed={track.art_used} />
+      <TrackMetaBadges
+        source={source}
+        type={track.type}
+        quality={track.quality}
+        trackLength={track.track_length}
+        shouldShowSource={shouldShowSource}
+        artUsed={track.art_used}
+      />
       {onToggleFavourite && (
         <button
           type="button"
           onClick={onToggleFavourite}
-          className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg transition-[transform,color,background-color] active:scale-90 ${
-            isFavourited ? "text-red-400 hover:text-red-300" : "text-neutral-500 hover:text-red-400 hover:bg-white/10"
-          }`}
+          className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg transition-[transform,color,background-color] active:scale-90 ${isFavourited ? "text-red-400 hover:text-red-300" : "text-neutral-500 hover:text-red-400 hover:bg-white/10"}`}
           aria-label={isFavourited ? "Remove from favourites" : "Add to favourites"}
         >
           <Heart className={`w-4 h-4 ${isFavourited ? "fill-current" : ""}`} />
         </button>
       )}
       {url && (
-        <Button variant="ghost" size="icon" onClick={onOpenUrl} className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95" aria-label="Open URL">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenUrl}
+          className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95"
+          aria-label="Open URL"
+        >
           <ExternalLink className="w-4 h-4" />
         </Button>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95" aria-label="Track actions">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-neutral-500 hover:text-white hover:bg-white/10 w-8 h-8 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 active:scale-95"
+            aria-label="Track actions"
+          >
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -110,7 +164,6 @@ export function TrackItemActions({ track, source, shouldShowSource, url, onOpenU
     </>
   );
 }
-
 export function FallbackView({ sheetsUrl }: { sheetsUrl: string }) {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -118,7 +171,8 @@ export function FallbackView({ sheetsUrl }: { sheetsUrl: string }) {
         <AlertTriangle className="w-12 h-12 sm:w-14 sm:h-14 text-yellow-400/80 mx-auto mb-4 sm:mb-6" />
         <h1 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Unable to Load Tracker</h1>
         <p className="text-sm sm:text-base text-white/50 mb-5 sm:mb-6">
-          We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google Sheets.
+          We couldn't load the tracker data from our API. You can view the original spreadsheet directly on Google
+          Sheets.
         </p>
         <Button
           onClick={() => window.open(sheetsUrl, "_blank", "noopener,noreferrer")}
@@ -130,8 +184,8 @@ export function FallbackView({ sheetsUrl }: { sheetsUrl: string }) {
         <div className="glass-flat rounded-xl p-3 sm:p-4 text-left">
           <p className="text-xs text-white/55 leading-relaxed">
             <strong className="text-white/50">Disclaimer:</strong> ArtistGrid is not affiliated with, endorsed by, or
-            associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not host,
-            store, or distribute any copyrighted content.
+            associated with Google, TrackerHub, or any artists whose content may appear in these trackers. We do not
+            host, store, or distribute any copyrighted content.
           </p>
         </div>
         <div className="mt-5 sm:mt-6">

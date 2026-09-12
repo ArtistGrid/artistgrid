@@ -33,6 +33,8 @@
     "lib/**/*.ts",
     "hooks/**/*.ts",
     "hooks/**/*.tsx",
+    "e2e/**/*.ts",
+    "playwright.config.ts",
     "vite.config.ts",
     "types/**/*.d.ts"
   ],

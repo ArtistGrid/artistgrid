@@ -1,4 +1,4 @@
-export const DROPPED_ERROR_SUBSTRINGS = [
+const DROPPED_ERROR_SUBSTRINGS = [
   "Rejected",
   "is not a valid JavaScript MIME type",
   "Load failed",
@@ -80,8 +80,7 @@ export const DROPPED_ERROR_SUBSTRINGS = [
   "The object is in an invalid state",
   "res.operation",
 ];
-
-export const EXTENSION_STACK_MARKERS = [
+const EXTENSION_STACK_MARKERS = [
   "chrome-extension://",
   "moz-extension://",
   "safari-extension://",
@@ -91,20 +90,23 @@ export const EXTENSION_STACK_MARKERS = [
   "__DLD__",
   "frontend.min.js",
 ];
-
 export function shouldDropError(msg: string, type: string): boolean {
   if (type.includes("React ErrorBoundary")) return true;
   if (msg === "Aa" || msg === "fa" || msg === "Ba") return true;
   if (/^_0x[0-9a-fA-F]+ is not an Object/i.test(msg)) return true;
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
 }
-
 export function hasExtensionFrame(event: {
   exception?: {
     values?: Array<{
       type?: string;
       value?: string;
-      stacktrace?: { frames?: Array<{ filename?: string; function?: string }> };
+      stacktrace?: {
+        frames?: Array<{
+          filename?: string;
+          function?: string;
+        }>;
+      };
     }>;
   };
   culprit?: string;

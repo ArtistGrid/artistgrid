@@ -8,7 +8,6 @@ import {
   TrackDescription,
   FallbackView,
 } from "@/src/components/view/track-item";
-
 describe("track-item buttons", () => {
   it("PlayButton calls onPlay", () => {
     const onPlay = vi.fn();
@@ -16,14 +15,12 @@ describe("track-item buttons", () => {
     fireEvent.click(screen.getByLabelText("Play"));
     expect(onPlay).toHaveBeenCalled();
   });
-
   it("PauseButton calls onPlay", () => {
     const onPlay = vi.fn();
     render(<PauseButton onPlay={onPlay} label="Pause" />);
     fireEvent.click(screen.getByLabelText("Pause"));
     expect(onPlay).toHaveBeenCalled();
   });
-
   it("OpenLinkButton calls onOpenLink", () => {
     const onOpen = vi.fn();
     render(<OpenLinkButton onOpenLink={onOpen} />);
@@ -31,7 +28,6 @@ describe("track-item buttons", () => {
     expect(onOpen).toHaveBeenCalled();
   });
 });
-
 describe("TrackDescription", () => {
   it("renders description", () => {
     render(<TrackDescription description="hello" />);
@@ -42,7 +38,6 @@ describe("TrackDescription", () => {
     expect(container.firstChild).toBeNull();
   });
 });
-
 describe("FallbackView", () => {
   it("opens sheets url on button click", () => {
     const open = vi.fn();
@@ -55,7 +50,6 @@ describe("FallbackView", () => {
     fireEvent.click(screen.getByText(/Open Original Spreadsheet/));
     expect(open).toHaveBeenCalledWith("https://sheets", "_blank", "noopener,noreferrer");
   });
-
   it("links back home", () => {
     render(
       <MemoryRouter>

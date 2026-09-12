@@ -9,30 +9,30 @@ function getImageFilename(artistName) {
 }
 
 export async function onRequest(context) {
+  const { request, next } = context;
   try {
-    const { request, next } = context;
     const url = new URL(request.url);
     const ua = request.headers.get('User-Agent') || '';
 
     if (!BOT_RE.test(ua)) return next(request);
     const isViewPath = url.pathname === '/view';
-  const shMatch = url.pathname.match(/^\/sh\/([a-zA-Z0-9_%.%-]+)\/?$/);
-  if (!isViewPath && !shMatch) return next(request);
+    const shMatch = url.pathname.match(/^\/sh\/([a-zA-Z0-9_%.%-]+)\/?$/);
+    if (!isViewPath && !shMatch) return next(request);
 
-  let trackerId = null;
-  let artist = null;
-  let sheetUrl = null;
+    let trackerId = null;
+    let artist = null;
+    let sheetUrl = null;
 
-  if (isViewPath) {
-    trackerId = url.searchParams.get('id');
-    artist = url.searchParams.get('artist');
-  } else {
-    try { sheetUrl = decodeURIComponent(shMatch[1]); } catch (_) { sheetUrl = shMatch[1]; }
-    trackerId = sheetUrl;
-    artist = url.searchParams.get('artist');
-  }
+    if (isViewPath) {
+      trackerId = url.searchParams.get('id');
+      artist = url.searchParams.get('artist');
+    } else {
+      try { sheetUrl = decodeURIComponent(shMatch[1]); } catch (_) { sheetUrl = shMatch[1]; }
+      trackerId = sheetUrl;
+      artist = url.searchParams.get('artist');
+    }
 
-  if (!trackerId || !artist) return next(request);
+    if (!trackerId || !artist) return next(request);
 
     const imageFilename = getImageFilename(artist);
     const image = 'https://assets.artistgrid.cx/webp/' + imageFilename;

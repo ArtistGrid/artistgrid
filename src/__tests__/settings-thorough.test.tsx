@@ -4,36 +4,29 @@ import userEvent from "@testing-library/user-event";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { saveSettings, loadSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
 import SettingsModal from "@/src/pages/Settings";
-
 function wrap(ui: React.ReactNode) {
   return <SettingsProvider>{ui}</SettingsProvider>;
 }
-
 async function openTab(name: string) {
   await userEvent.click(screen.getByText(name));
 }
-
 describe("SettingsModal (thorough)", () => {
   beforeEach(() => {
     localStorage.clear();
     saveSettings({ ...DEFAULT_SETTINGS });
   });
-
   it("toggles lyrics switches and selects", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     const sw = screen.getAllByRole("switch")[0];
     fireEvent.click(sw);
     expect(loadSettings().lyrics.syncedOnly).toBe(true);
-
     const select = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "left" } });
     expect(loadSettings().lyrics.alignment).toBe("left");
-
     const selects = screen.getAllByRole("combobox");
     fireEvent.change(selects[1], { target: { value: "large" } });
     expect(loadSettings().lyrics.fontSize).toBe("large");
   });
-
   it("toggles player switches", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Player");
@@ -46,7 +39,6 @@ describe("SettingsModal (thorough)", () => {
     expect(s.player.showNextSong).toBe(true);
     expect(s.player.startupShuffle).toBe(true);
   });
-
   it("toggles downloads switches and format select (on Player tab)", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Player");
@@ -59,7 +51,6 @@ describe("SettingsModal (thorough)", () => {
     fireEvent.change(format, { target: { value: "flac" } });
     expect(loadSettings().downloads.format).toBe("flac");
   });
-
   it("toggles scrobbling switches and reveals custom server fields", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Scrobbling");
@@ -71,7 +62,6 @@ describe("SettingsModal (thorough)", () => {
     fireEvent.click(switches[2]);
     expect(loadSettings().scrobbling.listenbrainz.enabled).toBe(false);
   });
-
   it("toggles behavior switches and updates custom font", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Behavior");
@@ -93,7 +83,6 @@ describe("SettingsModal (thorough)", () => {
     });
     expect(loadSettings().font).toBe("Inter");
   });
-
   it("clears tracker cache via the Clear button", async () => {
     render(wrap(<SettingsModal onClose={() => {}} />));
     await openTab("Behavior");

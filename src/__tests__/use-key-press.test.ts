@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useKeyPress } from "@/src/hooks/use-key-press";
-
 describe("useKeyPress", () => {
   it("invokes callback on matching keydown", () => {
     const cb = vi.fn();
@@ -11,7 +10,6 @@ describe("useKeyPress", () => {
     });
     expect(cb).toHaveBeenCalledTimes(1);
   });
-
   it("ignores non-matching keys", () => {
     const cb = vi.fn();
     renderHook(() => useKeyPress("Escape", cb));
@@ -20,7 +18,6 @@ describe("useKeyPress", () => {
     });
     expect(cb).not.toHaveBeenCalled();
   });
-
   it("uses latest callback without re-binding", () => {
     const cb1 = vi.fn();
     const cb2 = vi.fn();

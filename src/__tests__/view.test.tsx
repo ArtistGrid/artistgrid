@@ -5,7 +5,6 @@ import TrackerViewPage from "@/src/pages/View";
 import { PlayerProvider } from "@/src/providers";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { clearCache } from "@/src/lib/tracker-cache";
-
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();
@@ -17,17 +16,21 @@ beforeAll(() => {
     Object.defineProperty(this, "open", { value: false, configurable: true });
   });
 });
-
 const TAB = { name: "Custom View", slug: "custom", gid: "" };
 const V3 = {
   name: "Test Artist",
   tab: TAB,
   tabs: [TAB],
-  eras: [{ name: "Era1", cover_art: "https://x.com/era1.jpg", tracks: [{ name: { raw: "T1", title: "T1" }, links: [{ url: "https://youtube.com/watch?v=1" }] }] }],
+  eras: [
+    {
+      name: "Era1",
+      cover_art: "https://x.com/era1.jpg",
+      tracks: [{ name: { raw: "T1", title: "T1" }, links: [{ url: "https://youtube.com/watch?v=1" }] }],
+    },
+  ],
   era_dates: [],
   credits: "",
 };
-
 function mockFetch(body: unknown, ok = true) {
   globalThis.fetch = vi.fn().mockResolvedValue({
     ok,
@@ -37,7 +40,6 @@ function mockFetch(body: unknown, ok = true) {
     clone: () => ({ ok, status: ok ? 200 : 500, text: async () => JSON.stringify(body) }),
   }) as unknown as typeof fetch;
 }
-
 function wrap(ui: React.ReactNode) {
   return (
     <MemoryRouter>
@@ -47,7 +49,6 @@ function wrap(ui: React.ReactNode) {
     </MemoryRouter>
   );
 }
-
 describe("TrackerViewPage", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -55,20 +56,17 @@ describe("TrackerViewPage", () => {
     clearCache(undefined);
     mockFetch(V3);
   });
-
   it("loads and renders eras", async () => {
     render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
     await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
     expect(screen.getByText(/songs?/)).toBeInTheDocument();
   });
-
   it("expands an era and renders its track", async () => {
     render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
     await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Era1"));
     await waitFor(() => expect(screen.getByText("T1")).toBeInTheDocument());
   });
-
   it("shows the loading skeleton before data arrives", async () => {
     let resolveFetch: (v: unknown) => void = () => {};
     globalThis.fetch = vi.fn().mockReturnValue(
@@ -89,13 +87,11 @@ describe("TrackerViewPage", () => {
     });
     await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());
   });
-
   it("shows an error state when the fetch fails", async () => {
     mockFetch({ error: "boom" }, false);
     render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
     await waitFor(() => expect(screen.getByText(/Unable to Load Tracker/i)).toBeInTheDocument(), { timeout: 2000 });
   });
-
   it("filters tracks by the search query", async () => {
     render(wrap(<TrackerViewPage trackerId="abc123def456ghi789jklmno" />));
     await waitFor(() => expect(screen.getByText("Era1")).toBeInTheDocument());

@@ -1,5 +1,4 @@
 let attempted = false;
-
 const STALE_PATTERNS = [
   "is not a valid JavaScript MIME type",
   "Failed to fetch dynamically imported module",
@@ -8,11 +7,9 @@ const STALE_PATTERNS = [
   "error loading dynamically imported module",
   /Loading chunk [\d]+ failed/,
 ];
-
 function isStaleAssetError(message: string): boolean {
   return STALE_PATTERNS.some((p) => (typeof p === "string" ? message.includes(p) : p.test(message)));
 }
-
 export function reloadOnStaleError(message: string): boolean {
   if (!isStaleAssetError(message) || attempted) return false;
   attempted = true;
@@ -21,17 +18,9 @@ export function reloadOnStaleError(message: string): boolean {
   }
   return true;
 }
-
 let cacheCleared = false;
-
-const STALE_LOCAL_STORAGE_KEYS = [
-  "artistGridCsvCache_remote",
-  "artistGridCsvCache_local",
-  "artistgrid-search",
-];
-
+const STALE_LOCAL_STORAGE_KEYS = ["artistGridCsvCache_remote", "artistGridCsvCache_local", "artistgrid-search"];
 const PRESERVED_IDB_DBS = new Set(["artistgrid-cache"]);
-
 export async function clearCacheAndReload(): Promise<void> {
   if (cacheCleared) return;
   cacheCleared = true;
@@ -58,12 +47,11 @@ export async function clearCacheAndReload(): Promise<void> {
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
             req.onblocked = () => resolve();
-          }),
+          })
         );
       }
       await Promise.all(deletions);
     }
-  } catch {
-  }
+  } catch {}
   window.location.reload();
 }

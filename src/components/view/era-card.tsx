@@ -1,14 +1,174 @@
-import { memo } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, MoreHorizontal, Heart, FolderDown } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import { getAllTrackUrls } from "@/src/lib/track-utils";
 import { TrackRow } from "@/src/components/view/track-row";
 import { useImageProxy } from "@/src/hooks/use-image-proxy";
+import { useResolvedImage } from "@/src/hooks/use-image-resolve";
 import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
-
+const VIRTUALIZE_THRESHOLD = 200;
+type VirtualRow =
+  | {
+      kind: "header";
+      cat: string;
+    }
+  | {
+      kind: "track";
+      cat: string;
+      track: TALeak;
+      idx: number;
+    };
+interface VirtualEraTracksProps {
+  era: Era;
+  eraKey: string;
+  resolvedUrls: Map<string, string | null>;
+  computeTrackState: (t: TALeak) => {
+    url: string | null;
+    source: TrackSource;
+    isPlayable: boolean;
+    isCurrentlyPlaying: boolean;
+    isCurrentTrack: boolean;
+    isHighlighted: boolean;
+    description: string | undefined;
+    shouldShowSource: boolean;
+    playableUrl: string | null;
+  };
+  handlePlayTrack: (t: TALeak, era: Era) => void;
+  handleOpenUrl: (url: string) => void;
+  handleShareTrack: (url: string, name: string) => void;
+  handlePlayNext: (t: TALeak, era: Era) => void;
+  handleAddToQueue: (t: TALeak, era: Era) => void;
+  handleDownload: (t: TALeak) => void;
+  handleToggleFavourite: (url: string) => void;
+  handleOpenOriginal: (t: TALeak) => void;
+  favourites: string[];
+  highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
+  onDownloadCategory: (cat: string) => void;
+}
+function VirtualEraTracks({
+  era,
+  resolvedUrls,
+  computeTrackState,
+  handlePlayTrack,
+  handleOpenUrl,
+  handleShareTrack,
+  handlePlayNext,
+  handleAddToQueue,
+  handleDownload,
+  handleToggleFavourite,
+  handleOpenOriginal,
+  favourites,
+  highlightedTrackRef,
+  onDownloadCategory,
+}: VirtualEraTracksProps) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (parentRef.current) {
+        setScrollMargin(parentRef.current.getBoundingClientRect().top + window.scrollY);
+      }
+    };
+    measure();
+    const t = window.setTimeout(measure, 300);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  const rows = useMemo<VirtualRow[]>(() => {
+    const out: VirtualRow[] = [];
+    for (const [cat, tracks] of Object.entries(era.data ?? {})) {
+      if (!Array.isArray(tracks)) continue;
+      out.push({ kind: "header", cat });
+      tracks.forEach((track, idx) => out.push({ kind: "track", cat, track, idx }));
+    }
+    return out;
+  }, [era.data]);
+  const virtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: (i) => (rows[i].kind === "header" ? 44 : 60),
+    overscan: 12,
+    scrollMargin,
+  });
+  return (
+    <div ref={parentRef} className="rounded-xl pr-1">
+      <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+        {virtualizer.getVirtualItems().map((vRow) => {
+          const row = rows[vRow.index];
+          return (
+            <div
+              key={`${row.cat}-${vRow.index}`}
+              ref={virtualizer.measureElement}
+              data-index={vRow.index}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${vRow.start - scrollMargin}px)`,
+              }}
+            >
+              {row.kind === "header" ? (
+                (() => {
+                  const catTracks = (era.data?.[row.cat] ?? []) as TALeak[];
+                  const hasResolved = catTracks.some((t) => getAllTrackUrls(t).some((u) => !!resolvedUrls.get(u)));
+                  return (
+                    <div className="pt-3 pb-2 sm:pb-3 mb-1 border-b border-white/[0.08] flex items-center justify-between">
+                      <h4 className="text-xs sm:text-sm font-semibold text-white/50">
+                        {row.cat.toLowerCase() === "default" ? "" : row.cat}
+                      </h4>
+                      {hasResolved && row.cat.toLowerCase() !== "default" && (
+                        <button
+                          type="button"
+                          onClick={() => onDownloadCategory(row.cat)}
+                          aria-label={`Download ${row.cat}`}
+                          className="text-white/25 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
+                          title={`Download ${row.cat}`}
+                        >
+                          <FolderDown className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="py-1">
+                  <TrackRow
+                    track={row.track}
+                    era={era}
+                    computeTrackState={computeTrackState}
+                    handlePlayTrack={handlePlayTrack}
+                    handleOpenUrl={handleOpenUrl}
+                    handleShareTrack={handleShareTrack}
+                    handlePlayNext={handlePlayNext}
+                    handleAddToQueue={handleAddToQueue}
+                    handleDownload={handleDownload}
+                    handleToggleFavourite={handleToggleFavourite}
+                    handleOpenOriginal={handleOpenOriginal}
+                    favourites={favourites}
+                    highlightedTrackRef={highlightedTrackRef}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 export type EraCardTrackState = {
   url: string | null;
   source: TrackSource;
@@ -20,14 +180,12 @@ export type EraCardTrackState = {
   shouldShowSource: boolean;
   playableUrl: string | null;
 };
-
 interface EraCategoryHeaderProps {
   cat: string;
   tracks: TALeak[];
   resolvedUrls: Map<string, string | null>;
   onDownload: () => void;
 }
-
 function EraCategoryHeader({ cat, tracks, resolvedUrls, onDownload }: EraCategoryHeaderProps) {
   if (cat.toLowerCase() === "default") return null;
   const hasResolved = tracks.some((t) => getAllTrackUrls(t).some((u) => !!resolvedUrls.get(u)));
@@ -48,7 +206,6 @@ function EraCategoryHeader({ cat, tracks, resolvedUrls, onDownload }: EraCategor
     </div>
   );
 }
-
 export interface EraCardProps {
   eraKey: string;
   era: Era;
@@ -71,7 +228,6 @@ export interface EraCardProps {
   favourites: string[];
   highlightedTrackRef: React.RefObject<HTMLDivElement | null>;
 }
-
 export const EraCard = memo(function EraCard({
   eraKey,
   era,
@@ -95,6 +251,10 @@ export const EraCard = memo(function EraCard({
   highlightedTrackRef,
 }: EraCardProps) {
   const { proxyImageSrcSet } = useImageProxy();
+  const resolvedEraImage = useResolvedImage(era.image);
+  const eraTrackCount = era.data
+    ? Object.values(era.data).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
+    : 0;
   const eraPlayableCount = era.data
     ? Object.values(era.data)
         .flat()
@@ -103,7 +263,7 @@ export const EraCard = memo(function EraCard({
   return (
     <div
       key={eraKey}
-      className="rounded-2xl overflow-hidden border border-white/[0.1]"
+      className="cv-auto rounded-2xl overflow-hidden border border-white/[0.1]"
       style={{
         background: era.backgroundColor
           ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 82%)`
@@ -121,7 +281,7 @@ export const EraCard = memo(function EraCard({
         >
           {era.image ? (
             (() => {
-              const srcs = proxyImageSrcSet(era.image);
+              const srcs = proxyImageSrcSet(resolvedEraImage || era.image);
               return (
                 <picture>
                   <source type="image/jxl" srcSet={srcs.jxl} />
@@ -208,12 +368,11 @@ export const EraCard = memo(function EraCard({
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1"
-            >
+            <DropdownMenuContent align="end" className="w-48 glass-elevated border-0 rounded-2xl text-white/80 p-1">
               <DropdownMenuItem onClick={() => handleToggleEraFavourite(era)} className="cursor-pointer rounded-xl">
-                <Heart className={`w-4 h-4 mr-2 ${isEraFavourited(trackerId, era) ? "fill-current text-red-400" : ""}`} />
+                <Heart
+                  className={`w-4 h-4 mr-2 ${isEraFavourited(trackerId, era) ? "fill-current text-red-400" : ""}`}
+                />
                 {isEraFavourited(trackerId, era) ? "Unfavourite Era" : "Favourite Era"}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-neutral-800" />
@@ -244,12 +403,32 @@ export const EraCard = memo(function EraCard({
                 <div className="mb-3 px-1">
                   {era.era_dates.map((ed) => (
                     <p key={`${ed.date}-${ed.event}`} className="text-[10px] sm:text-xs text-white/55 mb-0.5 last:mb-0">
-                      {ed.date}{ed.event ? ` — ${ed.event}` : ""}
+                      {ed.date}
+                      {ed.event ? ` — ${ed.event}` : ""}
                     </p>
                   ))}
                 </div>
               )}
-              {era.data &&
+              {era.data && eraTrackCount > VIRTUALIZE_THRESHOLD ? (
+                <VirtualEraTracks
+                  era={era}
+                  eraKey={eraKey}
+                  resolvedUrls={resolvedUrls}
+                  computeTrackState={computeTrackState}
+                  handlePlayTrack={handlePlayTrack}
+                  handleOpenUrl={handleOpenUrl}
+                  handleShareTrack={handleShareTrack}
+                  handlePlayNext={handlePlayNext}
+                  handleAddToQueue={handleAddToQueue}
+                  handleDownload={handleDownload}
+                  handleToggleFavourite={handleToggleFavourite}
+                  handleOpenOriginal={handleOpenOriginal}
+                  favourites={favourites}
+                  highlightedTrackRef={highlightedTrackRef}
+                  onDownloadCategory={(cat) => downloadTracker(eraKey, cat)}
+                />
+              ) : (
+                era.data &&
                 Object.entries(era.data).map(([cat, tracks]) => (
                   <div key={cat} className="mb-4 sm:mb-5 last:mb-0">
                     <EraCategoryHeader
@@ -279,7 +458,8 @@ export const EraCard = memo(function EraCard({
                       ))}
                     </div>
                   </div>
-                ))}
+                ))
+              )}
             </div>
           </motion.div>
         )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Layers, Plus, Pencil, Trash2, Check } from "lucide-react";
+import { Layers, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,8 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { addCustomView, deleteCustomView, type CustomView } from "@/src/lib/custom-views";
-
+import { addCustomView, deleteCustomView, saveCustomViews, type CustomView } from "@/src/lib/custom-views";
 interface CustomViewManagerProps {
   trackerId: string;
   customViews: CustomView[];
@@ -20,7 +19,6 @@ interface CustomViewManagerProps {
   onSelect: (view: CustomView) => void;
   tabSlugs: Record<string, string>;
 }
-
 export function CustomViewManager({
   trackerId,
   customViews,
@@ -34,23 +32,19 @@ export function CustomViewManager({
   const [editingView, setEditingView] = useState<CustomView | null>(null);
   const [viewName, setViewName] = useState("");
   const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
-
   const allTabs = Object.keys(tabSlugs);
-
   const openCreate = () => {
     setEditingView(null);
     setViewName("");
     setSelectedTabs([]);
     setEditorOpen(true);
   };
-
   const openEdit = (view: CustomView) => {
     setEditingView(view);
     setViewName(view.name);
     setSelectedTabs([...view.tabs]);
     setEditorOpen(true);
   };
-
   const handleSave = () => {
     if (!viewName.trim() || selectedTabs.length === 0) return;
     if (editingView) {
@@ -58,9 +52,7 @@ export function CustomViewManager({
         v.id === editingView.id ? { ...v, name: viewName.trim(), tabs: selectedTabs } : v
       );
       setCustomViews(updated);
-      try {
-        localStorage.setItem(`artistgrid-custom-views_${trackerId}`, JSON.stringify(updated));
-      } catch {}
+      saveCustomViews(trackerId, updated);
       if (activeCustomView?.id === editingView.id) {
         onSelect({ ...editingView, name: viewName.trim(), tabs: selectedTabs });
       }
@@ -70,7 +62,6 @@ export function CustomViewManager({
     }
     setEditorOpen(false);
   };
-
   const handleDelete = (id: string) => {
     deleteCustomView(trackerId, id);
     setCustomViews(customViews.filter((v) => v.id !== id));
@@ -78,20 +69,22 @@ export function CustomViewManager({
       setActiveCustomView(null);
     }
   };
-
   const toggleTab = (tab: string) => {
-    setSelectedTabs((prev) =>
-      prev.includes(tab) ? prev.filter((t) => t !== tab) : [...prev, tab]
-    );
+    setSelectedTabs((prev) => (prev.includes(tab) ? prev.filter((t) => t !== tab) : [...prev, tab]));
   };
-
   if (editorOpen) {
     return (
       <div className="glass rounded-2xl p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-white">{editingView ? "Edit Custom View" : "New Custom View"}</h3>
-          <Button variant="ghost" size="sm" onClick={() => setEditorOpen(false)} className="text-white/40 hover:text-white h-7 w-7 p-0" aria-label="Close editor">
-            <Trash2 className="w-3.5 h-3.5" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditorOpen(false)}
+            className="text-white/40 hover:text-white h-7 w-7 p-0"
+            aria-label="Close editor"
+          >
+            <X className="w-3.5 h-3.5" />
           </Button>
         </div>
         <Input
@@ -114,9 +107,9 @@ export function CustomViewManager({
                     : "text-white/50 hover:bg-white/[0.05] hover:text-white/70"
                 }`}
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                  selectedTabs.includes(tab) ? "bg-white border-white" : "border-white/20"
-                }`}>
+                <div
+                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTabs.includes(tab) ? "bg-white border-white" : "border-white/20"}`}
+                >
                   {selectedTabs.includes(tab) && <Check className="w-3 h-3 text-black" />}
                 </div>
                 {tab}
@@ -125,7 +118,12 @@ export function CustomViewManager({
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="ghost" size="sm" onClick={() => setEditorOpen(false)} className="text-white/40 hover:text-white">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditorOpen(false)}
+            className="text-white/40 hover:text-white"
+          >
             Cancel
           </Button>
           <Button
@@ -140,15 +138,12 @@ export function CustomViewManager({
       </div>
     );
   }
-
   if (customViews.length === 0) {
     return (
       <div className="text-center py-12 sm:py-20 flex flex-col items-center">
         <Layers className="w-12 h-12 sm:w-16 sm:h-16 text-neutral-700 mb-3 sm:mb-4" />
         <h3 className="text-base sm:text-lg font-medium text-neutral-300">No Custom Views</h3>
-        <p className="text-sm sm:text-base text-neutral-500 mt-1 mb-4">
-          Combine multiple tabs into a single view
-        </p>
+        <p className="text-sm sm:text-base text-neutral-500 mt-1 mb-4">Combine multiple tabs into a single view</p>
         <Button variant="ghost" size="sm" onClick={openCreate} className="text-white/50 hover:text-white">
           <Plus className="w-4 h-4 mr-1.5" />
           Create Custom View
@@ -156,7 +151,6 @@ export function CustomViewManager({
       </div>
     );
   }
-
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -165,7 +159,12 @@ export function CustomViewManager({
             <span className="text-sm text-white/60 font-medium">{activeCustomView.name}</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white/30 hover:text-white h-7 px-2" aria-label="Edit view picker">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white/30 hover:text-white h-7 px-2"
+                  aria-label="Edit view picker"
+                >
                   <Pencil className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -185,7 +184,10 @@ export function CustomViewManager({
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 p-0 hover:text-white"
-                        onClick={(e) => { e.stopPropagation(); openEdit(v); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(v);
+                        }}
                         aria-label={`Edit ${v.name}`}
                       >
                         <Pencil className="w-3 h-3" />
@@ -194,7 +196,10 @@ export function CustomViewManager({
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 p-0 hover:text-red-400"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(v.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(v.id);
+                        }}
                         aria-label={`Delete ${v.name}`}
                       >
                         <Trash2 className="w-3 h-3" />

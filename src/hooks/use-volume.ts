@@ -1,9 +1,7 @@
 import { useCallback, useState } from "react";
-
 export function useVolume(volume: number, setVolume: (v: number) => void) {
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(volume);
-
   const handleVolumeToggle = useCallback(() => {
     if (isMuted || volume === 0) {
       const restore = prevVolume || 0.7;
@@ -15,7 +13,6 @@ export function useVolume(volume: number, setVolume: (v: number) => void) {
       setIsMuted(true);
     }
   }, [isMuted, prevVolume, volume, setVolume]);
-
   const handleVolumeChange = useCallback(
     (v: number) => {
       setVolume(v);
@@ -23,6 +20,5 @@ export function useVolume(volume: number, setVolume: (v: number) => void) {
     },
     [setVolume]
   );
-
   return { isMuted, setIsMuted, handleVolumeToggle, handleVolumeChange };
 }

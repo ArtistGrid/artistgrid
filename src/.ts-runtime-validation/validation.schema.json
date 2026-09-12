@@ -1,0 +1,334 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+        "V3Era": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "aka": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timeline": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "cover_art": {
+                    "type": "string"
+                },
+                "era_logo": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "text_color": {
+                    "type": "string"
+                },
+                "font": {
+                    "type": "string"
+                },
+                "font_family": {
+                    "type": "string"
+                },
+                "tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/V3Track"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "tracks"
+            ]
+        },
+        "V3EraDate": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "era": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "date",
+                "event",
+                "era"
+            ]
+        },
+        "V3FlatTrack": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/V3TrackName"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "track_length": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "file_date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "leak_date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "available_length": {
+                    "type": "string"
+                },
+                "quality": {
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "url"
+                        ]
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "sub_era": {
+                    "type": "string"
+                },
+                "art_used": {
+                    "type": "boolean"
+                },
+                "era": {
+                    "type": "string"
+                },
+                "era_color": {
+                    "type": "string"
+                },
+                "era_text_color": {
+                    "type": "string"
+                },
+                "era_font": {
+                    "type": "string"
+                },
+                "font_family": {
+                    "type": "string"
+                },
+                "og_filename": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "era",
+                "name"
+            ]
+        },
+        "V3Response": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "tab": {
+                    "$ref": "#/definitions/V3Tab"
+                },
+                "tabs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/V3Tab"
+                    }
+                },
+                "eras": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/V3Era"
+                    }
+                },
+                "tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/V3FlatTrack"
+                    }
+                },
+                "era_dates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/V3EraDate"
+                    }
+                },
+                "credits": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "discord": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "last_updated": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "tab",
+                "tabs"
+            ]
+        },
+        "V3Tab": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "gid": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "slug",
+                "gid"
+            ]
+        },
+        "V3Track": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/V3TrackName"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "track_length": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "file_date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "leak_date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "available_length": {
+                    "type": "string"
+                },
+                "quality": {
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "url"
+                        ]
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "sub_era": {
+                    "type": "string"
+                },
+                "art_used": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        },
+        "V3TrackName": {
+            "type": "object",
+            "properties": {
+                "raw": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "credits": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "raw",
+                "title",
+                "credits"
+            ]
+        }
+    }
+}

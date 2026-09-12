@@ -1,182 +1,179 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GlobalPlayer } from "@/components/global-player";
 import { SettingsProvider } from "@/src/hooks/use-settings";
 import { PlayerProvider, usePlayer } from "@/src/providers";
 import type { Track } from "@/src/types";
-
 vi.mock("@kawarp/core", () => ({
-	Kawarp: class {
-		resize() {}
-		start() {}
-		stop() {}
-		loadImage() {
-			return Promise.resolve();
-		}
-	},
+  Kawarp: class {
+    resize() {}
+    start() {}
+    stop() {}
+    loadImage() {
+      return Promise.resolve();
+    }
+  },
 }));
-
 beforeAll(() => {
-	window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
-	window.HTMLMediaElement.prototype.pause = vi.fn();
-	window.HTMLMediaElement.prototype.load = vi.fn();
-	Object.defineProperty(window, "mediaSession", {
-		configurable: true,
-		value: { setActionHandler: vi.fn(), metadata: null, playbackState: "none" },
-	});
+  window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+  window.HTMLMediaElement.prototype.pause = vi.fn();
+  window.HTMLMediaElement.prototype.load = vi.fn();
+  Object.defineProperty(window, "mediaSession", {
+    configurable: true,
+    value: { setActionHandler: vi.fn(), metadata: null, playbackState: "none" },
+  });
 });
-
 const track = (id: string, url: string): Track => ({
-	id,
-	name: `Track ${id}`,
-	extra: "",
-	playableUrl: url,
-	url,
-	source: "youtube",
-	artistName: "Artist",
-	eraName: "Era",
+  id,
+  name: `Track ${id}`,
+  extra: "",
+  playableUrl: url,
+  url,
+  source: "youtube",
+  artistName: "Artist",
+  eraName: "Era",
 });
-
 function Helper() {
-	const { playTrack, addToQueue } = usePlayer();
-	return (
-		<>
-			<button
-				type="button"
-				onClick={() => playTrack(track("1", "https://x.com/1.mp3"))}
-			>
-				play
-			</button>
-			<button
-				type="button"
-				onClick={() => addToQueue(track("2", "https://x.com/2.mp3"))}
-			>
-				queue2
-			</button>
-			<button
-				type="button"
-				onClick={() => addToQueue(track("3", "https://x.com/3.mp3"))}
-			>
-				queue3
-			</button>
-		</>
-	);
+  const { playTrack, addToQueue } = usePlayer();
+  return (
+    <>
+      <button type="button" onClick={() => playTrack(track("1", "https://x.com/1.mp3"))}>
+        play
+      </button>
+      <button type="button" onClick={() => addToQueue(track("2", "https://x.com/2.mp3"))}>
+        queue2
+      </button>
+      <button type="button" onClick={() => addToQueue(track("3", "https://x.com/3.mp3"))}>
+        queue3
+      </button>
+    </>
+  );
 }
-
 function wrap(ui: React.ReactNode) {
-	return (
-		<SettingsProvider>
-			<PlayerProvider>{ui}</PlayerProvider>
-		</SettingsProvider>
-	);
+  return (
+    <SettingsProvider>
+      <PlayerProvider>{ui}</PlayerProvider>
+    </SettingsProvider>
+  );
 }
-
 describe("GlobalPlayer", () => {
-	it("renders nothing when no current track", () => {
-		const { container } = render(wrap(<GlobalPlayer />));
-		expect(container.firstChild).toBeNull();
-	});
-
-	it("renders player UI when a track is playing", async () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		await new Promise((r) => setTimeout(r, 50));
-		expect(screen.getByLabelText("Close player")).toBeInTheDocument();
-	});
-
-	it("closes player", () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		const close = screen.getByLabelText("Close player");
-		fireEvent.click(close);
-		expect(screen.queryByLabelText("Close player")).toBeNull();
-	});
-
-	it("opens the queue modal and plays a track from the queue", async () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		act(() => screen.getByText("queue2").click());
-		act(() => screen.getByText("queue3").click());
-		fireEvent.click(screen.getByLabelText("Queue"));
-		expect(screen.getByLabelText("Close queue")).toBeInTheDocument();
-		expect(screen.getByText("Track 2")).toBeInTheDocument();
-		const row = screen
-			.getByText("Track 2")
-			.closest("div[draggable]") as HTMLElement;
-		const playBtn = within(row).getAllByRole("button")[0];
-		fireEvent.click(playBtn);
-		expect(screen.queryByLabelText("Close queue")).toBeNull();
-	});
-
-	it("removes a track from the queue", async () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		act(() => screen.getByText("queue2").click());
-		fireEvent.click(screen.getByLabelText("Queue"));
-		const row = screen
-			.getByText("Track 2")
-			.closest("div[draggable]") as HTMLElement;
-		const removeBtn = within(row).getAllByRole("button")[1];
-		fireEvent.click(removeBtn);
-		expect(screen.queryByText("Track 2")).toBeNull();
-	});
-
-	it("toggles the lyrics panel", async () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		const lyricsBtn = screen.getByLabelText("Lyrics");
-		fireEvent.click(lyricsBtn);
-		expect(screen.getByText("Lyrics")).toBeInTheDocument();
-	});
-
-	it("toggles shuffle and repeat", async () => {
-		render(
-			wrap(
-				<>
-					<Helper />
-					<GlobalPlayer />
-				</>,
-			),
-		);
-		act(() => screen.getByText("play").click());
-		fireEvent.click(screen.getByLabelText("Shuffle"));
-		fireEvent.click(screen.getByLabelText(/Repeat/));
-		fireEvent.click(screen.getByLabelText(/Repeat/));
-		expect(screen.getByLabelText(/Repeat/)).toBeInTheDocument();
-	});
+  it("renders nothing when no current track", () => {
+    const { container } = render(wrap(<GlobalPlayer />));
+    expect(container.firstChild).toBeNull();
+  });
+  it("renders player UI when a track is playing", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByLabelText("Close player")).toBeInTheDocument();
+  });
+  it("closes player", () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    const close = screen.getByLabelText("Close player");
+    fireEvent.click(close);
+    expect(screen.queryByLabelText("Close player")).toBeNull();
+  });
+  it("opens the queue modal and plays a track from the queue", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    act(() => screen.getByText("queue2").click());
+    act(() => screen.getByText("queue3").click());
+    fireEvent.click(screen.getByLabelText("Queue"));
+    expect(screen.getByLabelText("Close queue")).toBeInTheDocument();
+    expect(screen.getByText("Track 2")).toBeInTheDocument();
+    const row = screen.getByText("Track 2").closest("div[draggable]") as HTMLElement;
+    const playBtn = within(row).getAllByRole("button")[0];
+    fireEvent.click(playBtn);
+    await waitFor(() => expect(screen.queryByLabelText("Close queue")).toBeNull(), { timeout: 2000 });
+  });
+  it("reorders the queue with Alt+Arrow keys", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    act(() => screen.getByText("queue2").click());
+    act(() => screen.getByText("queue3").click());
+    fireEvent.click(screen.getByLabelText("Queue"));
+    const rows = screen.getAllByLabelText(/Queue item/);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Track 2");
+    fireEvent.keyDown(rows[1], { key: "ArrowUp", altKey: true });
+    const reordered = screen.getAllByLabelText(/Queue item/);
+    expect(reordered[0]).toHaveTextContent("Track 3");
+    fireEvent.keyDown(reordered[0], { key: "ArrowDown", altKey: true });
+    expect(screen.getAllByLabelText(/Queue item/)[0]).toHaveTextContent("Track 2");
+  });
+  it("removes a track from the queue", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    act(() => screen.getByText("queue2").click());
+    fireEvent.click(screen.getByLabelText("Queue"));
+    const row = screen.getByText("Track 2").closest("div[draggable]") as HTMLElement;
+    const removeBtn = within(row).getAllByRole("button")[1];
+    fireEvent.click(removeBtn);
+    expect(screen.queryByText("Track 2")).toBeNull();
+  });
+  it("toggles the lyrics panel", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    const lyricsBtn = screen.getByLabelText("Lyrics");
+    fireEvent.click(lyricsBtn);
+    expect(screen.getByText("Lyrics")).toBeInTheDocument();
+  });
+  it("toggles shuffle and repeat", async () => {
+    render(
+      wrap(
+        <>
+          <Helper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("play").click());
+    fireEvent.click(screen.getByLabelText("Shuffle"));
+    fireEvent.click(screen.getByLabelText(/Repeat/));
+    fireEvent.click(screen.getByLabelText(/Repeat/));
+    expect(screen.getByLabelText(/Repeat/)).toBeInTheDocument();
+  });
 });

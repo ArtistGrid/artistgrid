@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/settings";
-
 describe("loadSettings", () => {
   beforeEach(() => {
     localStorage.clear();
   });
-
   it("returns defaults when nothing stored", () => {
     const settings = loadSettings();
     expect(settings).toEqual(DEFAULT_SETTINGS);
   });
-
   it("merges stored settings with defaults", () => {
     const partial = JSON.stringify({
       lyrics: { syncedOnly: true },
@@ -21,18 +18,50 @@ describe("loadSettings", () => {
     expect(settings.lyrics.alignment).toBe(DEFAULT_SETTINGS.lyrics.alignment);
     expect(settings.downloads).toEqual(DEFAULT_SETTINGS.downloads);
   });
-
   it("returns defaults for invalid JSON", () => {
     localStorage.setItem("artistgrid-settings:v1", "bad-json");
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
+  it("falls back to defaults for non-object payloads", () => {
+    localStorage.setItem("artistgrid-settings:v1", JSON.stringify("just a string"));
+    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+    localStorage.setItem("artistgrid-settings:v1", "[1,2,3]");
+    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+  it("ignores corrupted sections while keeping valid ones", () => {
+    localStorage.setItem(
+      "artistgrid-settings:v1",
+      JSON.stringify({
+        lyrics: "corrupted",
+        player: { showAlbumArt: false },
+      })
+    );
+    const settings = loadSettings();
+    expect(settings.lyrics).toEqual(DEFAULT_SETTINGS.lyrics);
+    expect(settings.player.showAlbumArt).toBe(false);
+    expect(settings.player.startupShuffle).toBe(DEFAULT_SETTINGS.player.startupShuffle);
+  });
+  it("ignores corrupted scrobbling subsections", () => {
+    localStorage.setItem(
+      "artistgrid-settings:v1",
+      JSON.stringify({
+        scrobbling: { lastfm: "corrupt", listenbrainz: { token: "tok" } },
+      })
+    );
+    const settings = loadSettings();
+    expect(settings.scrobbling.lastfm).toEqual(DEFAULT_SETTINGS.scrobbling.lastfm);
+    expect(settings.scrobbling.listenbrainz.token).toBe("tok");
+    expect(settings.scrobbling.listenbrainz.apiUrl).toBe(DEFAULT_SETTINGS.scrobbling.listenbrainz.apiUrl);
+  });
+  it("rejects a non-string font value", () => {
+    localStorage.setItem("artistgrid-settings:v1", JSON.stringify({ font: 42 }));
+    expect(loadSettings().font).toBe(DEFAULT_SETTINGS.font);
+  });
 });
-
 describe("saveSettings", () => {
   beforeEach(() => {
     localStorage.clear();
   });
-
   it("persists settings to localStorage", () => {
     const settings = { ...DEFAULT_SETTINGS, lyrics: { ...DEFAULT_SETTINGS.lyrics, syncedOnly: true } };
     saveSettings(settings);
@@ -40,7 +69,6 @@ describe("saveSettings", () => {
     expect(stored.lyrics.syncedOnly).toBe(true);
   });
 });
-
 describe("DEFAULT_SETTINGS", () => {
   it("has expected structure", () => {
     expect(DEFAULT_SETTINGS).toHaveProperty("lyrics");
@@ -49,7 +77,6 @@ describe("DEFAULT_SETTINGS", () => {
     expect(DEFAULT_SETTINGS).toHaveProperty("behavior");
     expect(DEFAULT_SETTINGS).toHaveProperty("font");
   });
-
   it("has reasonable defaults", () => {
     expect(DEFAULT_SETTINGS.player.startupShuffle).toBe(false);
     expect(DEFAULT_SETTINGS.behavior.openInNewTab).toBe(true);
