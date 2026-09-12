@@ -37,7 +37,6 @@ export interface Settings {
     openInNewTab: boolean;
     sheetsHtmlview: boolean;
     showEmojis: boolean;
-    useImageProxy: boolean;
   };
   font: string;
 }
@@ -78,7 +77,6 @@ export const DEFAULT_SETTINGS: Settings = {
     openInNewTab: true,
     sheetsHtmlview: false,
     showEmojis: true,
-    useImageProxy: false,
   },
   font: "IBM Plex Sans",
 };

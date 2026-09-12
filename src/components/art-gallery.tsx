@@ -4,7 +4,6 @@ import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyPress } from "@/src/hooks/use-key-press";
 import type { Era, TALeak } from "@/src/types";
-import { useImageProxy } from "@/src/hooks/use-image-proxy";
 import { useResolvedImage } from "@/src/hooks/use-image-resolve";
 import { syncImageUrl } from "@/src/lib/image-resolve";
 
@@ -35,25 +34,19 @@ function ArtImage({
   clickable?: boolean;
 }) {
   const resolved = useResolvedImage(src);
-  const { proxyImageSrcSet } = useImageProxy();
-  const proxied = resolved ? proxyImageSrcSet(resolved) : null;
-  if (!proxied) {
+  if (!resolved) {
     return <div className={`${className ?? ""} bg-white/[0.05]`} />;
   }
   return (
-    <picture>
-      <source type="image/jxl" srcSet={proxied.jxl} />
-      <source type="image/webp" srcSet={proxied.webp} />
-      <img
-        src={proxied.original}
-        alt={alt}
-        className={`${className ?? ""} ${clickable ? "transition-transform duration-300 group-hover:scale-105" : ""}`}
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
-        crossOrigin="anonymous"
-      />
-    </picture>
+    <img
+      src={resolved}
+      alt={alt}
+      className={`${className ?? ""} ${clickable ? "transition-transform duration-300 group-hover:scale-105" : ""}`}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
+    />
   );
 }
 export function ArtGallery({
@@ -196,8 +189,7 @@ export function ImageLightbox({
 }) {
   useKeyPress("Escape", onClose);
   const resolved = useResolvedImage(src);
-  const { proxyImageSrcSet } = useImageProxy();
-  const srcs = proxyImageSrcSet(resolved || src);
+  const displaySrc = resolved || src;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4"
@@ -220,18 +212,14 @@ export function ImageLightbox({
           onClick={() => window.open(originalUrl, "_blank", "noopener,noreferrer")}
           title="Click to open original"
         >
-          <picture>
-            <source type="image/jxl" srcSet={srcs.jxl} />
-            <source type="image/webp" srcSet={srcs.webp} />
-            <img
-              src={srcs.original}
-              alt={alt}
-              className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              decoding="async"
-            />
-          </picture>
+          <img
+            src={displaySrc}
+            alt={alt}
+            className="max-w-full max-h-[80vh] object-contain rounded-2xl cursor-pointer hover:opacity-90 transition-opacity shadow-2xl"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            decoding="async"
+          />
         </button>
         {description && <p className="mt-3 text-sm text-white/60 text-center max-w-lg">{description}</p>}
         <Button

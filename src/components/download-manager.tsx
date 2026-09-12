@@ -620,10 +620,12 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           creatingZipsRef.current!.delete(job.id);
         } catch (error) {
           logError("ZIP creation failed:", error);
-          setJobs((prev) =>
-            prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
-          );
-          creatingZipsRef.current!.delete(job.id);
+          try {
+            setJobs((prev) =>
+              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+            );
+          } catch {}
+          creatingZipsRef.current?.delete(job.id);
         }
       }
     } finally {

@@ -7,12 +7,22 @@ export function extractIbbId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+export function toWsrvUrl(url: string): string {
+  if (url.startsWith("https://wsrv.nl/?url=")) return url;
+  return `https://wsrv.nl/?url=${url}`;
+}
+
 // Synchronous best-effort resolution, used as the initial value before the
 // async oEmbed lookup resolves (and as the fallback when the lookup fails).
 export function syncImageUrl(url: string): string | null {
+  if (url.startsWith("https://wsrv.nl/?url=")) return url;
   if (url.includes("ibb.co")) {
+    if (url.includes("i.ibb.co") && /\.(jpg|jpeg|png|gif|webp)$/i.test(url)) {
+      return toWsrvUrl(url);
+    }
     const id = extractIbbId(url);
-    if (id) return `https://i.ibb.co/${id}/image.jpg`;
+    if (id) return toWsrvUrl(`https://i.ibb.co/${id}/image.jpg`);
+    return toWsrvUrl(url);
   }
   if (url.includes("imgur.com") || url.includes("i.imgur.com")) {
     const m = url.match(IMGUR_HINT_RE);
@@ -33,7 +43,7 @@ async function resolveIbb(id: string): Promise<string | null> {
   if (existing) return existing;
 
   const run = async (): Promise<string | null> => {
-    const fallback = `https://i.ibb.co/${id}/image.jpg`;
+    const fallback = toWsrvUrl(`https://i.ibb.co/${id}/image.jpg`);
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 6000);
@@ -47,7 +57,7 @@ async function resolveIbb(id: string): Promise<string | null> {
         (typeof json.full_url === "string" && json.full_url) ||
         (typeof json.thumbnail_url === "string" && json.thumbnail_url) ||
         (typeof json.image === "string" && json.image);
-      return full ? (full as string) : fallback;
+      return full ? toWsrvUrl(full as string) : fallback;
     } catch {
       return fallback;
     }
@@ -64,9 +74,14 @@ async function resolveIbb(id: string): Promise<string | null> {
 
 export async function resolveImageUrl(url: string): Promise<string | null> {
   if (!url) return null;
+  if (url.startsWith("https://wsrv.nl/?url=")) return url;
   if (url.includes("ibb.co")) {
+    if (url.includes("i.ibb.co") && /\.(jpg|jpeg|png|gif|webp)$/i.test(url)) {
+      return toWsrvUrl(url);
+    }
     const id = extractIbbId(url);
     if (id) return resolveIbb(id);
+    return toWsrvUrl(url);
   }
   if (url.includes("imgur.com") || url.includes("i.imgur.com")) {
     const m = url.match(IMGUR_HINT_RE);

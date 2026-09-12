@@ -80,6 +80,9 @@ export async function mockSite(page: Page): Promise<void> {
   await page.route("**://assets.artistgrid.cx/**", (route) =>
     route.fulfill({ status: 200, contentType: "image/svg+xml", body: PLACEHOLDER_SVG })
   );
+  await page.route("**://wsrv.nl/**", (route) =>
+    route.fulfill({ status: 200, contentType: "image/svg+xml", body: PLACEHOLDER_SVG })
+  );
 }
 
 export async function dismissAnnouncement(page: Page): Promise<void> {

@@ -10,12 +10,12 @@ describe("useSettings", () => {
   });
   it("loads settings and updates a section", () => {
     localStorage.clear();
-    saveSettings({ ...DEFAULT_SETTINGS, behavior: { ...DEFAULT_SETTINGS.behavior, useImageProxy: false } });
+    saveSettings({ ...DEFAULT_SETTINGS, behavior: { ...DEFAULT_SETTINGS.behavior, rememberSearch: false } });
     const wrapper = ({ children }: { children: React.ReactNode }) => <SettingsProvider>{children}</SettingsProvider>;
     const { result } = renderHook(() => useSettings(), { wrapper });
-    expect(result.current.settings.behavior.useImageProxy).toBe(false);
-    act(() => result.current.update("behavior", "useImageProxy", true));
-    expect(result.current.settings.behavior.useImageProxy).toBe(true);
+    expect(result.current.settings.behavior.rememberSearch).toBe(false);
+    act(() => result.current.update("behavior", "rememberSearch", true));
+    expect(result.current.settings.behavior.rememberSearch).toBe(true);
   });
   it("persists updates to localStorage", () => {
     localStorage.clear();

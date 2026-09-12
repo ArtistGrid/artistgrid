@@ -11,7 +11,6 @@ import {
   TrackItemActions,
 } from "@/src/components/view/track-item";
 import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
-import { useImageProxy } from "@/src/hooks/use-image-proxy";
 import { useResolvedImage } from "@/src/hooks/use-image-resolve";
 export interface FlatTrackCardProps {
   t: TALeak;
@@ -57,7 +56,6 @@ export function FlatTrackCard({
   clearQueue,
   playTrack,
 }: FlatTrackCardProps) {
-  const { proxyImageUrl } = useImageProxy();
   const resolvedImage = useResolvedImage(t.image);
   return (
     <>
@@ -73,7 +71,7 @@ export function FlatTrackCard({
         )}
         {t.image && resolvedImage && (
           <img
-            src={proxyImageUrl(resolvedImage)}
+            src={resolvedImage}
             alt=""
             aria-hidden="true"
             className="w-10 h-10 rounded-lg object-cover flex-shrink-0 hidden sm:block"

@@ -66,6 +66,7 @@ import {
 } from "@/src/lib/favourites";
 import { getCustomViews, type CustomView } from "@/src/lib/custom-views";
 import { mergeTabData } from "@/src/lib/merge-tab-data";
+import { syncImageUrl } from "@/src/lib/image-resolve";
 import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
 import { FallbackView, type FilterOptions, type PlayableTrackData } from "@/src/components/view/track-item";
 import { CustomViewManager } from "@/src/components/view/custom-view-manager";
@@ -202,9 +203,9 @@ function TrackerViewContent({
   });
   const getEraImage = useCallback(
     (era: Era): string | undefined => {
-      if (era.image) return era.image;
-      if (era.name && baseEraImages[era.name]) return baseEraImages[era.name];
-      return undefined;
+      const raw = era.image || (era.name && baseEraImages[era.name]) || undefined;
+      if (!raw) return undefined;
+      return syncImageUrl(raw) || raw;
     },
     [baseEraImages]
   );

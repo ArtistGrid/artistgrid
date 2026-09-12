@@ -4,7 +4,6 @@ import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from
 import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
 import { safeSetItem } from "@/src/lib/storage";
-import { proxyImageUrl } from "@/src/lib/image-proxy";
 import { stripEmojis } from "@/lib/utils";
 import {
   addToQueue as addTrackToQueue,
@@ -140,7 +139,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
       const artwork: MediaImage[] = [];
       if (track.eraImage) {
-        artwork.push({ src: proxyImageUrl(track.eraImage), sizes: "512x512", type: "image/jpeg" });
+        artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
       }
       navigator.mediaSession.metadata = new MediaMetadata({
         title,
@@ -448,7 +447,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               Notification.permission === "granted"
             ) {
               const artist = next.artistName || next.eraName || "Unknown";
-              notify(next.name, { body: artist, icon: next.eraImage ? proxyImageUrl(next.eraImage) : undefined });
+              notify(next.name, { body: artist, icon: next.eraImage || undefined });
             }
             try {
               const raw = localStorage.getItem("artistgrid-history:v1");
@@ -529,7 +528,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         Notification.permission === "granted"
       ) {
         const artist = track.artistName || track.eraName || "Unknown";
-        notify(track.name, { body: artist, icon: track.eraImage ? proxyImageUrl(track.eraImage) : undefined });
+        notify(track.name, { body: artist, icon: track.eraImage || undefined });
       }
       try {
         const raw = localStorage.getItem("artistgrid-history:v1");

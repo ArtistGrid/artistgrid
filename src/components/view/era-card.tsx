@@ -13,7 +13,6 @@ import { ChevronDown, MoreHorizontal, Heart, FolderDown } from "lucide-react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import { getAllTrackUrls } from "@/src/lib/track-utils";
 import { TrackRow } from "@/src/components/view/track-row";
-import { useImageProxy } from "@/src/hooks/use-image-proxy";
 import { useResolvedImage } from "@/src/hooks/use-image-resolve";
 import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
 const VIRTUALIZE_THRESHOLD = 200;
@@ -250,8 +249,8 @@ export const EraCard = memo(function EraCard({
   favourites,
   highlightedTrackRef,
 }: EraCardProps) {
-  const { proxyImageSrcSet } = useImageProxy();
   const resolvedEraImage = useResolvedImage(era.image);
+  const resolvedEraLogo = useResolvedImage(era.eraLogo);
   const eraTrackCount = era.data
     ? Object.values(era.data).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
     : 0;
@@ -280,29 +279,20 @@ export const EraCard = memo(function EraCard({
           onClick={() => toggleEra(eraKey)}
         >
           {era.image ? (
-            (() => {
-              const srcs = proxyImageSrcSet(resolvedEraImage || era.image);
-              return (
-                <picture>
-                  <source type="image/jxl" srcSet={srcs.jxl} />
-                  <source type="image/webp" srcSet={srcs.webp} />
-                  <img
-                    src={srcs.original}
-                    alt={era.name}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
-                    loading="lazy"
-                    decoding="async"
-                    style={{
-                      background: era.backgroundColor
-                        ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
-                        : "rgba(255,255,255,0.07)",
-                    }}
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                  />
-                </picture>
-              );
-            })()
+            <img
+              src={resolvedEraImage || era.image}
+              alt={era.name}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain flex-shrink-0"
+              loading="lazy"
+              decoding="async"
+              style={{
+                background: era.backgroundColor
+                  ? `color-mix(in srgb, ${era.backgroundColor}, oklch(10% 0 0) 70%)`
+                  : "rgba(255,255,255,0.07)",
+              }}
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+            />
           ) : (
             <div
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex-shrink-0"
@@ -315,24 +305,15 @@ export const EraCard = memo(function EraCard({
           )}
           <div className="flex-1 min-w-0">
             {era.eraLogo ? (
-              (() => {
-                const srcs = proxyImageSrcSet(era.eraLogo);
-                return (
-                  <picture>
-                    <source type="image/jxl" srcSet={srcs.jxl} />
-                    <source type="image/webp" srcSet={srcs.webp} />
-                    <img
-                      src={srcs.original}
-                      alt={era.name}
-                      className="h-6 sm:h-7 max-w-full object-contain"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
-                    />
-                  </picture>
-                );
-              })()
+              <img
+                src={resolvedEraLogo || era.eraLogo}
+                alt={era.name}
+                className="h-6 sm:h-7 max-w-full object-contain"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+              />
             ) : (
               <h3
                 style={{

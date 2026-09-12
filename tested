@@ -25,7 +25,6 @@ src/hooks/use-key-press.ts
 src/hooks/use-local-storage.ts
 src/hooks/use-page-meta.ts
 src/hooks/use-settings.tsx
-src/hooks/use-image-proxy.ts
 src/hooks/use-tracker-data.ts
 src/lib/cache.ts
 src/lib/home-constants.ts
@@ -41,7 +40,6 @@ src/lib/custom-views.ts
 src/lib/settings.ts
 src/lib/merge-tab-data.ts
 src/lib/view-utils.ts
-src/lib/image-proxy.ts
 src/lib/logger.ts
 src/lib/player-queue.ts
 src/lib/api.ts
