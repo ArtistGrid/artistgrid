@@ -101,5 +101,9 @@ describe("TrackerViewPage", () => {
     expect((screen.getByPlaceholderText("Search tracks...") as HTMLInputElement).value).toBe("zzzznotfound");
     fireEvent.change(screen.getByPlaceholderText("Search tracks..."), { target: { value: "T1" } });
     expect((screen.getByPlaceholderText("Search tracks...") as HTMLInputElement).value).toBe("T1");
+    const clearBtn = screen.getByLabelText("Clear search");
+    expect(clearBtn).toBeInTheDocument();
+    fireEvent.click(clearBtn);
+    expect((screen.getByPlaceholderText("Search tracks...") as HTMLInputElement).value).toBe("");
   });
 });

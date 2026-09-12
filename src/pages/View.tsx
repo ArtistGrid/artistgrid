@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, useRef, useDeferredValue } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHeaderSlots } from "@/src/components/layout";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -35,6 +35,12 @@ import {
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
 import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
+import {
+  flattenErasForSearch,
+  searchTracks,
+  FUSE_TRACK_OPTIONS,
+  type TrackFuseConstructor,
+} from "@/src/lib/track-search";
 import { DiscordIcon } from "@/src/components/home/header";
 import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
 import { ChunkErrorBoundary } from "@/src/components/error-boundary";
@@ -87,6 +93,24 @@ function TrackerViewContent({
   const [inputValue, setInputValue] = useState(trackerId);
   const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(() => searchParams.get("artist"));
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredQuery = useDeferredValue(searchQuery.trim());
+  const [fuseModule, setFuseModule] = useState<TrackFuseConstructor | null>(null);
+  useEffect(() => {
+    if (!fuseModule && deferredQuery) {
+      let cancelled = false;
+      import("fuse.js")
+        .then((m) => {
+          const cls = (m.default || m) as unknown as TrackFuseConstructor;
+          if (!cancelled && typeof cls === "function") setFuseModule(() => cls);
+        })
+        .catch((err) => {
+          console.warn("Failed to load fuse.js dynamically:", err);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [deferredQuery, fuseModule]);
   const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FilterOptions>({
     showPlayableOnly: false,
@@ -194,11 +218,27 @@ function TrackerViewContent({
   useEraFonts(eraFontList);
   const isArtTab = ART_TABS.some((t) => currentTab.toLowerCase().includes(t.toLowerCase()));
   const isFlat = !!data?.isFlat;
+  const searchableItems = useMemo(() => {
+    if (!erasWithImages) return [];
+    return flattenErasForSearch(erasWithImages);
+  }, [erasWithImages]);
+  const fuseInstance = useMemo(() => {
+    if (!fuseModule || searchableItems.length === 0) return null;
+    try {
+      return new fuseModule(searchableItems, FUSE_TRACK_OPTIONS);
+    } catch (err) {
+      console.warn("Failed to instantiate Fuse for tracks:", err);
+      return null;
+    }
+  }, [fuseModule, searchableItems]);
+  const matchingTrackSet = useMemo(() => {
+    if (!deferredQuery) return null;
+    return searchTracks(searchableItems, deferredQuery, fuseInstance);
+  }, [deferredQuery, fuseInstance, searchableItems]);
   const filteredData = useMemo(() => {
     if (!erasWithImages) return null;
     if (isArtTab) return erasWithImages;
     const result: Record<string, Era> = {};
-    const query = searchQuery.toLowerCase();
     for (const [key, era] of Object.entries(erasWithImages)) {
       if (!era.data) continue;
       const filteredCategories: Record<string, TALeak[]> = {};
@@ -217,10 +257,7 @@ function TrackerViewContent({
           )
             return false;
           if (filters.sourceFilter.length > 0 && !sourceFilterSet.has(source)) return false;
-          if (query) {
-            const searchable = `${t.name || ""} ${t.extra || ""} ${getTrackDescription(t) || ""}`.toLowerCase();
-            if (!searchable.includes(query)) return false;
-          }
+          if (matchingTrackSet && !matchingTrackSet.has(t)) return false;
           return true;
         });
         if (filtered.length > 0) filteredCategories[cat] = filtered;
@@ -228,7 +265,7 @@ function TrackerViewContent({
       if (Object.keys(filteredCategories).length > 0) result[key] = { ...era, data: filteredCategories };
     }
     return result;
-  }, [erasWithImages, searchQuery, filters, resolvedUrls, isArtTab]);
+  }, [erasWithImages, matchingTrackSet, filters, resolvedUrls, isArtTab]);
   const allPlayableTracks = useMemo((): PlayableTrackData[] => {
     if (!filteredData) return [];
     const tracks: PlayableTrackData[] = [];
@@ -1265,9 +1302,19 @@ function TrackerViewContent({
                     placeholder="Search tracks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="glass-flat rounded-xl text-white pl-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/50"
+                    className="glass-flat rounded-xl text-white pl-10 pr-10 h-10 text-sm border-0 focus-visible:ring-1 focus-visible:ring-white/30 placeholder:text-white/50"
                     data-global-search="1"
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
