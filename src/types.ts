@@ -1,5 +1,5 @@
 export type TrackSource =
-  "pillows" | "juicewrldapi" | "imgur" | "pixeldrain" | "soundcloud" | "youtube" | "googledrive" | "unknown";
+  "pillows" | "juicewrldapi" | "imgur" | "pixeldrain" | "soundcloud" | "youtube" | "googledrive" | "exoshare" | "unknown";
 export interface Track {
   id: string;
   name: string;

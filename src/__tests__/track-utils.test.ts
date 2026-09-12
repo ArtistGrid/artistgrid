@@ -102,6 +102,7 @@ describe("getSourceDisplayName", () => {
     expect(getSourceDisplayName("pillows")).toBe("Pillows");
     expect(getSourceDisplayName("youtube")).toBe("YouTube");
     expect(getSourceDisplayName("soundcloud")).toBe("SoundCloud");
+    expect(getSourceDisplayName("exoshare")).toBe("Exoshare");
     expect(getSourceDisplayName("unknown")).toBe("Unknown");
   });
 });

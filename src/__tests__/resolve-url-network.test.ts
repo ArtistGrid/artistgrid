@@ -27,6 +27,28 @@ describe("resolvePlayableUrl network sources", () => {
     const r = await resolvePlayableUrl("https://drive.google.com/file/d/ABC123def/view");
     expect(r).toBe("https://fuck-unvaulted.artistgrid.cx/gd/ABC123def");
   });
+  it("resolves exoshare using first file id", async () => {
+    mockFetch({
+      id: "6ro0Jx6vhCOmGHO",
+      files: [
+        { id: "b096076a-6b0f-4581-8799-ed508440f085", name: "song.mp3" },
+        { id: "second-file-id", name: "cover.jpg" },
+      ],
+    });
+    const r = await resolvePlayableUrl("https://exoshare.org/share/6ro0Jx6vhCOmGHO");
+    expect(r).toBe(
+      "https://fuck-unvaulted.artistgrid.cx/exo/6ro0Jx6vhCOmGHO/files/b096076a-6b0f-4581-8799-ed508440f085"
+    );
+  });
+  it("returns null for exoshare if fetch fails or files are empty", async () => {
+    mockFetch(null, false);
+    const r1 = await resolvePlayableUrl("https://exoshare.org/share/6ro0Jx6vhCOmGHO");
+    expect(r1).toBeNull();
+
+    mockFetch({ id: "6ro0Jx6vhCOmGHO", files: [] });
+    const r2 = await resolvePlayableUrl("https://exoshare.org/share/6ro0Jx6vhCOmGHO");
+    expect(r2).toBeNull();
+  });
   it("returns null for unknown source", async () => {
     const r = await resolvePlayableUrl("https://example.com/foo");
     expect(r).toBeNull();

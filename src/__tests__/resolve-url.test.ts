@@ -44,6 +44,9 @@ describe("getTrackSource", () => {
       "googledrive"
     );
   });
+  it("identifies exoshare URLs", () => {
+    expect(getTrackSource("https://exoshare.org/share/6ro0Jx6vhCOmGHO")).toBe("exoshare");
+  });
   it("returns unknown for unrecognized URLs", () => {
     expect(getTrackSource("https://example.com/file.mp3")).toBe("unknown");
   });
@@ -52,6 +55,7 @@ describe("isNetworkSource", () => {
   it("returns true for network sources", () => {
     expect(isNetworkSource("imgur")).toBe(true);
     expect(isNetworkSource("pixeldrain")).toBe(true);
+    expect(isNetworkSource("exoshare")).toBe(true);
   });
   it("returns false for non-network sources", () => {
     expect(isNetworkSource("pillows")).toBe(false);

@@ -14,7 +14,11 @@ function extractSoundcloudPath(url: string): string | null {
   const match = url.match(/soundcloud\.com\/([^/]+\/[^/?#]+)/);
   return match ? match[1] : null;
 }
-const NETWORK_SOURCES = new Set<Track["source"]>(["imgur", "pixeldrain"]);
+function extractExoshareId(url: string): string | null {
+  const match = url.match(/exoshare\.org\/share\/([^/?#]+)/);
+  return match ? match[1] : null;
+}
+const NETWORK_SOURCES = new Set<Track["source"]>(["imgur", "pixeldrain", "exoshare"]);
 export function isNetworkSource(source: Track["source"]): boolean {
   return NETWORK_SOURCES.has(source);
 }
@@ -27,6 +31,7 @@ export function getTrackSource(url: string): Track["source"] {
   if (/https?:\/\/.*imgur\.gg/.test(normalized)) return "imgur";
   if (/https?:\/\/(www\.)?soundcloud\.com\//.test(normalized)) return "soundcloud";
   if (/https?:\/\/drive\.google\.com\/file\/d\//.test(normalized)) return "googledrive";
+  if (/https?:\/\/(?:www\.)?exoshare\.org\/share\//.test(normalized)) return "exoshare";
   return "unknown";
 }
 export async function resolvePlayableUrl(url: string): Promise<string | null> {
@@ -63,6 +68,17 @@ export async function resolvePlayableUrl(url: string): Promise<string | null> {
       case "googledrive": {
         const match = normalized.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
         return match ? `https://fuck-unvaulted.artistgrid.cx/gd/${match[1]}` : null;
+      }
+      case "exoshare": {
+        const id = extractExoshareId(normalized);
+        if (!id) return null;
+        const res = await fetch(`https://fuck-unvaulted.artistgrid.cx/exo/${id}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const fileId = Array.isArray(data?.files)
+          ? data.files.find((f: { id?: string }) => typeof f?.id === "string" && f.id.length > 0)?.id
+          : undefined;
+        return fileId ? `https://fuck-unvaulted.artistgrid.cx/exo/${id}/files/${fileId}` : null;
       }
       default:
         return null;

@@ -8,6 +8,7 @@ export const SUPPORTED_SOURCES: Track["source"][] = [
   "imgur",
   "soundcloud",
   "googledrive",
+  "exoshare",
 ];
 export function generateTrackId(url: string): string {
   let hash = 0;
@@ -68,6 +69,7 @@ export function getSourceDisplayName(source: Track["source"]): string {
     soundcloud: "SoundCloud",
     youtube: "YouTube",
     googledrive: "Google Drive",
+    exoshare: "Exoshare",
     unknown: "Unknown",
   };
   return names[source];
