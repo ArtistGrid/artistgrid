@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import ArtistGallery from "@/src/pages/Home";
 import { PlayerProvider } from "@/src/providers";
@@ -71,5 +71,20 @@ describe("Home (ArtistGallery)", () => {
     mockCsv("name,url\n");
     render(wrap(<ArtistGallery />));
     await waitFor(() => expect(screen.getByText("Kanye West")).toBeInTheDocument());
+  });
+  it("filters artists when searching via the header search input", async () => {
+    const centerEl = document.createElement("div");
+    centerEl.id = "header-center";
+    document.body.appendChild(centerEl);
+    render(wrap(<ArtistGallery />));
+    await waitFor(() => expect(screen.getByText("Kanye West")).toBeInTheDocument());
+    const searchInput = screen.getByLabelText("Search artists");
+    expect(searchInput).not.toHaveFocus();
+    fireEvent.change(searchInput, { target: { value: "Drake" } });
+    await waitFor(() => {
+      expect(screen.getByText("Drake")).toBeInTheDocument();
+      expect(screen.queryByText("Kanye West")).not.toBeInTheDocument();
+    });
+    centerEl.remove();
   });
 });

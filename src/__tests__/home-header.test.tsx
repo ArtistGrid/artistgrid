@@ -51,6 +51,12 @@ describe("HeaderActions", () => {
   });
 });
 describe("HomeHeaderCenter", () => {
+  it("does not autofocus the search input", () => {
+    render(wrap(<HomeHeaderCenter searchQuery="" setSearchQuery={() => {}} />));
+    const input = screen.getByLabelText("Search artists");
+    expect(input).not.toHaveFocus();
+    expect(input).not.toHaveAttribute("autofocus");
+  });
   it("updates search query", () => {
     const setSearchQuery = vi.fn();
     render(wrap(<HomeHeaderCenter searchQuery="" setSearchQuery={setSearchQuery} />));

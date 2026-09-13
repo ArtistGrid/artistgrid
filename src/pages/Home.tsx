@@ -307,7 +307,15 @@ export default function ArtistGallery() {
     if (!deferredQuery) return artistsPassingFilters;
     if (fuse) {
       try {
-        return fuse.search(deferredQuery).map((r) => r.item);
+        const results = fuse.search(deferredQuery).map((r) => r.item);
+        const matchedSet = new Set(results);
+        const q = deferredQuery.toLowerCase();
+        for (const artist of artistsPassingFilters) {
+          if (!matchedSet.has(artist) && artist.name.toLowerCase().includes(q)) {
+            results.push(artist);
+          }
+        }
+        return results;
       } catch (err) {
         console.warn("Fuse search failed, falling back to substring filter:", err);
       }

@@ -135,7 +135,6 @@ export const HomeHeaderCenter = memo(
         onChange={(e) => setSearchQuery(e.target.value)}
         className="glass-flat rounded-xl w-full pl-10 pr-9 h-11 text-sm text-white placeholder:text-white/50 border-0 focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:bg-white/[0.07]"
         aria-label="Search artists"
-        autoFocus
         data-global-search="1"
       />
       {searchQuery && (
