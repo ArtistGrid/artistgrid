@@ -1,6 +1,5 @@
 import type { Era, TALeak } from "@/src/types";
 import { getTrackDescription } from "@/src/lib/track-utils";
-
 export interface SearchableTrackItem {
   track: TALeak;
   era: Era;
@@ -10,16 +9,13 @@ export interface SearchableTrackItem {
   extra: string;
   description: string;
 }
-
 export interface FuseSearchResult<T> {
   item: T;
   score?: number;
 }
-
 export interface TrackFuseInstance {
   search(query: string): Array<FuseSearchResult<SearchableTrackItem>>;
 }
-
 export const FUSE_TRACK_OPTIONS = {
   keys: [
     { name: "name", weight: 0.65 },
@@ -30,12 +26,10 @@ export const FUSE_TRACK_OPTIONS = {
   ignoreLocation: true,
   minMatchCharLength: 2,
 };
-
 export type TrackFuseConstructor = new (
   list: SearchableTrackItem[],
   options: typeof FUSE_TRACK_OPTIONS
 ) => TrackFuseInstance;
-
 export function flattenErasForSearch(eras: Record<string, Era>): SearchableTrackItem[] {
   const items: SearchableTrackItem[] = [];
   for (const [eraKey, era] of Object.entries(eras)) {
@@ -57,7 +51,6 @@ export function flattenErasForSearch(eras: Record<string, Era>): SearchableTrack
   }
   return items;
 }
-
 export function searchTracks(
   items: SearchableTrackItem[],
   query: string,
@@ -65,9 +58,7 @@ export function searchTracks(
 ): Set<TALeak> {
   const cleanQuery = query.trim().toLowerCase();
   if (!cleanQuery) return new Set();
-
   const matched = new Set<TALeak>();
-
   if (fuseInstance) {
     try {
       const results = fuseInstance.search(cleanQuery);
@@ -78,9 +69,6 @@ export function searchTracks(
       console.warn("Fuse track search failed, falling back to substring:", err);
     }
   }
-
-  // Exact substring matching ensures complete backwards compatibility,
-  // covers single-char queries (< minMatchCharLength), and handles exact matches in large fields
   for (const item of items) {
     if (matched.has(item.track)) continue;
     const searchable = `${item.name} ${item.extra} ${item.description}`.toLowerCase();
@@ -88,6 +76,5 @@ export function searchTracks(
       matched.add(item.track);
     }
   }
-
   return matched;
 }

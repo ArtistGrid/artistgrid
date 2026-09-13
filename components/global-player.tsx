@@ -1,5 +1,6 @@
-import { lazy, memo, Suspense, useCallback, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
 import { useVolume } from "@/src/hooks/use-volume";
@@ -53,6 +54,31 @@ const QueueModal = ({
 }: QueueModalProps) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: queue.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52,
+    overscan: 10,
+    gap: 2,
+    observeElementRect: (instance, cb) => {
+      const element = instance.scrollElement;
+      if (!element) return;
+      const targetWindow = instance.targetWindow;
+      const update = () => {
+        const rect = element.getBoundingClientRect();
+        const height = rect.height || element.clientHeight || 600;
+        const width = rect.width || element.clientWidth || 400;
+        cb({ width: Math.round(width), height: Math.round(height) });
+      };
+      update();
+      if (!targetWindow?.ResizeObserver) return;
+      const observer = new targetWindow.ResizeObserver(update);
+      observer.observe(element);
+      return () => observer.disconnect();
+    },
+    initialRect: { width: 400, height: 600 },
+  });
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -91,9 +117,9 @@ const QueueModal = ({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 20, opacity: 0, scale: 0.97 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="relative z-10 glass-elevated rounded-2xl w-full max-w-md"
+            className="relative z-10 glass-elevated rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col"
           >
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08] flex-shrink-0">
               <div className="flex items-center gap-2.5">
                 <ListMusic className="w-4 h-4 text-white/50" />
                 <h2 className="text-sm font-semibold text-white">Queue</h2>
@@ -110,9 +136,9 @@ const QueueModal = ({
                 </Button>
               </div>
             </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto no-scrollbar">
+            <div className="p-4 flex flex-col min-h-0 overflow-hidden">
               {currentTrack && (
-                <div className="mb-4">
+                <div className="mb-4 flex-shrink-0">
                   <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Now Playing</p>
                   <div className="flex items-center gap-3 p-3 bg-white/[0.06] rounded-xl border border-white/[0.1]">
                     {currentTrack.eraImage ? (
@@ -140,69 +166,96 @@ const QueueModal = ({
                   <p className="text-sm text-white/30">Nothing queued up</p>
                 </div>
               ) : (
-                <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Up Next</p>
-                  {queue.map((track, index) => (
+                <div className="flex flex-col min-h-0">
+                  <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2 flex-shrink-0">
+                    Up Next
+                  </p>
+                  <div ref={parentRef} className="max-h-[50vh] overflow-y-auto no-scrollbar">
                     <div
-                      key={track.id || `${index}`}
-                      draggable
-                      tabIndex={0}
-                      aria-label={`Queue item ${index + 1}: ${track.name}`}
-                      onKeyDown={(e) => {
-                        if (!e.altKey) return;
-                        if (e.key === "ArrowUp" && index > 0) {
-                          e.preventDefault();
-                          onReorder(index, index - 1);
-                        } else if (e.key === "ArrowDown" && index < queue.length - 1) {
-                          e.preventDefault();
-                          onReorder(index, index + 1);
-                        }
+                      style={{
+                        height: `${virtualizer.getTotalSize()}px`,
+                        width: "100%",
+                        position: "relative",
                       }}
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-2 p-2 rounded-xl transition-colors cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${draggedIndex === index ? "opacity-40" : ""} ${dragOverIndex === index && draggedIndex !== index ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"}`}
                     >
-                      <GripVertical className="w-4 h-4 text-white/20 flex-shrink-0" />
-                      <span className="text-xs text-white/20 w-5 text-center flex-shrink-0">{index + 1}</span>
-                      {track.eraImage ? (
-                        <img
-                          src={track.eraImage}
-                          alt=""
-                          className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
-                          loading="lazy"
-                          decoding="async"
-                          referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg bg-white/[0.08] flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white truncate">{track.name}</p>
-                        <p className="text-xs text-white/35 truncate">{track.artistName}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          onPlayFromQueue(index);
-                          onClose();
-                        }}
-                        className="h-7 w-7 text-white/30 hover:text-white hover:bg-white/10 rounded-lg flex-shrink-0"
-                      >
-                        <Play className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onRemove(index)}
-                        className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg flex-shrink-0"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      {virtualizer.getVirtualItems().map((virtualRow) => {
+                        const track = queue[virtualRow.index];
+                        if (!track) return null;
+                        const index = virtualRow.index;
+                        return (
+                          <div
+                            key={virtualRow.key}
+                            draggable
+                            tabIndex={0}
+                            aria-label={`Queue item ${index + 1}: ${track.name}`}
+                            onKeyDown={(e) => {
+                              if (!e.altKey) return;
+                              if (e.key === "ArrowUp" && index > 0) {
+                                e.preventDefault();
+                                onReorder(index, index - 1);
+                                virtualizer.scrollToIndex(index - 1, { align: "auto" });
+                              } else if (e.key === "ArrowDown" && index < queue.length - 1) {
+                                e.preventDefault();
+                                onReorder(index, index + 1);
+                                virtualizer.scrollToIndex(index + 1, { align: "auto" });
+                              }
+                            }}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDragEnd={handleDragEnd}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              height: `${virtualRow.size}px`,
+                              transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                            className={`flex items-center gap-2 p-2 rounded-xl transition-colors cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${draggedIndex === index ? "opacity-40" : ""} ${dragOverIndex === index && draggedIndex !== index ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"}`}
+                          >
+                            <GripVertical className="w-4 h-4 text-white/20 flex-shrink-0" />
+                            <span className="text-xs text-white/20 w-5 text-center flex-shrink-0">{index + 1}</span>
+                            {track.eraImage ? (
+                              <img
+                                src={track.eraImage}
+                                alt=""
+                                className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-white/[0.08] flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white truncate">{track.name}</p>
+                              <p className="text-xs text-white/35 truncate">{track.artistName}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                onPlayFromQueue(index);
+                                onClose();
+                              }}
+                              className="h-7 w-7 text-white/30 hover:text-white hover:bg-white/10 rounded-lg flex-shrink-0"
+                            >
+                              <Play className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onRemove(index)}
+                              className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg flex-shrink-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
             </div>

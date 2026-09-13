@@ -176,4 +176,37 @@ describe("GlobalPlayer", () => {
     fireEvent.click(screen.getByLabelText(/Repeat/));
     expect(screen.getByLabelText(/Repeat/)).toBeInTheDocument();
   });
+  it("virtualizes a huge playlist without rendering all items in DOM", async () => {
+    function BigQueueHelper() {
+      const { playTrack, addToQueue } = usePlayer();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            playTrack(track("0", "https://x.com/0.mp3"));
+            for (let i = 1; i <= 1000; i++) {
+              addToQueue(track(`${i}`, `https://x.com/${i}.mp3`));
+            }
+          }}
+        >
+          loadLargeQueue
+        </button>
+      );
+    }
+    render(
+      wrap(
+        <>
+          <BigQueueHelper />
+          <GlobalPlayer />
+        </>
+      )
+    );
+    act(() => screen.getByText("loadLargeQueue").click());
+    fireEvent.click(screen.getByLabelText("Queue"));
+    expect(screen.getByLabelText("Close queue")).toBeInTheDocument();
+    expect(screen.getByText("1000")).toBeInTheDocument();
+    const renderedItems = screen.getAllByLabelText(/Queue item/);
+    expect(renderedItems.length).toBeLessThan(50);
+    expect(renderedItems.length).toBeGreaterThan(0);
+  });
 });

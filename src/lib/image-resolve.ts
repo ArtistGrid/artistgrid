@@ -1,19 +1,14 @@
 const IBB_HINT_RE = /ibb\.co\/([a-zA-Z0-9]+)/i;
 const IMGUR_HINT_RE = /imgur\.com\/([a-zA-Z0-9]+)/i;
 const IBB_OEMBED = "https://ibb.artistgrid.cx";
-
 export function extractIbbId(url: string): string | null {
   const m = url.match(IBB_HINT_RE);
   return m ? m[1] : null;
 }
-
 export function toWsrvUrl(url: string): string {
   if (url.startsWith("https://wsrv.nl/?url=")) return url;
   return `https://wsrv.nl/?url=${url}`;
 }
-
-// Synchronous best-effort resolution, used as the initial value before the
-// async oEmbed lookup resolves (and as the fallback when the lookup fails).
 export function syncImageUrl(url: string): string | null {
   if (url.startsWith("https://wsrv.nl/?url=")) return url;
   if (url.includes("ibb.co")) {
@@ -32,16 +27,13 @@ export function syncImageUrl(url: string): string | null {
   if (url.includes("docs.google.com/sheets-images-rt") || url.includes("googleusercontent.com")) return url;
   return null;
 }
-
 const cache = new Map<string, string | null>();
 const inflight = new Map<string, Promise<string | null>>();
-
 async function resolveIbb(id: string): Promise<string | null> {
   const key = `ibb:${id}`;
   if (cache.has(key)) return cache.get(key) ?? null;
   const existing = inflight.get(key);
   if (existing) return existing;
-
   const run = async (): Promise<string | null> => {
     const fallback = toWsrvUrl(`https://i.ibb.co/${id}/image.jpg`);
     try {
@@ -62,7 +54,6 @@ async function resolveIbb(id: string): Promise<string | null> {
       return fallback;
     }
   };
-
   const promise = run().then((result) => {
     cache.set(key, result);
     inflight.delete(key);
@@ -71,7 +62,6 @@ async function resolveIbb(id: string): Promise<string | null> {
   inflight.set(key, promise);
   return promise;
 }
-
 export async function resolveImageUrl(url: string): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith("https://wsrv.nl/?url=")) return url;

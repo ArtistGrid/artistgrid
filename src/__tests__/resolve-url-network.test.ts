@@ -44,7 +44,6 @@ describe("resolvePlayableUrl network sources", () => {
     mockFetch(null, false);
     const r1 = await resolvePlayableUrl("https://exoshare.org/share/6ro0Jx6vhCOmGHO");
     expect(r1).toBeNull();
-
     mockFetch({ id: "6ro0Jx6vhCOmGHO", files: [] });
     const r2 = await resolvePlayableUrl("https://exoshare.org/share/6ro0Jx6vhCOmGHO");
     expect(r2).toBeNull();

@@ -1,5 +1,7 @@
 export async function xxh3Hash(input: string): Promise<string> {
-  const g = globalThis as typeof globalThis & { Buffer?: unknown };
+  const g = globalThis as typeof globalThis & {
+    Buffer?: unknown;
+  };
   if (typeof g.Buffer === "undefined") {
     const { Buffer } = await import("buffer");
     g.Buffer = Buffer;

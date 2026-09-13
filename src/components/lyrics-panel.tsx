@@ -31,10 +31,7 @@ function buildQuery(name: string, artist: string, extra?: string): string {
   const extraClean = extra ? clean(extra) : "";
   return extraClean && !base.toLowerCase().includes(extraClean.toLowerCase()) ? `${base} - ${extraClean}` : base;
 }
-async function fetchFromLRCLIB(
-  name: string,
-  artist: string
-): Promise<string | null> {
+async function fetchFromLRCLIB(name: string, artist: string): Promise<string | null> {
   try {
     const results = await lrclibClient.searchLyrics({ track_name: name, artist_name: artist });
     if (!results.length) return null;

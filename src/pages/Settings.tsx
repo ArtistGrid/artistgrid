@@ -59,7 +59,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         tabIndex={-1}
       />
 
-       <div className="relative z-10 glass-elevated rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-in fade-in-0 slide-in-from-top-4 duration-200 flex flex-col shadow-2xl">
+      <div className="relative z-10 glass-elevated rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-in fade-in-0 slide-in-from-top-4 duration-200 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
             <Settings className="w-4 h-4 text-white/50" />
@@ -76,7 +76,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-6">
           <Tabs defaultValue="lyrics">
-             <TabsList className="grid w-full grid-cols-4 gap-1">
+            <TabsList className="grid w-full grid-cols-4 gap-1">
               <TabsTrigger value="lyrics">
                 <Mic2 className="w-3 h-3 mr-1.5" />
                 Lyrics

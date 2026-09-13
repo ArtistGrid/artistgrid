@@ -52,4 +52,3 @@ export function toTTML(lyrics: LyricsData): string {
   </body>
   </tt>`;
 }
-

@@ -1,7 +1,18 @@
 import { motion } from "framer-motion";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Play, SkipForward, ListPlus, Download, ExternalLink, Heart, Trash2, FolderDown, Share, Upload } from "lucide-react";
+import {
+  Play,
+  SkipForward,
+  ListPlus,
+  Download,
+  ExternalLink,
+  Heart,
+  Trash2,
+  FolderDown,
+  Share,
+  Upload,
+} from "lucide-react";
 import type { RefObject } from "react";
 import type { Era, TALeak, TrackSource } from "@/src/types";
 import type { PlayableTrackData } from "@/src/components/view/track-item";
