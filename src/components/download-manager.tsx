@@ -2,7 +2,7 @@ import * as t from "io-ts";
 import { isLeft } from "fp-ts/Either";
 import { assertDownloadManagerContract } from "@/src/lib/contracts";
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
-import { Archive, CheckCircle2, Loader2, Maximize2, Minimize2, X, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Download, Loader2, Maximize2, Minimize2, RotateCcw, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
@@ -51,6 +51,7 @@ interface DownloadJob {
   failedCount: number;
   zipBlob?: Blob;
   isCreatingZip?: boolean;
+  forceZip?: boolean;
 }
 interface DownloadQueueItem {
   jobId: string;
@@ -76,6 +77,8 @@ export interface DownloadContextType {
   }) => void;
   clearCompleted: () => void;
   dismissJob: (jobId: string) => void;
+  retryFailed: (jobId: string, itemId?: string) => void;
+  downloadAsIs: (jobId: string) => void;
 }
 const DownloadContext = createContext<DownloadContextType | null>(null);
 export function useDownloadManager() {
@@ -238,7 +241,8 @@ async function downloadFileAsBlob(
   }
 }
 function DownloadFloatingUI() {
-  const { jobs, isMinimized, setIsMinimized, clearCompleted, dismissJob } = useDownloadManager();
+  const { jobs, isMinimized, setIsMinimized, clearCompleted, dismissJob, retryFailed, downloadAsIs } =
+    useDownloadManager();
   const activeJobs = jobs.filter((j) => j.status === "active");
   const completedJobs = jobs.filter((j) => j.status === "completed" || j.status === "failed");
   if (jobs.length === 0) return null;
@@ -246,13 +250,20 @@ function DownloadFloatingUI() {
   const completedItems = jobs.reduce((acc, j) => acc + j.completedCount + j.failedCount, 0);
   const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   const activeCount = activeJobs.reduce((acc, j) => acc + j.items.filter((i) => i.status === "downloading").length, 0);
+  const hasFailedJobs = jobs.some((j) => j.failedCount > 0);
   return (
     <div className="fixed bottom-24 sm:bottom-4 right-4 z-50 w-80 max-h-96 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
         <div className="flex items-center gap-2">
-          <Archive className={`w-4 h-4 ${activeJobs.length > 0 ? "text-blue-400 animate-pulse" : "text-green-400"}`} />
+          <Archive
+            className={`w-4 h-4 ${activeJobs.length > 0 ? "text-blue-400 animate-pulse" : hasFailedJobs ? "text-red-400" : "text-green-400"}`}
+          />
           <span className="text-sm font-medium text-white">
-            {activeJobs.length > 0 ? `Downloading (${activeCount} active)` : "Downloads Complete"}
+            {activeJobs.length > 0
+              ? `Downloading (${activeCount} active)`
+              : hasFailedJobs
+                ? "Downloads with issues"
+                : "Downloads Complete"}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -285,6 +296,7 @@ function DownloadFloatingUI() {
               job.items.length > 0 ? Math.round(((job.completedCount + job.failedCount) / job.items.length) * 100) : 0;
             const isActive = job.status === "active";
             const downloadingItems = job.items.filter((i) => i.status === "downloading");
+            const failedItems = job.items.filter((i) => i.status === "failed");
             return (
               <div key={job.id} className="p-3 border-b border-neutral-800 last:border-b-0">
                 <div className="flex items-center justify-between mb-2">
@@ -320,6 +332,64 @@ function DownloadFloatingUI() {
                   {job.failedCount > 0 && <span className="text-red-400">{job.failedCount} failed</span>}
                   <span>{jobProgress}%</span>
                 </div>
+                {failedItems.length > 0 && (
+                  <div className="mt-2 p-2 bg-red-950/40 border border-red-900/50 rounded-md text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-red-300">
+                      <span>Failed files ({failedItems.length}):</span>
+                    </div>
+                    <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
+                      {failedItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="text-[10px] text-red-200/90 flex items-center justify-between gap-1 bg-red-900/20 px-1.5 py-0.5 rounded"
+                        >
+                          <span className="truncate flex-1" title={item.trackName}>
+                            {item.trackName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => retryFailed(job.id, item.id)}
+                            className="text-red-400 hover:text-white flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-red-800/50 flex-shrink-0 transition-colors"
+                            title={`Retry ${item.trackName}`}
+                            aria-label={`Retry ${item.trackName}`}
+                          >
+                            <RotateCcw className="w-2.5 h-2.5" />
+                            <span className="text-[9px]">Retry</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-red-900/40">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => retryFailed(job.id)}
+                        className="h-6 text-[10px] px-2 text-red-200 border-red-800 bg-red-950/60 hover:bg-red-900/70 hover:text-white flex items-center gap-1"
+                        aria-label="Retry all failed files"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Retry {failedItems.length > 1 ? "all" : ""}
+                      </Button>
+                      {job.completedCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadAsIs(job.id)}
+                          disabled={job.isCreatingZip}
+                          className="h-6 text-[10px] px-2 text-neutral-300 border-neutral-700 bg-neutral-900 hover:bg-neutral-800 hover:text-white flex items-center gap-1"
+                          aria-label="Download as-is"
+                        >
+                          {job.isCreatingZip ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />
+                          ) : (
+                            <Download className="w-3 h-3 text-neutral-400" />
+                          )}
+                          Download as-is ({job.completedCount})
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {isActive && downloadingItems.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {downloadingItems.slice(0, 5).map((item) => (
@@ -529,18 +599,22 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     try {
       const readyJobs = jobs.filter((job) => {
         if (job.status !== "active" || creatingZipsRef.current!.has(job.id)) return false;
-        return (
-          job.items.every((i) => i.status === "completed" || i.status === "failed") &&
-          !job.zipBlob &&
-          !job.isCreatingZip
-        );
+        if (job.zipBlob || job.isCreatingZip) return false;
+        const allDone = job.items.every((i) => i.status === "completed" || i.status === "failed");
+        if (!allDone) return false;
+        if (job.failedCount > 0) {
+          return Boolean(job.forceZip && job.completedCount > 0);
+        }
+        return job.completedCount > 0;
       });
       if (readyJobs.length === 0) return;
       const JSZip = (await import("jszip")).default;
       for (const job of readyJobs) {
         const jobData = zipDataRef.current!.get(job.id);
         if (!jobData || jobData.size === 0) {
-          setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const } : j)));
+          setJobs((prev) =>
+            prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, forceZip: false } : j))
+          );
           continue;
         }
         creatingZipsRef.current!.add(job.id);
@@ -569,7 +643,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           const filled = chunks.filter((c) => c.length > 0);
           if (filled.length === 0) {
             setJobs((prev) =>
-              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+              prev.map((j) =>
+                j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false, forceZip: false } : j
+              )
             );
             creatingZipsRef.current!.delete(job.id);
             continue;
@@ -614,7 +690,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
             for (const { item } of chunkItems) jobData.delete(item.id);
           }
           setJobs((prev) =>
-            prev.map((j) => (j.id === job.id ? { ...j, status: "completed" as const, isCreatingZip: false } : j))
+            prev.map((j) =>
+              j.id === job.id ? { ...j, status: "completed" as const, isCreatingZip: false, forceZip: false } : j
+            )
           );
           zipDataRef.current!.delete(job.id);
           creatingZipsRef.current!.delete(job.id);
@@ -622,7 +700,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           logError("ZIP creation failed:", error);
           try {
             setJobs((prev) =>
-              prev.map((j) => (j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false } : j))
+              prev.map((j) =>
+                j.id === job.id ? { ...j, status: "failed" as const, isCreatingZip: false, forceZip: false } : j
+              )
             );
           } catch {}
           creatingZipsRef.current?.delete(job.id);
@@ -633,8 +713,71 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     }
   }, [jobs]);
   useEffect(() => {
+    setJobs((prev) => {
+      let changed = false;
+      const next = prev.map((job) => {
+        if (job.status === "active" && !job.forceZip && !job.isCreatingZip) {
+          const allDone = job.items.every((i) => i.status === "completed" || i.status === "failed");
+          if (allDone && job.failedCount > 0) {
+            changed = true;
+            return { ...job, status: "failed" as const };
+          }
+        }
+        return job;
+      });
+      return changed ? next : prev;
+    });
+  }, [jobs]);
+  useEffect(() => {
     processZips();
   }, [jobs, processZips]);
+  const retryFailed = useCallback(
+    (jobId: string, itemId?: string) => {
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return;
+      const targetItems = job.items.filter((i) => i.status === "failed" && (!itemId || i.id === itemId));
+      if (targetItems.length === 0) return;
+      for (const item of targetItems) {
+        downloadQueueRef.current.push({
+          jobId: job.id,
+          itemId: item.id,
+          playableUrl: item.playableUrl,
+          trackName: item.trackName,
+          artistName: job.artistName,
+          eraName: item.eraName,
+          retryCount: 0,
+        });
+      }
+      setJobs((prev) =>
+        prev.map((j) => {
+          if (j.id !== jobId) return j;
+          const updatedItems = j.items.map((i) => {
+            if (i.status === "failed" && (!itemId || i.id === itemId)) {
+              return { ...i, status: "pending" as const, progress: 0, retryCount: 0 };
+            }
+            return i;
+          });
+          return withRecountedTotals({
+            ...j,
+            status: "active" as const,
+            forceZip: false,
+            items: updatedItems,
+          });
+        })
+      );
+      processQueue();
+    },
+    [jobs, processQueue]
+  );
+  const downloadAsIs = useCallback((jobId: string) => {
+    setJobs((prev) =>
+      prev.map((job) => {
+        if (job.id !== jobId) return job;
+        if (job.completedCount === 0) return job;
+        return { ...job, forceZip: true, status: "active" as const };
+      })
+    );
+  }, []);
   const startDownload = useCallback(
     (params: {
       artistName: string;
@@ -692,8 +835,17 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   return (
     <DownloadContext.Provider
       value={useMemo(
-        () => ({ jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob }),
-        [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob]
+        () => ({
+          jobs,
+          isMinimized,
+          setIsMinimized,
+          startDownload,
+          clearCompleted,
+          dismissJob,
+          retryFailed,
+          downloadAsIs,
+        }),
+        [jobs, isMinimized, setIsMinimized, startDownload, clearCompleted, dismissJob, retryFailed, downloadAsIs]
       )}
     >
       {children}
