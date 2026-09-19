@@ -419,23 +419,29 @@ export default function ArtistGallery() {
     <div className={`overflow-x-hidden ${hasPlayerActive ? "pb-32" : "pb-8"}`}>
       {headerSlots}
       <Suspense fallback={null}>
-        <LazyAnnouncementModal
-          isOpen={activeModal === "announcement"}
-          onClose={handleDismissAnnouncement}
-          message={ANNOUNCEMENT_MESSAGE}
-          onDonate={handleAnnouncementDonate}
-        />
-        <LazyDonationModal
-          key={String(activeModal === "donate")}
-          isOpen={activeModal === "donate"}
-          onClose={closeModal}
-        />
-        <LazyInfoModal
-          isOpen={activeModal === "info"}
-          onClose={closeModal}
-          visitorCount={visitorCount}
-          onDonate={openDonationModal}
-        />
+        {activeModal === "announcement" && (
+          <LazyAnnouncementModal
+            isOpen={activeModal === "announcement"}
+            onClose={handleDismissAnnouncement}
+            message={ANNOUNCEMENT_MESSAGE}
+            onDonate={handleAnnouncementDonate}
+          />
+        )}
+        {activeModal === "donate" && (
+          <LazyDonationModal
+            key={String(activeModal === "donate")}
+            isOpen={activeModal === "donate"}
+            onClose={closeModal}
+          />
+        )}
+        {activeModal === "info" && (
+          <LazyInfoModal
+            isOpen={activeModal === "info"}
+            onClose={closeModal}
+            visitorCount={visitorCount}
+            onDonate={openDonationModal}
+          />
+        )}
       </Suspense>
       {isFirstLoad ? (
         <main className="max-w-7xl mx-auto p-4 sm:p-6">

@@ -63,8 +63,12 @@ import { lazy } from "react";
 const ArtGallery = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery })));
 const ImageLightbox = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox })));
 const LastFMModal = lazy(() => import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal })));
-import { YouTubePlayer } from "@/src/components/youtube-player";
-import { FloatingVideoPlayer } from "@/src/components/floating-video-player";
+const YouTubePlayer = lazy(() =>
+  import("@/src/components/youtube-player").then((m) => ({ default: m.YouTubePlayer }))
+);
+const FloatingVideoPlayer = lazy(() =>
+  import("@/src/components/floating-video-player").then((m) => ({ default: m.FloatingVideoPlayer }))
+);
 import { useSettings } from "@/src/hooks/use-settings";
 import { useTrackerData } from "@/src/hooks/use-tracker-data";
 import { loadSettings } from "@/src/lib/settings";
@@ -84,10 +88,18 @@ import { mergeTabData } from "@/src/lib/merge-tab-data";
 import { syncImageUrl } from "@/src/lib/image-resolve";
 import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
 import { FallbackView, type FilterOptions, type PlayableTrackData } from "@/src/components/view/track-item";
-import { CustomViewManager } from "@/src/components/view/custom-view-manager";
-import { DownloadConfirmDialog } from "@/src/components/view/download-confirm-dialog";
-import { FavouritesTab } from "@/src/components/view/favourites-tab";
-import { FlatTrackList } from "@/src/components/view/flat-track-card";
+const CustomViewManager = lazy(() =>
+  import("@/src/components/view/custom-view-manager").then((m) => ({ default: m.CustomViewManager }))
+);
+const DownloadConfirmDialog = lazy(() =>
+  import("@/src/components/view/download-confirm-dialog").then((m) => ({ default: m.DownloadConfirmDialog }))
+);
+const FavouritesTab = lazy(() =>
+  import("@/src/components/view/favourites-tab").then((m) => ({ default: m.FavouritesTab }))
+);
+const FlatTrackList = lazy(() =>
+  import("@/src/components/view/flat-track-card").then((m) => ({ default: m.FlatTrackList }))
+);
 import { EraCard } from "@/src/components/view/era-card";
 const ART_TABS = ["Art"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
@@ -1166,16 +1178,26 @@ function TrackerViewContent({
       transition={{ duration: 0.3 }}
     >
       {headerSlots}
-      {youtubeUrl && <YouTubePlayer url={youtubeUrl} onClose={() => setYoutubeUrl(null)} />}
-      {videoUrl && <FloatingVideoPlayer url={videoUrl} onClose={() => setVideoUrl(null)} />}
+      {youtubeUrl && (
+        <Suspense fallback={null}>
+          <YouTubePlayer url={youtubeUrl} onClose={() => setYoutubeUrl(null)} />
+        </Suspense>
+      )}
+      {videoUrl && (
+        <Suspense fallback={null}>
+          <FloatingVideoPlayer url={videoUrl} onClose={() => setVideoUrl(null)} />
+        </Suspense>
+      )}
       <Suspense fallback={null}>
-        <LastFMModal
-          isOpen={lastfmModalOpen}
-          onClose={() => setLastfmModalOpen(false)}
-          lastfm={lastfm}
-          token={lastfmToken}
-          setToken={setLastfmToken}
-        />
+        {lastfmModalOpen && (
+          <LastFMModal
+            isOpen={lastfmModalOpen}
+            onClose={() => setLastfmModalOpen(false)}
+            lastfm={lastfm}
+            token={lastfmToken}
+            setToken={setLastfmToken}
+          />
+        )}
         {lightboxImage && (
           <ImageLightbox
             src={lightboxImage.src}
@@ -1187,12 +1209,14 @@ function TrackerViewContent({
         )}
       </Suspense>
       {downloadConfirm && (
-        <DownloadConfirmDialog
-          trackCount={downloadConfirm.items.length}
-          subtitle={downloadConfirm.eraName ?? downloadConfirm.artistName}
-          onCancel={() => setDownloadConfirm(null)}
-          onConfirm={confirmDownload}
-        />
+        <Suspense fallback={null}>
+          <DownloadConfirmDialog
+            trackCount={downloadConfirm.items.length}
+            subtitle={downloadConfirm.eraName ?? downloadConfirm.artistName}
+            onCancel={() => setDownloadConfirm(null)}
+            onConfirm={confirmDownload}
+          />
+        </Suspense>
       )}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {status === "idle" && (
@@ -1455,33 +1479,35 @@ function TrackerViewContent({
                 <Loader2 className="w-6 h-6 animate-spin text-white/55" />
               </motion.div>
             ) : isFavouritesTab ? (
-              <FavouritesTab
-                favourites={favourites}
-                favouriteTracks={favouriteTracks}
-                isPreloading={isPreloading}
-                computeTrackState={computeTrackState}
-                handlePlayTrack={handlePlayTrack}
-                handleOpenUrl={handleOpenUrl}
-                handlePlayNext={handlePlayNext}
-                handleAddToQueue={handleAddToQueue}
-                handleDownload={handleDownload}
-                handleToggleFavourite={handleToggleFavourite}
-                handleOpenOriginal={handleOpenOriginal}
-                onDownloadAll={() => {
-                  if (favouriteTracks.length === 0) return;
-                  downloadTracker(
-                    undefined,
-                    undefined,
-                    favouriteTracks.map(({ track, era, url }) => ({ track, era, url }))
-                  );
-                }}
-                onExport={handleExportFavourites}
-                importFileRef={importFileRef}
-                onImportClick={() => importFileRef.current?.click()}
-                onImportFile={handleImportFavourites}
-                onClearAll={handleClearFavourites}
-                highlightedTrackRef={highlightedTrackRef}
-              />
+              <Suspense fallback={null}>
+                <FavouritesTab
+                  favourites={favourites}
+                  favouriteTracks={favouriteTracks}
+                  isPreloading={isPreloading}
+                  computeTrackState={computeTrackState}
+                  handlePlayTrack={handlePlayTrack}
+                  handleOpenUrl={handleOpenUrl}
+                  handlePlayNext={handlePlayNext}
+                  handleAddToQueue={handleAddToQueue}
+                  handleDownload={handleDownload}
+                  handleToggleFavourite={handleToggleFavourite}
+                  handleOpenOriginal={handleOpenOriginal}
+                  onDownloadAll={() => {
+                    if (favouriteTracks.length === 0) return;
+                    downloadTracker(
+                      undefined,
+                      undefined,
+                      favouriteTracks.map(({ track, era, url }) => ({ track, era, url }))
+                    );
+                  }}
+                  onExport={handleExportFavourites}
+                  importFileRef={importFileRef}
+                  onImportClick={() => importFileRef.current?.click()}
+                  onImportFile={handleImportFavourites}
+                  onClearAll={handleClearFavourites}
+                  highlightedTrackRef={highlightedTrackRef}
+                />
+              </Suspense>
             ) : isCustomTab ? (
               <motion.div
                 key="custom-view"
@@ -1490,15 +1516,17 @@ function TrackerViewContent({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <CustomViewManager
-                  trackerId={trackerId}
-                  customViews={customViews}
-                  setCustomViews={setCustomViews}
-                  activeCustomView={activeCustomView}
-                  setActiveCustomView={setActiveCustomView}
-                  onSelect={loadCustomView}
-                  tabSlugs={tabSlugsRef.current}
-                />
+                <Suspense fallback={null}>
+                  <CustomViewManager
+                    trackerId={trackerId}
+                    customViews={customViews}
+                    setCustomViews={setCustomViews}
+                    activeCustomView={activeCustomView}
+                    setActiveCustomView={setActiveCustomView}
+                    onSelect={loadCustomView}
+                    tabSlugs={tabSlugsRef.current}
+                  />
+                </Suspense>
                 {activeCustomView && filteredData && Object.keys(filteredData).length > 0 && (
                   <div className="space-y-4 sm:space-y-5 mt-4">{renderEraCards(filteredData)}</div>
                 )}
@@ -1549,22 +1577,24 @@ function TrackerViewContent({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <FlatTrackList
-                  tracks={flatTracks}
-                  computeTrackState={computeTrackState}
-                  handlePlayTrack={handlePlayTrack}
-                  handleAddToQueue={handleAddToQueue}
-                  handlePlayNext={handlePlayNext}
-                  handleOpenUrl={handleOpenUrl}
-                  handleOpenOriginal={handleOpenOriginal}
-                  handleToggleFavourite={handleToggleFavourite}
-                  handleDownload={handleDownload}
-                  favourites={favourites}
-                  highlightedTrackRef={highlightedTrackRef}
-                  createTrackObject={createTrackObject}
-                  clearQueue={clearQueue}
-                  playTrack={playTrack}
-                />
+                <Suspense fallback={null}>
+                  <FlatTrackList
+                    tracks={flatTracks}
+                    computeTrackState={computeTrackState}
+                    handlePlayTrack={handlePlayTrack}
+                    handleAddToQueue={handleAddToQueue}
+                    handlePlayNext={handlePlayNext}
+                    handleOpenUrl={handleOpenUrl}
+                    handleOpenOriginal={handleOpenOriginal}
+                    handleToggleFavourite={handleToggleFavourite}
+                    handleDownload={handleDownload}
+                    favourites={favourites}
+                    highlightedTrackRef={highlightedTrackRef}
+                    createTrackObject={createTrackObject}
+                    clearQueue={clearQueue}
+                    playTrack={playTrack}
+                  />
+                </Suspense>
               </motion.div>
             ) : filteredData && Object.keys(filteredData).length > 0 ? (
               <motion.div

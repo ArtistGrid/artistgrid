@@ -6,7 +6,7 @@ import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
 import { ChunkErrorBoundary } from "@/src/components/error-boundary";
-import Home from "./pages/Home";
+const Home = lazy(() => import("./pages/Home"));
 const View = lazy(() => import("./pages/View"));
 const Donate = lazy(() => import("./pages/Donate"));
 const SettingsModal = lazy(() => import("./pages/Settings"));
@@ -82,7 +82,16 @@ export default function App() {
           <PlayerProvider>
             <Routes>
               <Route element={<Layout />}>
-                <Route path="/" element={<Home />} />
+                <Route
+                  path="/"
+                  element={
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={null}>
+                        <Home />
+                      </Suspense>
+                    </ChunkErrorBoundary>
+                  }
+                />
                 <Route
                   path="/view"
                   element={

@@ -534,9 +534,11 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
             </motion.div>
           )}
         </AnimatePresence>
-        <Suspense fallback={null}>
-          <FullscreenTrackView isOpen={fullscreenOpen} onClose={() => setFullscreenOpen(false)} />
-        </Suspense>
+        {fullscreenOpen && (
+          <Suspense fallback={null}>
+            <FullscreenTrackView isOpen={fullscreenOpen} onClose={() => setFullscreenOpen(false)} />
+          </Suspense>
+        )}
       </>
     </AnimatePresence>
   );
