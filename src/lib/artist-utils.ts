@@ -1,5 +1,5 @@
 import type { Artist } from "@/src/types";
-import { xxh3Hash } from "./hash";
+import { fastHash } from "./hash";
 export function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -51,5 +51,5 @@ export function isAnnouncementDismissed(storedHash: string | null, legacyHash: s
   return storedHash.startsWith("v2:") || storedHash === legacyHash;
 }
 export async function computeDismissalHash(message: string): Promise<string> {
-  return `v2:${await xxh3Hash(message)}`;
+  return `v2:${await fastHash(message)}`;
 }

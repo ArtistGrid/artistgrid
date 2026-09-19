@@ -1,12 +1,6 @@
-export async function xxh3Hash(input: string): Promise<string> {
-  const g = globalThis as typeof globalThis & {
-    Buffer?: unknown;
-  };
-  if (typeof g.Buffer === "undefined") {
-    const { Buffer } = await import("buffer");
-    g.Buffer = Buffer;
-  }
-  const { xxh3String } = await import("@apollosoftwarexyz/xxh3");
-  const bytes = new TextEncoder().encode(input);
-  return xxh3String(bytes);
+import { blake3 } from "@noble/hashes/blake3.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+export async function fastHash(input: string): Promise<string> {
+  const digest = blake3(new TextEncoder().encode(input), { dkLen: 8 });
+  return bytesToHex(digest);
 }

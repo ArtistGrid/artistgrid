@@ -1,6 +1,6 @@
 {
   "name": "artistgrid",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "vitest run && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "format": "bun run scripts/format.ts",
@@ -22,7 +23,7 @@
     "ignoreExportsUsedInFile": true
   },
   "dependencies": {
-    "@apollosoftwarexyz/xxh3": "^1.1.0",
+    "@noble/hashes": "^2.0.1",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@kawarp/core": "^1.2.0",
@@ -36,7 +37,6 @@
     "@tanstack/react-virtual": "^3.14.5",
     "@uimaxbai/am-lyrics": "^1.5.5",
     "ajv": "^8.20.0",
-    "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
@@ -65,6 +65,7 @@
     "@types/react-dom": "^19",
     "@types/spark-md5": "^3.0.5",
     "@vitejs/plugin-react-swc": "^4.3.3",
+    "@vitest/coverage-v8": "^4",
     "esbuild": "^0.21.5",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.9.0",

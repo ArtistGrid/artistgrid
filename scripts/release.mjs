@@ -15,7 +15,7 @@ import { execSync } from "node:child_process";
 
 const PKG_PATH = new URL("../package.json", import.meta.url);
 const VERSION_TS_PATH = new URL("../src/version.ts", import.meta.url);
-const RUSTRAK_API = process.env.RUSTRAK_API_URL || "http://rustrak-api.edideaur.works";
+const RUSTRAK_API = process.env.RUSTRAK_API_URL || "https://rustrak-api.edideaur.works";
 // Rustrak ignores the org segment of the Sentry-compatible release API; any
 // non-empty value works, and the project slug determines where the release lands.
 const ORG = process.env.RUSTRAK_ORG || "edi";

@@ -134,7 +134,9 @@ export default function ArtistGallery() {
     }
   }, [searchQuery, settings.behavior.rememberSearch]);
   const storeDismissalHash = useCallback(() => {
-    void computeDismissalHash(ANNOUNCEMENT_MESSAGE).then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h));
+    void computeDismissalHash(ANNOUNCEMENT_MESSAGE)
+      .then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h))
+      .catch(() => {});
   }, []);
   const handleDismissAnnouncement = useCallback(() => {
     setActiveModal(null);
@@ -147,7 +149,9 @@ export default function ArtistGallery() {
   useEffect(() => {
     const storedHash = localStorage.getItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH);
     if (storedHash && !storedHash.startsWith("v2:") && storedHash === hashString(ANNOUNCEMENT_MESSAGE)) {
-      void computeDismissalHash(ANNOUNCEMENT_MESSAGE).then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h));
+      void computeDismissalHash(ANNOUNCEMENT_MESSAGE)
+        .then((h) => safeSetItem(LOCAL_STORAGE_KEYS.MESSAGE_HASH, h))
+        .catch(() => {});
     }
   }, []);
   useEffect(() => {

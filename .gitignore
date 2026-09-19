@@ -9,6 +9,8 @@
 
 # production
 /build
+/coverage
+/dist
 
 # debug
 npm-debug.log*

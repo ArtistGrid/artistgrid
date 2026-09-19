@@ -3,7 +3,7 @@ import type { V3Response, V3Tab, V3Track } from "../v3.jsonschema";
 export type { V3Response } from "../v3.jsonschema";
 import { isUrl, generateTrackId } from "./track-utils";
 import { clearCacheAndReload } from "./stale-reload";
-import { xxh3Hash } from "./hash";
+import { fastHash } from "./hash";
 const API_BASE = "https://trackerapi.artistgrid.cx";
 const MAX_CACHED_URLS = 50;
 const etagStore = new Map<string, string>();
@@ -19,7 +19,7 @@ function rememberBody(url: string, body: string): void {
   }
 }
 export async function computeETag(body: string): Promise<string> {
-  return `"${await xxh3Hash(body)}"`;
+  return `"${await fastHash(body)}"`;
 }
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
   const url = `${API_BASE}${endpoint}`;
@@ -41,7 +41,10 @@ export async function fetchWithFallback(endpoint: string, options?: RequestInit)
   if (res.ok) {
     const body = await res.clone().text();
     rememberBody(url, body);
-    const compute = () => computeETag(body).then((etag) => etagStore.set(url, etag));
+    const compute = () =>
+      computeETag(body)
+        .then((etag) => etagStore.set(url, etag))
+        .catch(() => {});
     if (typeof requestIdleCallback !== "undefined") {
       requestIdleCallback(compute, { timeout: 5000 });
     } else {

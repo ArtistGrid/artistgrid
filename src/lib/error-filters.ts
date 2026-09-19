@@ -79,6 +79,12 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "InvalidStateError",
   "The object is in an invalid state",
   "res.operation",
+  "ResizeObserver loop",
+  "xxh3String",
+  "CompileError",
+  "WebAssembly",
+  "pauseVideos",
+  "WKWebView was deallocated",
 ];
 const EXTENSION_STACK_MARKERS = [
   "chrome-extension://",
@@ -92,6 +98,7 @@ const EXTENSION_STACK_MARKERS = [
 ];
 export function shouldDropError(msg: string, type: string): boolean {
   if (type.includes("React ErrorBoundary")) return true;
+  if (type === "CompileError") return true;
   if (msg === "Aa" || msg === "fa" || msg === "Ba") return true;
   if (/^_0x[0-9a-fA-F]+ is not an Object/i.test(msg)) return true;
   return DROPPED_ERROR_SUBSTRINGS.some((s) => msg.includes(s));
