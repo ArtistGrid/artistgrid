@@ -12,6 +12,8 @@ describe("error-filters", () => {
       expect(shouldDropError("Aa", "Error")).toBe(true);
       expect(shouldDropError("fa", "Error")).toBe(true);
       expect(shouldDropError("Ba", "Error")).toBe(true);
+      expect(shouldDropError("La", "Error")).toBe(true);
+      expect(shouldDropError("pa", "Error")).toBe(true);
     });
     it("drops obfuscated extension errors matching regex", () => {
       expect(shouldDropError("_0x20ebc0 is not an Object. (evaluating '_0x172229 in _0x20ebc0')", "TypeError")).toBe(
@@ -19,6 +21,10 @@ describe("error-filters", () => {
       );
     });
     it("drops substring-matched errors", () => {
+      expect(shouldDropError("out of memory", "InternalError")).toBe(true);
+      expect(
+        shouldDropError("Right side of assignment cannot be destructured", "TypeError")
+      ).toBe(true);
       expect(shouldDropError("Request timeout appSettingsDistributor.getValue", "UnhandledRejection")).toBe(true);
       expect(shouldDropError("InvalidStateError: The object is in an invalid state.", "Error")).toBe(true);
       expect(shouldDropError("ResizeObserver loop limit exceeded", "Error")).toBe(true);
