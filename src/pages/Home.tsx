@@ -225,11 +225,12 @@ export default function ArtistGallery() {
         }
       }
     };
+    let visitorTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const loadVisitorCount = async () => {
       const timeoutController = new AbortController();
       const onOuterAbort = () => timeoutController.abort();
-      controller.signal.addEventListener("abort", onOuterAbort);
-      const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
+      controller.signal.addEventListener("abort", onOuterAbort, { once: true });
+      visitorTimeoutId = setTimeout(() => timeoutController.abort(), 5000);
       try {
         const cached = sessionStorage.getItem("visitor-count");
         const cachedTime = sessionStorage.getItem("visitor-count-time");
@@ -255,13 +256,16 @@ export default function ArtistGallery() {
         }
       } catch {
       } finally {
-        clearTimeout(timeoutId);
+        clearTimeout(visitorTimeoutId);
         controller.signal.removeEventListener("abort", onOuterAbort);
       }
     };
     loadData();
     loadVisitorCount();
-    return () => controller.abort();
+    return () => {
+      clearTimeout(visitorTimeoutId);
+      controller.abort();
+    };
   }, []);
   const preloadedRef = useRef(false);
   useEffect(() => {

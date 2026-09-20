@@ -419,9 +419,9 @@ export const EraCard = memo(function EraCard({
                       onDownload={() => downloadTracker(eraKey, cat)}
                     />
                     <div className="space-y-1.5 sm:space-y-2">
-                      {(tracks as TALeak[]).map((track, idx) => (
+                      {(tracks as TALeak[]).map((track) => (
                         <TrackRow
-                          key={`${eraKey}-${cat}-${track.id || track.url || track.name}-${idx}`}
+                          key={track.id || track.url || `${eraKey}-${cat}-${track.name}`}
                           track={track}
                           era={era}
                           computeTrackState={computeTrackState}

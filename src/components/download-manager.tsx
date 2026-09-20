@@ -10,6 +10,7 @@ import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
 import { safeSetItem } from "@/src/lib/storage";
 import { stripEmojis } from "@/lib/utils";
+import { formatBytes, getFileExtension } from "@/src/lib/download-utils";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
@@ -96,10 +97,20 @@ function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch:
   });
 }
 function withRecountedTotals(job: DownloadJob): DownloadJob {
+  const completedCount = job.items.filter((i) => i.status === "completed").length;
+  const failedCount = job.items.filter((i) => i.status === "failed").length;
+  let status = job.status;
+  if (status === "active" && !job.forceZip && !job.isCreatingZip) {
+    const allDone = job.items.every((i) => i.status === "completed" || i.status === "failed");
+    if (allDone && failedCount > 0) {
+      status = "failed";
+    }
+  }
   return {
     ...job,
-    completedCount: job.items.filter((i) => i.status === "completed").length,
-    failedCount: job.items.filter((i) => i.status === "failed").length,
+    completedCount,
+    failedCount,
+    status,
   };
 }
 function parseStoredJobs(raw: string): DownloadJob[] {
@@ -157,38 +168,7 @@ function sanitizeFilename(name: string): string {
       .trim() || "unknown"
   );
 }
-const AUDIO_EXTENSIONS = ["mp3", "m4a", "ogg", "wav", "flac", "opus", "aac", "weba", "webm"] as const;
-export function getFileExtension(url: string, contentType?: string): string {
-  if (contentType) {
-    if (contentType.includes("audio/mpeg") || contentType.includes("audio/mp3")) return "mp3";
-    if (contentType.includes("audio/mp4") || contentType.includes("audio/m4a")) return "m4a";
-    if (contentType.includes("audio/ogg") || contentType.includes("audio/opus"))
-      return contentType.includes("opus") ? "opus" : "ogg";
-    if (contentType.includes("audio/wav")) return "wav";
-    if (contentType.includes("audio/flac")) return "flac";
-  }
-  let pathname = url;
-  try {
-    pathname = new URL(url).pathname;
-  } catch {}
-  const match = pathname.toLowerCase().match(/\.([a-z0-9]+)$/);
-  const ext = match?.[1];
-  if (ext && (AUDIO_EXTENSIONS as readonly string[]).includes(ext)) return ext;
-  return "mp3";
-}
 const DOWNLOAD_TIMEOUT_MS = 120000;
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = bytes / 1024;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  return `${value.toFixed(1)} ${units[unit]}`;
-}
 async function downloadFileAsBlob(
   url: string,
   onProgress?: (loaded: number, total: number) => void
@@ -711,22 +691,6 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     } finally {
       zipsRunningRef.current = false;
     }
-  }, [jobs]);
-  useEffect(() => {
-    setJobs((prev) => {
-      let changed = false;
-      const next = prev.map((job) => {
-        if (job.status === "active" && !job.forceZip && !job.isCreatingZip) {
-          const allDone = job.items.every((i) => i.status === "completed" || i.status === "failed");
-          if (allDone && job.failedCount > 0) {
-            changed = true;
-            return { ...job, status: "failed" as const };
-          }
-        }
-        return job;
-      });
-      return changed ? next : prev;
-    });
   }, [jobs]);
   useEffect(() => {
     processZips();

@@ -159,12 +159,14 @@ export const WaveformSeekbar = memo(function WaveformSeekbar({
       ctx.shadowBlur = 0;
     }
   }, [barColor, playedColor, handleColor, showHandle]);
-  drawRef.current = draw;
+  useEffect(() => {
+    drawRef.current = draw;
+  });
   useEffect(() => {
     if (draggingRef.current) return;
     progressRef.current = progress;
-    drawRef.current();
-  }, [progress, draw]);
+    drawRef.current?.();
+  }, [progress]);
   const valueFromEvent = useCallback(
     (clientX: number): number => {
       const canvas = canvasRef.current;

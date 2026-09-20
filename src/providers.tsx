@@ -231,6 +231,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [getScrobbleArtist]
   );
+  const updateListenBrainzNowPlaying = useCallback(
+    async (track: Track) => {
+      const settings = loadSettings();
+      const lb = settings.scrobbling.listenbrainz;
+      if (!lb.enabled || !lb.token) return;
+      try {
+        const artist = getScrobbleArtist(track);
+        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+        const base = (lb.apiUrl || LISTENBRAINZ_API_URL).replace(/\/$/, "");
+        const listen: Record<string, unknown> = {
+          track_metadata: {
+            artist_name: artist,
+            track_name: trackName,
+            ...(track.eraName ? { release_name: track.eraName } : {}),
+          },
+        };
+        await fetch(`${base}/1/submit-listens`, {
+          method: "POST",
+          headers: { Authorization: `Token ${lb.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ listen_type: "playing_now", payload: [listen] }),
+        });
+      } catch (e) {
+        logError("Failed to update ListenBrainz playing now:", e);
+      }
+    },
+    [getScrobbleArtist]
+  );
   const scrobbleTrack = useCallback(
     async (track: Track) => {
       if (hasScrobbledRef.current) return;
@@ -258,18 +285,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const updateNowPlaying = useCallback(
     async (track: Track) => {
       const settings = loadSettings();
-      if (!settings.scrobbling.lastfm.enabled || !lastfmSession?.key) return;
-      try {
-        const artist = getScrobbleArtist(track);
-        const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
-        const params: Record<string, string> = { artist, track: trackName };
-        if (track.eraName) params.album = track.eraName;
-        await makeLastFMRequest("track.updateNowPlaying", params, true);
-      } catch (e) {
-        logError("Failed to update now playing:", e);
+      if (settings.scrobbling.lastfm.enabled && lastfmSession?.key) {
+        try {
+          const artist = getScrobbleArtist(track);
+          const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+          const params: Record<string, string> = { artist, track: trackName };
+          if (track.eraName) params.album = track.eraName;
+          await makeLastFMRequest("track.updateNowPlaying", params, true);
+        } catch (e) {
+          logError("Failed to update now playing:", e);
+        }
       }
+      await updateListenBrainzNowPlaying(track);
     },
-    [lastfmSession, makeLastFMRequest, getScrobbleArtist]
+    [lastfmSession, makeLastFMRequest, getScrobbleArtist, updateListenBrainzNowPlaying]
   );
   const scheduleScrobble = useCallback(
     (track: Track, duration: number) => {
@@ -295,11 +324,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current.src = next.playableUrl;
       safePlay(audioRef.current);
       setHistory((h) => [...h, next]);
-      if (lastfmSession?.key) updateNowPlaying(next);
+      updateNowPlaying(next);
       updateMediaSession(next, true);
       setState((s) => ({ ...s, currentTrack: next, queue: rest, isPlaying: true }));
     }
-  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
+  }, [clearScrobbleTimer, updateNowPlaying, updateMediaSession]);
   const playPrevious = useCallback(() => {
     const h = historyRef.current;
     if (h.length < 2) return;
@@ -310,11 +339,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentTrackRef.current = prev;
       audioRef.current.src = prev.playableUrl;
       safePlay(audioRef.current);
-      if (lastfmSession?.key) updateNowPlaying(prev);
+      updateNowPlaying(prev);
       updateMediaSession(prev, true);
       setState((s) => ({ ...s, currentTrack: prev, isPlaying: true }));
     }
-  }, [clearScrobbleTimer, lastfmSession, updateNowPlaying, updateMediaSession]);
+  }, [clearScrobbleTimer, updateNowPlaying, updateMediaSession]);
   useEffect(() => {
     if ("mediaSession" in navigator) {
       navigator.mediaSession.setActionHandler("play", () => {
@@ -437,7 +466,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setHistory((h) => [...h, next]);
             currentTrackRef.current = next;
             prefetchNext(rest);
-            if (lastfmSession?.key) updateNowPlaying(next);
+            updateNowPlaying(next);
             updateMediaSession(next, true);
             const settings = loadSettings();
             if (
@@ -493,7 +522,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       opts
     );
     return () => controller.abort();
-  }, [lastfmSession, clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume, prefetchNext]);
+  }, [clearScrobbleTimer, updateNowPlaying, updateMediaSession, state.volume, prefetchNext]);
   useEffect(() => {
     const s = loadSettings();
     if (s.behavior.notifications && "Notification" in window && Notification.permission === "default") {
@@ -518,7 +547,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       beginPlayback(track);
       setState((s) => ({ ...s, currentTrack: track, isPlaying: true }));
       prefetchNext(queueRef.current);
-      if (lastfmSession?.key) updateNowPlaying(track);
+      updateNowPlaying(track);
       updateMediaSession(track, true);
       const s = loadSettings();
       if (
@@ -542,7 +571,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         safeSetItem("artistgrid-history:v1", JSON.stringify(history));
       } catch {}
     },
-    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
+    [beginPlayback, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -596,12 +625,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (audioRef.current && track.playableUrl) {
         beginPlayback(track);
         prefetchNext(newQueue);
-        if (lastfmSession?.key) updateNowPlaying(track);
+        updateNowPlaying(track);
         updateMediaSession(track, true);
         setState((s) => ({ ...s, currentTrack: track, queue: newQueue, isPlaying: true }));
       }
     },
-    [beginPlayback, lastfmSession, updateNowPlaying, updateMediaSession, prefetchNext]
+    [beginPlayback, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const toggleShuffle = useCallback(() => {
     setState((s) => ({ ...s, ...toggleShuffleState({ queue: s.queue, isShuffled: s.isShuffled }) }));

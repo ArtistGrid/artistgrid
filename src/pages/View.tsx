@@ -411,16 +411,19 @@ function TrackerViewContent({
   }, [data, resolvedUrls, playTrack, createTrackObject]);
   const tabChangeInProgress = useRef(false);
   useEffect(() => {
-    if (!trackerId) return;
-    if (tabChangeInProgress.current) {
-      tabChangeInProgress.current = false;
-      return;
-    }
-    if (propInitialTab) {
-      loadTrackerData(trackerId, propInitialTab);
-    } else {
-      loadTrackerData(trackerId);
-    }
+    let cancelled = false;
+    const fetchTracker = async () => {
+      if (!trackerId || cancelled) return;
+      if (tabChangeInProgress.current) {
+        tabChangeInProgress.current = false;
+        return;
+      }
+      await loadTrackerData(trackerId, propInitialTab);
+    };
+    void fetchTracker();
+    return () => {
+      cancelled = true;
+    };
   }, [trackerId, loadTrackerData, propInitialTab]);
   const handleLoad = useCallback(() => {
     if (!inputValue.trim()) {

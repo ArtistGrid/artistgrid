@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes } from "@/src/components/download-manager";
+import { formatBytes } from "@/src/lib/download-utils";
 import { formatRelativeTime } from "@/src/lib/view-utils";
 describe("formatBytes", () => {
   it("formats bytes and kilobytes", () => {

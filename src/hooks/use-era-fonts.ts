@@ -30,15 +30,12 @@ function removeLink(link: HTMLLinkElement) {
 }
 export function useEraFonts(eraFonts: (string | undefined)[]) {
   const linksRef = useRef<HTMLLinkElement[]>([]);
-  const fontsKey = useMemo(
-    () =>
-      eraFonts
-        .filter(Boolean)
-        .map((f) => sanitizeFontName(f!))
-        .sort()
-        .join(","),
-    [eraFonts.length, eraFonts.filter(Boolean).sort().join(",")]
-  );
+  const serializedFonts = eraFonts
+    .filter((f): f is string => Boolean(f))
+    .map(sanitizeFontName)
+    .sort()
+    .join(",");
+  const fontsKey = useMemo(() => serializedFonts, [serializedFonts]);
   useEffect(() => {
     for (const link of linksRef.current) removeLink(link);
     linksRef.current = [];

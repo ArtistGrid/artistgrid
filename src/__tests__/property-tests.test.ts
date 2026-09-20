@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import fc from "fast-check";
-import { formatBytes, getFileExtension } from "@/src/components/download-manager";
+import { formatBytes, getFileExtension } from "@/src/lib/download-utils";
 import { importFavourites, getFavourites } from "@/src/lib/favourites";
 const AUDIO_EXTENSIONS = ["mp3", "m4a", "ogg", "wav", "flac", "opus", "aac", "weba", "webm"] as const;
 const httpUrl = fc.string({ maxLength: 8 }).map((s) => `https://host/${s}`);
