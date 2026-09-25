@@ -5,6 +5,7 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "is not a valid JavaScript MIME type",
   "Load failed",
   "Failed to fetch dynamically imported module",
+  "Failed to fetch",
   "Importing a module script failed",
   "error loading dynamically imported module",
   "runtime.sendMessage",

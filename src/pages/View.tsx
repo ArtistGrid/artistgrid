@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
 import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
-import { resolvePlayableUrl, getTrackSource, isNetworkSource, transformUrlForOpening } from "@/src/lib/resolve-url";
+import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/src/lib/resolve-url";
 import {
   generateTrackId,
   isUrl,
@@ -50,6 +50,7 @@ import {
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
 import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
+import { triggerBlobDownload } from "@/src/lib/download-utils";
 import {
   flattenErasForSearch,
   searchTracks,
@@ -63,9 +64,7 @@ import { lazy } from "react";
 const ArtGallery = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery })));
 const ImageLightbox = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox })));
 const LastFMModal = lazy(() => import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal })));
-const YouTubePlayer = lazy(() =>
-  import("@/src/components/youtube-player").then((m) => ({ default: m.YouTubePlayer }))
-);
+const YouTubePlayer = lazy(() => import("@/src/components/youtube-player").then((m) => ({ default: m.YouTubePlayer })));
 const FloatingVideoPlayer = lazy(() =>
   import("@/src/components/floating-video-player").then((m) => ({ default: m.FloatingVideoPlayer }))
 );
@@ -823,26 +822,30 @@ function TrackerViewContent({
             artist: artistDisplayName || undefined,
           };
           const enhanced = await embedMetadata(blob, meta);
-          const blobUrl = URL.createObjectURL(enhanced);
-          const link = document.createElement("a");
-          link.href = blobUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+          triggerBlobDownload(enhanced, filename);
           return;
         } catch (e) {
           console.error("Metadata embedding failed, falling back to direct download:", e);
           toast({ title: "Metadata failed", description: "Downloading without metadata" });
         }
       }
-      const link = document.createElement("a");
-      link.href = playableUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        toast({ title: "Downloading...", description: filename });
+        const res = await fetch(playableUrl);
+        if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
+        const blob = await res.blob();
+        triggerBlobDownload(blob, filename);
+      } catch (err) {
+        console.warn("Direct blob download failed, falling back to direct link:", err);
+        const link = document.createElement("a");
+        link.href = playableUrl;
+        link.download = filename;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     },
     [resolvedUrls, toast, artistDisplayName]
   );
@@ -899,22 +902,6 @@ function TrackerViewContent({
         toast({ title: "No tracks to download", description: "No playable tracks found" });
         return;
       }
-      const fireProbe = () => {
-        const blob = new Blob([], { type: "application/octet-stream" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "agrid-permission.bin";
-        a.style.cssText = "display:none";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 500);
-      };
-      fireProbe();
-      setTimeout(fireProbe, 100);
       const unresolvedUrls = candidates.reduce(
         (
           acc: string[],
@@ -924,7 +911,7 @@ function TrackerViewContent({
           }
         ) => {
           for (const u of getAllTrackUrls(c.track)) {
-            if (resolvedUrls.get(u) === undefined && isNetworkSource(getTrackSource(u)) && !acc.includes(u)) {
+            if (resolvedUrls.get(u) === undefined && !acc.includes(u)) {
               acc.push(u);
             }
           }

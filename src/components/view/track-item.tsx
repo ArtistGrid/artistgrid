@@ -1,7 +1,9 @@
 import type { Track, Era, TALeak } from "@/src/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Play, Pause, ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart } from "lucide-react";
+import { ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
+import { PLAY_ICON_NODE, PAUSE_ICON_NODE } from "@/src/lib/morph-icons";
 import { Link } from "react-router-dom";
 import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
 export interface FilterOptions {
@@ -58,9 +60,9 @@ export function PlayButton({ onPlay, label = "Play" }: { onPlay: () => void; lab
       type="button"
       onClick={onPlay}
       aria-label={label}
-      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95"
+      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-neutral-200 hover:text-black hover:scale-105 transition-[transform,background-color] active:scale-95 shadow-sm"
     >
-      <Play className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5 ml-0.5" />
+      <MorphIcon icon={PLAY_ICON_NODE} size={14} color="currentColor" className="ml-0.5" />
     </button>
   );
 }
@@ -70,9 +72,9 @@ export function PauseButton({ onPlay, label = "Pause" }: { onPlay: () => void; l
       type="button"
       onClick={onPlay}
       aria-label={label}
-      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform active:scale-95"
+      className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-neutral-200 hover:text-black hover:scale-105 transition-[transform,background-color] active:scale-95 shadow-sm"
     >
-      <Pause className="w-3.5 sm:w-3.5 h-3.5 sm:h-3.5" />
+      <MorphIcon icon={PAUSE_ICON_NODE} size={14} color="currentColor" />
     </button>
   );
 }

@@ -34,7 +34,9 @@ import { useVolume } from "@/src/hooks/use-volume";
 import { VolumeControl } from "@/src/components/volume-control";
 import { Button } from "@/components/ui/button";
 import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
-import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
+import { PLAY_ICON_NODE, PAUSE_ICON_NODE } from "@/src/lib/morph-icons";
+import { X, SkipBack, SkipForward, Play, Shuffle, Repeat, Repeat1 } from "lucide-react";
 const KAWARP_DEFAULTS = {
   warpIntensity: 1,
   blurPasses: 8,
@@ -288,19 +290,20 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
                   <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
+                  type="button"
                   onClick={togglePlayPause}
-                  className="bg-white text-black hover:bg-white/90 rounded-full w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 active:scale-90"
+                  className="bg-white text-black hover:bg-neutral-200 hover:text-black rounded-full w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center flex-shrink-0 active:scale-90 hover:scale-105 transition-[transform,background-color] shadow-xl shadow-black/30"
                   aria-label={state.isPlaying ? "Pause" : "Play"}
                 >
-                  {state.isPlaying ? (
-                    <Pause className="w-6 h-6 sm:w-7 sm:h-7" />
-                  ) : (
-                    <Play className="w-6 h-6 sm:w-7 sm:h-7 ml-0.5" />
-                  )}
-                </Button>
+                  <MorphIcon
+                    icon={state.isPlaying ? PAUSE_ICON_NODE : PLAY_ICON_NODE}
+                    size={28}
+                    spring="snappy"
+                    color="currentColor"
+                    className={state.isPlaying ? "" : "ml-0.5"}
+                  />
+                </button>
 
                 <Button
                   variant="ghost"

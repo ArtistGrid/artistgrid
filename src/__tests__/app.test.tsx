@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
-import { render, screen, waitFor, act, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import App from "@/src/App";
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
@@ -12,12 +12,6 @@ beforeAll(() => {
     Object.defineProperty(this, "open", { value: false, configurable: true });
   });
 });
-async function navigateTo(path: string) {
-  act(() => {
-    window.history.pushState({}, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  });
-}
 describe("App", () => {
   afterEach(() => cleanup());
   it("renders the home page at root", async () => {
@@ -25,8 +19,8 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("ArtistGrid")).toBeInTheDocument());
   });
   it("renders the donate page on /donate", async () => {
+    window.history.pushState({}, "", "/donate");
     render(<App />);
-    await navigateTo("/donate");
     await waitFor(() => expect(screen.getByText(/Support ArtistGrid/i)).toBeInTheDocument(), { timeout: 10000 });
   });
 });

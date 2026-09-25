@@ -1,5 +1,4 @@
 const AUDIO_EXTENSIONS = ["mp3", "m4a", "ogg", "wav", "flac", "opus", "aac", "weba", "webm"] as const;
-
 export function getFileExtension(url: string, contentType?: string): string {
   if (contentType) {
     if (contentType.includes("audio/mpeg") || contentType.includes("audio/mp3")) return "mp3";
@@ -18,7 +17,6 @@ export function getFileExtension(url: string, contentType?: string): string {
   if (ext && (AUDIO_EXTENSIONS as readonly string[]).includes(ext)) return ext;
   return "mp3";
 }
-
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
   if (bytes < 1024) return `${bytes} B`;
@@ -30,4 +28,19 @@ export function formatBytes(bytes: number): string {
     unitIndex++;
   }
   return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => {
+    try {
+      URL.revokeObjectURL(downloadUrl);
+    } catch {}
+  }, 60000);
 }

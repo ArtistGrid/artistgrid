@@ -22,9 +22,7 @@ describe("error-filters", () => {
     });
     it("drops substring-matched errors", () => {
       expect(shouldDropError("out of memory", "InternalError")).toBe(true);
-      expect(
-        shouldDropError("Right side of assignment cannot be destructured", "TypeError")
-      ).toBe(true);
+      expect(shouldDropError("Right side of assignment cannot be destructured", "TypeError")).toBe(true);
       expect(shouldDropError("Request timeout appSettingsDistributor.getValue", "UnhandledRejection")).toBe(true);
       expect(shouldDropError("InvalidStateError: The object is in an invalid state.", "Error")).toBe(true);
       expect(shouldDropError("ResizeObserver loop limit exceeded", "Error")).toBe(true);
@@ -34,6 +32,7 @@ describe("error-filters", () => {
       expect(shouldDropError("Can't find variable: pauseVideos", "ReferenceError")).toBe(true);
       expect(shouldDropError("The WKWebView was deallocated before the message was delivered", "Error")).toBe(true);
       expect(shouldDropError("undefined is not an object (evaluating 'res.operation')", "TypeError")).toBe(true);
+      expect(shouldDropError("Failed to fetch", "TypeError")).toBe(true);
     });
     it("retains legitimate application errors", () => {
       expect(shouldDropError("Cannot read properties of undefined (reading 'split')", "TypeError")).toBe(false);
