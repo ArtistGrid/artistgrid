@@ -179,16 +179,7 @@ export const InfoModal = memo(
         <h2 className="text-xl font-bold text-white mb-4">About ArtistGrid</h2>
         <div className="text-neutral-300 space-y-4 text-sm sm:text-base">
           <p>
-            Originally owned by{" "}
-            <a
-              href="https://instagram.com/aledio.m"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-white"
-            >
-              aledio.m
-            </a>
-            , Maintained by{" "}
+            Maintained by{" "}
             <a
               href="https://instagram.com/edideaur"
               target="_blank"
@@ -196,6 +187,18 @@ export const InfoModal = memo(
               className="underline hover:text-white"
             >
               edideaur
+            </a>
+            .
+          </p>
+          <p>
+            Originally by{" "}
+            <a
+              href="https://instagram.com/aledio.m"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              JustAMZ
             </a>
             .
           </p>
