@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { AnnouncementModal } from "@/src/components/home/modals";
+import { AnnouncementModal, InfoModal } from "@/src/components/home/modals";
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });
@@ -24,5 +24,23 @@ describe("AnnouncementModal", () => {
     render(<AnnouncementModal isOpen onClose={() => {}} message="hi" onDonate={onDonate} />);
     fireEvent.click(screen.getByText(/Please consider donating/));
     expect(onDonate).toHaveBeenCalled();
+  });
+  it("renders inline markdown links", () => {
+    render(
+      <AnnouncementModal
+        isOpen
+        onClose={() => {}}
+        message="Check [pillows.su](https://pillows.su) and [leaked.cx](https://leaked.cx) now"
+      />
+    );
+    expect(screen.getByText("pillows.su")).toHaveAttribute("href", "https://pillows.su");
+    expect(screen.getByText("leaked.cx")).toHaveAttribute("href", "https://leaked.cx");
+  });
+});
+describe("InfoModal", () => {
+  it("renders Originally by JustAMZ with instagram link", () => {
+    render(<InfoModal isOpen onClose={() => {}} visitorCount={null} onDonate={() => {}} />);
+    const link = screen.getByText("JustAMZ");
+    expect(link).toHaveAttribute("href", "https://instagram.com/aledio.m");
   });
 });

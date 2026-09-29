@@ -1,15 +1,45 @@
-import { memo, useState, useCallback, lazy, Suspense } from "react";
+import { memo, useState, useCallback, lazy, Suspense, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/src/components/modal";
 import { DonationContent, type QrCodeData } from "@/src/components/crypto-donation-section";
 const QRCode = lazy(() => import("qrcode.react").then((mod) => ({ default: mod.QRCodeSVG })));
+function renderInline(text: string): ReactNode {
+  const regex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const label = match[1];
+    const href = match[2];
+    parts.push(
+      <a
+        key={`${match.index}-${href}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline underline-offset-2 decoration-neutral-500 hover:text-white hover:decoration-white transition-colors"
+      >
+        {label}
+      </a>
+    );
+    lastIndex = regex.lastIndex;
+  }
+  if (parts.length === 0) return text;
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
 function MarkdownContent({ text }: { text: string }) {
   return (
     <>
-      {text.split("\n").map((line) => {
+      {text.split("\n").map((line, index) => {
         if (line.startsWith("# "))
           return (
-            <h2 key={`h-${line}`} className="text-xl font-bold text-white mb-4">
+            <h2 key={`h-${line}-${index}`} className="text-xl font-bold text-white mb-4">
               {line.slice(2)}
             </h2>
           );
@@ -17,15 +47,15 @@ function MarkdownContent({ text }: { text: string }) {
           const match = line.match(/- \*\*(.+?)\*\*: (.+)/);
           if (match)
             return (
-              <p key={`b-${match[1]}`} className="text-neutral-300 mb-2">
-                • <strong className="text-white">{match[1]}</strong>: {match[2]}
+              <p key={`b-${match[1]}-${index}`} className="text-neutral-300 mb-2">
+                • <strong className="text-white">{match[1]}</strong>: {renderInline(match[2])}
               </p>
             );
         }
         if (line.trim() === "") return null;
         return (
-          <p key={`p-${line}`} className="text-neutral-300 mb-2">
-            {line}
+          <p key={`p-${index}`} className="text-neutral-300 mb-2">
+            {renderInline(line)}
           </p>
         );
       })}
@@ -157,6 +187,18 @@ export const InfoModal = memo(
               className="underline hover:text-white"
             >
               edideaur
+            </a>
+            .
+          </p>
+          <p>
+            Originally by{" "}
+            <a
+              href="https://instagram.com/aledio.m"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              JustAMZ
             </a>
             .
           </p>

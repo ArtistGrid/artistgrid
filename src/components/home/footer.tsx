@@ -69,6 +69,17 @@ export const Footer = memo(
             </a>
           </p>
           <p className="text-sm text-white/55">
+            Originally by{" "}
+            <a
+              href="https://instagram.com/aledio.m"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/70 hover:text-white transition-colors underline underline-offset-2"
+            >
+              JustAMZ
+            </a>
+          </p>
+          <p className="text-sm text-white/55">
             Original trackers are in{" "}
             <a
               href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview"

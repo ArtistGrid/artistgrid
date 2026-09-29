@@ -94,7 +94,13 @@ export const DEFAULT_FILTER_OPTIONS: ArtistFilterOptions = {
 };
 export const ANNOUNCEMENT_MESSAGE = `# Hi.
 
-ArtistGrid has been going for over a year now. In that time we've received nothing in donations. Donations help us improve the site and keep building it.`;
+You might notice that the whole site is broken at the moment. This is because [pillows.su](https://pillows.su) and [leaked.cx](https://leaked.cx) (the tracker community's preffered file host and a forum for leaks and info) are currently down because of a missile strike on their data centers
+
+exoshare is also currently down for unknown reasons
+
+only trackers that still work at the moment are ones that use imgur.gg and pixeldrain and google drive as file hosts
+
+we cannot do anything except hope and wait.`;
 export function trackEvent(eventName: string, props?: Record<string, string | boolean | number>): void {
   if (typeof window === "undefined") return;
   window.plausible?.(eventName, props ? { props } : undefined);

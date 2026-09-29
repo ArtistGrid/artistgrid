@@ -20,4 +20,9 @@ describe("Footer", () => {
     render(<Footer displayedCount={1} totalCount={1} onDonateClick={() => {}} visitorCount={42} />);
     expect(screen.getByText(/Visitor #42/)).toBeInTheDocument();
   });
+  it("renders Originally by JustAMZ with instagram link", () => {
+    render(<Footer displayedCount={1} totalCount={1} onDonateClick={() => {}} visitorCount={null} />);
+    const link = screen.getByRole("link", { name: "JustAMZ" });
+    expect(link).toHaveAttribute("href", "https://instagram.com/aledio.m");
+  });
 });
