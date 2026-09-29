@@ -88,6 +88,12 @@ const DROPPED_ERROR_SUBSTRINGS = [
   "WebAssembly",
   "pauseVideos",
   "WKWebView was deallocated",
+  "Object Not Found Matching Id",
+  "Non-Error promise rejection",
+  "UTItemActionController",
+  "opiumbest",
+  "Unexpected identifier 'by'",
+  "selnor.fun",
 ];
 const EXTENSION_STACK_MARKERS = [
   "chrome-extension://",
@@ -98,6 +104,9 @@ const EXTENSION_STACK_MARKERS = [
   "webkit-masked-url",
   "__DLD__",
   "frontend.min.js",
+  "selnor.fun",
+  "opiumbest",
+  "jsdelivr.net",
 ];
 export function shouldDropError(msg: string, type: string): boolean {
   if (type.includes("React ErrorBoundary")) return true;

@@ -141,7 +141,9 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
             }
           });
           if (freeUrls.length > 0) {
-            resolveUrls(freeUrls, controller.signal).then((resolved) => mergeAndCache(id, cacheKey, json, resolved));
+            resolveUrls(freeUrls, controller.signal)
+              .then((resolved) => mergeAndCache(id, cacheKey, json, resolved))
+              .catch(() => {});
           }
         }
       };

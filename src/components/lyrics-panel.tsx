@@ -86,7 +86,7 @@ export const LyricsPanel = memo(function LyricsPanel() {
     if (!currentTrack) return;
     setTtml(null);
     const artist = currentTrack.artistName || "Unknown";
-    fetchFromLRCLIB(currentTrack.name, artist).then(setTtml);
+    fetchFromLRCLIB(currentTrack.name, artist).then(setTtml).catch(() => {});
   }, [currentTrack]);
   useEffect(() => {
     const el = ref.current;

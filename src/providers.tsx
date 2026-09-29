@@ -32,7 +32,9 @@ function notify(title: string, options: NotificationOptions) {
   } catch {
     try {
       if ("serviceWorker" in navigator) {
-        void navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, options));
+        void navigator.serviceWorker.ready
+          .then((reg) => reg.showNotification(title, options))
+          .catch(() => {});
       }
     } catch {}
   }

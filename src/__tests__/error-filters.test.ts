@@ -33,6 +33,18 @@ describe("error-filters", () => {
       expect(shouldDropError("The WKWebView was deallocated before the message was delivered", "Error")).toBe(true);
       expect(shouldDropError("undefined is not an object (evaluating 'res.operation')", "TypeError")).toBe(true);
       expect(shouldDropError("Failed to fetch", "TypeError")).toBe(true);
+      expect(shouldDropError("Failed to fetch (selnor.fun)", "TypeError")).toBe(true);
+      expect(shouldDropError("Unexpected identifier 'by'", "SyntaxError")).toBe(true);
+      expect(shouldDropError("UTItemActionController is not defined", "ReferenceError")).toBe(true);
+      expect(
+        shouldDropError(
+          "Non-Error promise rejection captured with value: Object Not Found Matching Id:5, MethodName:update, ParamCount:4",
+          "UnhandledRejection"
+        )
+      ).toBe(true);
+      expect(shouldDropError("Non-Error promise rejection captured with value: undefined", "UnhandledRejection")).toBe(
+        true
+      );
     });
     it("retains legitimate application errors", () => {
       expect(shouldDropError("Cannot read properties of undefined (reading 'split')", "TypeError")).toBe(false);
@@ -92,6 +104,9 @@ describe("error-filters", () => {
         "webkit-masked-url",
         "__DLD__",
         "frontend.min.js",
+        "selnor.fun",
+        "opiumbest",
+        "jsdelivr.net",
       ];
       for (const marker of markers) {
         expect(
