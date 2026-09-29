@@ -191,14 +191,14 @@ export const InfoModal = memo(
             .
           </p>
           <p>
-            Originally by{" "}
+            Originally owned by{" "}
             <a
               href="https://instagram.com/aledio.m"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-white"
             >
-              JustAMZ
+              aledio.m
             </a>
             .
           </p>
