@@ -5,15 +5,7 @@ import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
 import { safeSetItem } from "@/src/lib/storage";
 import { stripEmojis } from "@/lib/utils";
-import {
-  addToQueue as addTrackToQueue,
-  removeFromQueue as removeTrackFromQueue,
-  clearQueue as emptyQueue,
-  reorderQueue as reorderTrackQueue,
-  insertNext as insertTrackNext,
-  cycleRepeatMode,
-  toggleShuffleState,
-} from "@/src/lib/player-queue";
+import { cycleRepeatMode, toggleShuffleState } from "@/src/lib/player-queue";
 import type { RepeatMode } from "@/src/lib/player-queue";
 import { setCurrentTime, setDuration, resetTime, getDuration } from "@/src/lib/player-time";
 function safePlay(audio: HTMLAudioElement | null | undefined) {
@@ -135,21 +127,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
   const updateMediaSession = useCallback(
     (track: Track, isPlaying: boolean) => {
-      if (!("mediaSession" in navigator)) return;
-      const settings = loadSettings();
-      const artist = getScrobbleArtist(track);
-      const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
-      const artwork: MediaImage[] = [];
-      if (track.eraImage) {
-        artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
-      }
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title,
-        artist,
-        album: track.eraName || "",
-        artwork,
-      });
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+      try {
+        if (!("mediaSession" in navigator)) return;
+        const settings = loadSettings();
+        const artist = getScrobbleArtist(track);
+        const title = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+        const artwork: MediaImage[] = [];
+        if (track.eraImage) {
+          artwork.push({ src: track.eraImage, sizes: "512x512", type: "image/jpeg" });
+        }
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title,
+          artist,
+          album: track.eraName || "",
+          artwork,
+        });
+        navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+      } catch {}
     },
     [getScrobbleArtist]
   );
@@ -315,22 +309,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     scheduleScrobbleRef.current = scheduleScrobble;
   }, [scheduleScrobble]);
+  const prefetchNext = useCallback((queue: Track[]) => {
+    if (prefetchRef.current) {
+      prefetchRef.current.src = "";
+      prefetchRef.current = null;
+    }
+    const next = queue.find((t) => !!t?.playableUrl);
+    if (!next?.playableUrl) return;
+    const el = new Audio();
+    el.preload = "auto";
+    (
+      el as HTMLMediaElement & {
+        referrerPolicy?: string;
+      }
+    ).referrerPolicy = "no-referrer";
+    el.src = next.playableUrl;
+    prefetchRef.current = el;
+  }, []);
+  const pushHistory = useCallback((track: Track) => {
+    historyRef.current = [...historyRef.current, track];
+    setHistory(historyRef.current);
+  }, []);
   const playNext = useCallback(() => {
+    if (!audioRef.current) return;
     const queue = queueRef.current;
     if (queue.length === 0) return;
-    const [next, ...rest] = queue;
-    if (audioRef.current && next.playableUrl) {
-      clearScrobbleTimer();
-      hasScrobbledRef.current = false;
-      currentTrackRef.current = next;
+    const nextIndex = queue.findIndex((t) => !!t?.playableUrl);
+    if (nextIndex === -1) {
+      queueRef.current = [];
+      setState((s) => ({ ...s, queue: [] }));
+      return;
+    }
+    const next = queue[nextIndex];
+    const rest = queue.slice(nextIndex + 1);
+    if (!next?.playableUrl) return;
+    queueRef.current = rest;
+    clearScrobbleTimer();
+    hasScrobbledRef.current = false;
+    currentTrackRef.current = next;
+    setState((s) => ({ ...s, currentTrack: next, queue: rest, isPlaying: true }));
+    try {
       audioRef.current.src = next.playableUrl;
       safePlay(audioRef.current);
-      setHistory((h) => [...h, next]);
-      updateNowPlaying(next);
-      updateMediaSession(next, true);
-      setState((s) => ({ ...s, currentTrack: next, queue: rest, isPlaying: true }));
-    }
-  }, [clearScrobbleTimer, updateNowPlaying, updateMediaSession]);
+    } catch {}
+    pushHistory(next);
+    prefetchNext(rest);
+    updateNowPlaying(next);
+    updateMediaSession(next, true);
+  }, [clearScrobbleTimer, pushHistory, prefetchNext, updateNowPlaying, updateMediaSession]);
   const playPrevious = useCallback(() => {
     const h = historyRef.current;
     if (h.length < 2) return;
@@ -369,23 +395,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [playNext, playPrevious]);
-  const prefetchNext = useCallback((queue: Track[]) => {
-    if (prefetchRef.current) {
-      prefetchRef.current.src = "";
-      prefetchRef.current = null;
-    }
-    const next = queue[0];
-    if (!next?.playableUrl) return;
-    const el = new Audio();
-    el.preload = "auto";
-    (
-      el as HTMLMediaElement & {
-        referrerPolicy?: string;
-      }
-    ).referrerPolicy = "no-referrer";
-    el.src = next.playableUrl;
-    prefetchRef.current = el;
-  }, []);
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -453,46 +462,56 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setState((prev) => (prev.isPlaying ? prev : { ...prev, isPlaying: true }));
           return;
         }
-        if (s.queue.length > 0) {
-          const [next, ...rest] = s.queue;
-          if (audio && next.playableUrl) {
-            const prefetched = prefetchRef.current;
-            if (prefetched && prefetched.src === next.playableUrl) {
-              audio.src = next.playableUrl;
-              safePlay(audio);
-              prefetchRef.current = null;
-            } else {
-              audio.src = next.playableUrl;
-              safePlay(audio);
+        if (queueRef.current.length > 0) {
+          const queue = queueRef.current;
+          const nextIndex = queue.findIndex((t) => !!t?.playableUrl);
+          if (nextIndex === -1) {
+            queueRef.current = [];
+            setState((prev) => ({ ...prev, queue: [] }));
+          } else {
+            const next = queue[nextIndex];
+            const rest = queue.slice(nextIndex + 1);
+            if (audio && next.playableUrl) {
+              queueRef.current = rest;
+              currentTrackRef.current = next;
+              setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
+              const prefetched = prefetchRef.current;
+              if (prefetched && prefetched.src === next.playableUrl) {
+                audio.src = next.playableUrl;
+                safePlay(audio);
+                prefetchRef.current = null;
+              } else {
+                audio.src = next.playableUrl;
+                safePlay(audio);
+              }
+              historyRef.current = [...historyRef.current, next];
+              setHistory(historyRef.current);
+              prefetchNext(rest);
+              updateNowPlaying(next);
+              updateMediaSession(next, true);
+              const settings = loadSettings();
+              if (
+                settings.behavior.notifications &&
+                document.hidden &&
+                "Notification" in window &&
+                Notification.permission === "granted"
+              ) {
+                const artist = next.artistName || next.eraName || "Unknown";
+                notify(next.name, { body: artist, icon: next.eraImage || undefined });
+              }
+              try {
+                const raw = localStorage.getItem("artistgrid-history:v1");
+                const hist: Array<{
+                  name: string;
+                  artist: string;
+                  time: number;
+                }> = raw ? JSON.parse(raw) : [];
+                hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
+                if (hist.length > 200) hist.splice(0, hist.length - 200);
+                safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
+              } catch {}
+              return;
             }
-            setHistory((h) => [...h, next]);
-            currentTrackRef.current = next;
-            prefetchNext(rest);
-            updateNowPlaying(next);
-            updateMediaSession(next, true);
-            const settings = loadSettings();
-            if (
-              settings.behavior.notifications &&
-              document.hidden &&
-              "Notification" in window &&
-              Notification.permission === "granted"
-            ) {
-              const artist = next.artistName || next.eraName || "Unknown";
-              notify(next.name, { body: artist, icon: next.eraImage || undefined });
-            }
-            try {
-              const raw = localStorage.getItem("artistgrid-history:v1");
-              const hist: Array<{
-                name: string;
-                artist: string;
-                time: number;
-              }> = raw ? JSON.parse(raw) : [];
-              hist.push({ name: next.name, artist: next.artistName || next.eraName || "", time: Date.now() });
-              if (hist.length > 200) hist.splice(0, hist.length - 200);
-              safeSetItem("artistgrid-history:v1", JSON.stringify(hist));
-            } catch {}
-            setState((prev) => ({ ...prev, currentTrack: next, queue: rest, isPlaying: true }));
-            return;
           }
         }
         if (s.repeatMode === "all" && s.currentTrack?.playableUrl) {
@@ -539,7 +558,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentTrackRef.current = track;
       audioRef.current.src = track.playableUrl!;
       safePlay(audioRef.current);
-      setHistory((h) => [...h, track]);
+      historyRef.current = [...historyRef.current, track];
+      setHistory(historyRef.current);
     },
     [clearScrobbleTimer]
   );
@@ -602,40 +622,63 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     safeSetItem(VOLUME_STORAGE_KEY, String(clamped));
     setState((s) => ({ ...s, volume: clamped }));
   }, []);
-  const addToQueue = useCallback(
-    (track: Track) => setState((s) => ({ ...s, queue: addTrackToQueue(s.queue, track) })),
-    []
-  );
-  const queueNext = useCallback(
-    (track: Track) => setState((s) => ({ ...s, queue: insertTrackNext(s.queue, track) })),
-    []
-  );
-  const removeFromQueue = useCallback(
-    (index: number) => setState((s) => ({ ...s, queue: removeTrackFromQueue(s.queue, index) })),
-    []
-  );
-  const clearQueue = useCallback(() => setState((s) => ({ ...s, queue: emptyQueue() })), []);
+  const addToQueue = useCallback((track: Track) => {
+    const newQueue = [...queueRef.current, track];
+    queueRef.current = newQueue;
+    setState((s) => ({ ...s, queue: newQueue }));
+  }, []);
+  const queueNext = useCallback((track: Track) => {
+    const newQueue = [track, ...queueRef.current];
+    queueRef.current = newQueue;
+    setState((s) => ({ ...s, queue: newQueue }));
+  }, []);
+  const removeFromQueue = useCallback((index: number) => {
+    const newQueue = queueRef.current.filter((_, i) => i !== index);
+    if (newQueue.length === queueRef.current.length) return;
+    queueRef.current = newQueue;
+    setState((s) => ({ ...s, queue: newQueue }));
+  }, []);
+  const clearQueue = useCallback(() => {
+    queueRef.current = [];
+    setState((s) => ({ ...s, queue: [] }));
+  }, []);
   const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
-    setState((s) => ({ ...s, queue: reorderTrackQueue(s.queue, fromIndex, toIndex) }));
+    const newQueue = [...queueRef.current];
+    const [removed] = newQueue.splice(fromIndex, 1);
+    if (removed === undefined) return;
+    newQueue.splice(toIndex, 0, removed);
+    queueRef.current = newQueue;
+    setState((s) => ({ ...s, queue: newQueue }));
   }, []);
   const playFromQueue = useCallback(
     (index: number) => {
+      if (!audioRef.current) return;
       const queue = queueRef.current;
       if (index >= queue.length) return;
-      const track = queue[index];
-      const newQueue = queue.slice(index + 1);
-      if (audioRef.current && track.playableUrl) {
-        beginPlayback(track);
-        prefetchNext(newQueue);
-        updateNowPlaying(track);
-        updateMediaSession(track, true);
-        setState((s) => ({ ...s, currentTrack: track, queue: newQueue, isPlaying: true }));
+      const candidateSlice = queue.slice(index);
+      const playableOffset = candidateSlice.findIndex((t) => !!t?.playableUrl);
+      if (playableOffset === -1) {
+        const newQueue = queue.slice(0, index);
+        queueRef.current = newQueue;
+        setState((s) => ({ ...s, queue: newQueue }));
+        return;
       }
+      const track = candidateSlice[playableOffset];
+      const newQueue = queue.slice(index + playableOffset + 1);
+      if (!track?.playableUrl) return;
+      queueRef.current = newQueue;
+      setState((s) => ({ ...s, currentTrack: track, queue: newQueue, isPlaying: true }));
+      beginPlayback(track);
+      prefetchNext(newQueue);
+      updateNowPlaying(track);
+      updateMediaSession(track, true);
     },
     [beginPlayback, updateNowPlaying, updateMediaSession, prefetchNext]
   );
   const toggleShuffle = useCallback(() => {
-    setState((s) => ({ ...s, ...toggleShuffleState({ queue: s.queue, isShuffled: s.isShuffled }) }));
+    const next = toggleShuffleState({ queue: queueRef.current, isShuffled: stateRef.current?.isShuffled ?? false });
+    queueRef.current = next.queue;
+    setState((s) => ({ ...s, ...next }));
   }, []);
   const toggleRepeat = useCallback(() => {
     setState((s) => ({ ...s, repeatMode: cycleRepeatMode(s.repeatMode) }));
@@ -648,12 +691,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     clearScrobbleTimer();
     currentTrackRef.current = null;
+    queueRef.current = [];
+    historyRef.current = [];
     setState((s) => ({ ...s, currentTrack: null, isPlaying: false, queue: [] }));
     resetTime();
     setHistory([]);
     if ("mediaSession" in navigator) {
-      navigator.mediaSession.metadata = null;
-      navigator.mediaSession.playbackState = "none";
+      try {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.playbackState = "none";
+      } catch {}
     }
   }, [clearScrobbleTimer]);
   const getAuthUrl = useCallback(async (): Promise<{
