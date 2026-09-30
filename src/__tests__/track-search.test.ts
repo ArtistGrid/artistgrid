@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import Fuse from "fuse.js";
 import type { Era, TALeak } from "@/src/types";
 import {
@@ -87,5 +87,67 @@ describe("track-search", () => {
     const oneChar = searchTracks(items, "h", fuseInstance);
     expect(oneChar.has(t2)).toBe(true);
     expect(oneChar.has(t4)).toBe(true);
+  });
+  it("only performs fuzzy search when normal search returns 0 tracks", () => {
+    const items = flattenErasForSearch(mockEras);
+    const FuseClass = Fuse as unknown as TrackFuseConstructor;
+    const fuseInstance = new FuseClass(items, FUSE_TRACK_OPTIONS);
+    const searchSpy = vi.spyOn(fuseInstance, "search");
+
+    // Case 1: Normal search returns 0 tracks -> fuzzy search runs
+    searchSpy.mockClear();
+    const res0 = searchTracks(items, "cann u be", fuseInstance);
+    expect(searchSpy).toHaveBeenCalledTimes(1);
+    expect(res0.has(t1)).toBe(true);
+
+    // Case 2: Normal search returns 1 track -> fuzzy search is skipped
+    searchSpy.mockClear();
+    const res1 = searchTracks(items, "flashing", fuseInstance);
+    expect(searchSpy).not.toHaveBeenCalled();
+    expect(res1.size).toBe(1);
+    expect(res1.has(t2)).toBe(true);
+
+    // Case 3: Normal search returns >1 tracks -> fuzzy search is skipped
+    searchSpy.mockClear();
+    const resMultiple = searchTracks(items, "feat", fuseInstance);
+    expect(searchSpy).not.toHaveBeenCalled();
+    expect(resMultiple.size).toBe(2);
+    expect(resMultiple.has(t1)).toBe(true);
+    expect(resMultiple.has(t2)).toBe(true);
+  });
+  it("does not return false-positive fuzzy matches from track descriptions", () => {
+    const benzTrack: TALeak = {
+      name: "10 in a Benz",
+      extra: "(with Go Getters) (On 10 in a Benz)",
+      description: "Track 10 from Go Getters compilation tape.",
+    };
+    const robocopTrack: TALeak = {
+      name: "RoboCop [V2]",
+      extra: "(prod. Kanye West)",
+      description: "Version with the drums fully removed. Mentioned by A-Trak in a Genius annotation.",
+    };
+    const eras: Record<string, Era> = {
+      era: {
+        name: "Test",
+        data: {
+          Unreleased: [benzTrack, robocopTrack],
+        },
+      },
+    };
+    const items = flattenErasForSearch(eras);
+    const FuseClass = Fuse as unknown as TrackFuseConstructor;
+    const fuseInstance = new FuseClass(items, FUSE_TRACK_OPTIONS);
+
+    // Exact match returns only the 1 matching track without triggering fuzzy search
+    const exactRes = searchTracks(items, "10 in a benz", fuseInstance);
+    expect(exactRes.size).toBe(1);
+    expect(exactRes.has(benzTrack)).toBe(true);
+    expect(exactRes.has(robocopTrack)).toBe(false);
+
+    // Typo query triggers fuzzy search and still only matches the intended track, not robocop's description
+    const typoRes = searchTracks(items, "10 in a benzz", fuseInstance);
+    expect(typoRes.size).toBe(1);
+    expect(typoRes.has(benzTrack)).toBe(true);
+    expect(typoRes.has(robocopTrack)).toBe(false);
   });
 });

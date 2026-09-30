@@ -18,9 +18,8 @@ export interface TrackFuseInstance {
 }
 export const FUSE_TRACK_OPTIONS = {
   keys: [
-    { name: "name", weight: 0.65 },
+    { name: "name", weight: 0.75 },
     { name: "extra", weight: 0.25 },
-    { name: "description", weight: 0.1 },
   ],
   threshold: 0.35,
   ignoreLocation: true,
@@ -59,7 +58,13 @@ export function searchTracks(
   const cleanQuery = query.trim().toLowerCase();
   if (!cleanQuery) return new Set();
   const matched = new Set<TALeak>();
-  if (fuseInstance) {
+  for (const item of items) {
+    const searchable = `${item.name} ${item.extra} ${item.description}`.toLowerCase();
+    if (searchable.includes(cleanQuery)) {
+      matched.add(item.track);
+    }
+  }
+  if (fuseInstance && matched.size === 0) {
     try {
       const results = fuseInstance.search(cleanQuery);
       for (const r of results) {
@@ -67,13 +72,6 @@ export function searchTracks(
       }
     } catch (err) {
       console.warn("Fuse track search failed, falling back to substring:", err);
-    }
-  }
-  for (const item of items) {
-    if (matched.has(item.track)) continue;
-    const searchable = `${item.name} ${item.extra} ${item.description}`.toLowerCase();
-    if (searchable.includes(cleanQuery)) {
-      matched.add(item.track);
     }
   }
   return matched;
