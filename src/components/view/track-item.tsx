@@ -1,9 +1,7 @@
 import type { Track, Era, TALeak } from "@/src/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart } from "lucide-react";
-import { MorphIcon } from "morphicons/react";
-import { PLAY_ICON_NODE, PAUSE_ICON_NODE } from "@/src/lib/morph-icons";
+import { ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart, Play, Pause } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
 export interface FilterOptions {
@@ -62,7 +60,7 @@ export function PlayButton({ onPlay, label = "Play" }: { onPlay: () => void; lab
       aria-label={label}
       className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-neutral-200 hover:text-black hover:scale-105 transition-[transform,background-color] active:scale-95 shadow-sm"
     >
-      <MorphIcon icon={PLAY_ICON_NODE} size={14} color="currentColor" className="ml-0.5" />
+      <Play className="w-3.5 h-3.5 ml-0.5" />
     </button>
   );
 }
@@ -74,7 +72,7 @@ export function PauseButton({ onPlay, label = "Pause" }: { onPlay: () => void; l
       aria-label={label}
       className="w-9 h-9 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-black hover:bg-neutral-200 hover:text-black hover:scale-105 transition-[transform,background-color] active:scale-95 shadow-sm"
     >
-      <MorphIcon icon={PAUSE_ICON_NODE} size={14} color="currentColor" />
+      <Pause className="w-3.5 h-3.5" />
     </button>
   );
 }

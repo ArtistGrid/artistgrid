@@ -34,9 +34,7 @@ import { useVolume } from "@/src/hooks/use-volume";
 import { VolumeControl } from "@/src/components/volume-control";
 import { Button } from "@/components/ui/button";
 import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
-import { MorphIcon } from "morphicons/react";
-import { PLAY_ICON_NODE, PAUSE_ICON_NODE } from "@/src/lib/morph-icons";
-import { X, SkipBack, SkipForward, Play, Shuffle, Repeat, Repeat1 } from "lucide-react";
+import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react";
 const KAWARP_DEFAULTS = {
   warpIntensity: 1,
   blurPasses: 8,
@@ -296,13 +294,11 @@ export const FullscreenTrackView = memo(function FullscreenTrackView({ isOpen, o
                   className="bg-white text-black hover:bg-neutral-200 hover:text-black rounded-full w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center flex-shrink-0 active:scale-90 hover:scale-105 transition-[transform,background-color] shadow-xl shadow-black/30"
                   aria-label={state.isPlaying ? "Pause" : "Play"}
                 >
-                  <MorphIcon
-                    icon={state.isPlaying ? PAUSE_ICON_NODE : PLAY_ICON_NODE}
-                    size={28}
-                    spring="snappy"
-                    color="currentColor"
-                    className={state.isPlaying ? "" : "ml-0.5"}
-                  />
+                  {state.isPlaying ? (
+                    <Pause className="w-7 h-7" />
+                  ) : (
+                    <Play className="w-7 h-7 ml-0.5" />
+                  )}
                 </button>
 
                 <Button

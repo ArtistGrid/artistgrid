@@ -2,9 +2,7 @@ import * as t from "io-ts";
 import { isLeft } from "fp-ts/Either";
 import { assertDownloadManagerContract } from "@/src/lib/contracts";
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
-import { Archive, CheckCircle2, Download, Loader2, RotateCcw, X, XCircle } from "lucide-react";
-import { MorphIcon } from "morphicons/react";
-import { MAXIMIZE_ICON_NODE, MINIMIZE_ICON_NODE } from "@/src/lib/morph-icons";
+import { Archive, CheckCircle2, Download, Loader2, RotateCcw, X, XCircle, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Era, TALeak } from "@/src/types";
@@ -267,7 +265,7 @@ function DownloadFloatingUI() {
             className="h-6 w-6 text-neutral-500 hover:text-white"
             aria-label={isMinimized ? "Expand downloads" : "Minimize downloads"}
           >
-            <MorphIcon icon={isMinimized ? MAXIMIZE_ICON_NODE : MINIMIZE_ICON_NODE} size={12} spring="snappy" />
+            {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
           </Button>
         </div>
       </div>

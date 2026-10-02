@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlayer } from "@/src/providers";
 import { usePlayerTime } from "@/src/lib/player-time";
-import { MorphIcon } from "morphicons/react";
-import { PLAY_ICON_NODE, PAUSE_ICON_NODE } from "@/src/lib/morph-icons";
 import { useVolume } from "@/src/hooks/use-volume";
 import { VolumeControl } from "@/src/components/volume-control";
 import type { Track } from "@/src/types";
@@ -15,6 +13,7 @@ import {
   SkipBack,
   SkipForward,
   Play,
+  Pause,
   ListMusic,
   Shuffle,
   Repeat,
@@ -381,13 +380,11 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                     aria-label={state.isPlaying ? "Pause" : "Play"}
                     className="bg-white text-black hover:bg-neutral-200 hover:text-black rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 active:scale-90 hover:scale-105 transition-[transform,background-color] shadow-md shadow-black/20"
                   >
-                    <MorphIcon
-                      icon={state.isPlaying ? PAUSE_ICON_NODE : PLAY_ICON_NODE}
-                      size={16}
-                      spring="snappy"
-                      color="currentColor"
-                      className={state.isPlaying ? "" : "ml-0.5"}
-                    />
+                    {state.isPlaying ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4 ml-0.5" />
+                    )}
                   </button>
                   <Button
                     variant="ghost"

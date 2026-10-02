@@ -45,7 +45,6 @@
     "jszip": "^3.10.1",
     "lrclib-api": "^2.0.4",
     "lucide-react": "^0.556.0",
-    "morphicons": "^1.7.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

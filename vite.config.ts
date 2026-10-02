@@ -84,6 +84,9 @@ function customMinifyPlugin(dir: string): Plugin {
 }
 
 export default defineConfig(({ command }) => ({
+  server: {
+    allowedHosts: true,
+  },
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },

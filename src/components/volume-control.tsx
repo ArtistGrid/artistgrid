@@ -1,5 +1,4 @@
-import { MorphIcon } from "morphicons/react";
-import { VOLUME_2_ICON_NODE, VOLUME_X_ICON_NODE } from "@/src/lib/morph-icons";
+import { Volume2, VolumeX } from "lucide-react";
 interface VolumeControlProps {
   volume: number;
   isMuted: boolean;
@@ -21,7 +20,7 @@ export function VolumeControl({
   return (
     <div className={className}>
       <button type="button" onClick={onToggleMute} className={buttonClassName} aria-label="Toggle mute">
-        <MorphIcon icon={volume === 0 || isMuted ? VOLUME_X_ICON_NODE : VOLUME_2_ICON_NODE} size={16} spring="snappy" />
+        {volume === 0 || isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
       </button>
       <input
         type="range"
