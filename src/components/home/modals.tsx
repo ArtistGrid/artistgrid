@@ -198,7 +198,7 @@ export const InfoModal = memo(
               rel="noopener noreferrer"
               className="underline hover:text-white"
             >
-              aledio.m
+              JustAMZ
             </a>
             .
           </p>
