@@ -24,6 +24,7 @@ describe("ArtistGridDisplay", () => {
     );
     expect(screen.getByText("Kanye West")).toBeInTheDocument();
     expect(screen.getByText("Drake")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kanye West" })).toHaveAttribute("href", "/sh/abc123def456ghi789jklmno/");
   });
   it("calls onArtistClick", () => {
     const onArtistClick = vi.fn();
@@ -44,5 +45,11 @@ describe("ArtistGridDisplay", () => {
     );
     fireEvent.click(screen.getByLabelText("Open sheet for Kanye West"));
     expect(onSheetClick).toHaveBeenCalled();
+  });
+  it("preserves native modified-click navigation", () => {
+    const onArtistClick = vi.fn();
+    render(<ArtistGridDisplay artists={artists} onArtistClick={onArtistClick} onSheetClick={() => {}} />);
+    fireEvent.click(screen.getByRole("link", { name: "Kanye West" }), { ctrlKey: true });
+    expect(onArtistClick).not.toHaveBeenCalled();
   });
 });

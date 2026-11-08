@@ -7,15 +7,15 @@ import { getCachedData, isCacheExpired, setCachedData } from "@/src/lib/cache";
 import {
   extractTrackerId,
   artistsEqual,
-  getImageFilename,
   getCleanArtistName,
   hashString,
   isAnnouncementDismissed,
   computeDismissalHash,
 } from "@/src/lib/artist-utils";
+import { fetchArtistsCsv, parseArtistsCsv } from "@/src/lib/artists";
+import { DEFAULT_SHARE_IMAGE, HOME_DESCRIPTION, HOME_TITLE, SITE_ORIGIN } from "@/src/lib/seo";
 import {
   LOCAL_STORAGE_KEYS,
-  ARTISTS_CSV,
   HOME_CACHE_EXPIRY,
   DEFAULT_FILTER_OPTIONS,
   ANNOUNCEMENT_MESSAGE,
@@ -40,30 +40,8 @@ const LazyDonationModal = lazy(() =>
   import("@/src/components/home/modals").then((m) => ({ default: m.DonationModal }))
 );
 const LazyInfoModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.InfoModal })));
-import { TRIPLE_BOOL_YES } from "@/lib/utils";
 import { Dice6 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-function parseCSVRow(line: string): string[] {
-  const fields: string[] = [];
-  let cur = "";
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else inQ = !inQ;
-    } else if (c === "," && !inQ) {
-      fields.push(cur);
-      cur = "";
-    } else {
-      cur += c;
-    }
-  }
-  fields.push(cur);
-  return fields;
-}
 interface FuseLike {
   search(query: string): Array<{
     item: Artist;
@@ -79,9 +57,11 @@ type FuseConstructor = new (
 ) => FuseLike;
 export default function ArtistGallery() {
   usePageMeta({
-    title: "ArtistGrid",
-    description: "Discover and track unreleased music from your favorite artists.",
-    url: "https://artistgrid.cx/",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    image: DEFAULT_SHARE_IMAGE,
+    url: `${SITE_ORIGIN}/`,
+    noIndex: false,
   });
   const navigate = useNavigate();
   const { state: playerState } = usePlayer();
@@ -172,41 +152,8 @@ export default function ArtistGallery() {
       }
       if (!isCacheExpired(cached, HOME_CACHE_EXPIRY) && cached?.data?.length) return;
       try {
-        const response = await fetch(ARTISTS_CSV, { signal: controller.signal });
-        if (!response.ok) throw new Error(`Status ${response.status}`);
-        const text = await response.text();
-        const rows = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-        const headers = parseCSVRow(rows[0] ?? "");
-        const nameIdx = headers.indexOf("name");
-        const urlIdx = headers.indexOf("url");
-        const linksWorkIdx = headers.indexOf("links_work");
-        const updatedIdx = headers.indexOf("updated");
-        const bestIdx = headers.indexOf("best");
-        const parsed: Artist[] = [];
-        if (nameIdx === -1 || urlIdx === -1) throw new Error("Malformed artists CSV: missing columns");
-        const nameCount: Record<string, number> = {};
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i].trim();
-          if (!row) continue;
-          const fields = parseCSVRow(row);
-          const name = fields[nameIdx];
-          const url = fields[urlIdx];
-          if (!name || !url) continue;
-          const links_work = Number(fields[linksWorkIdx]);
-          const updated = Number(fields[updatedIdx]);
-          const best = fields[bestIdx]?.trim() === "true";
-          const count = nameCount[name] || 0;
-          nameCount[name] = count + 1;
-          const newName = count === 0 ? name : `${name} [Alt${count > 1 ? ` #${count}` : ""}]`;
-          parsed.push({
-            name: newName,
-            url,
-            imageFilename: getImageFilename(newName),
-            isLinkWorking: links_work === TRIPLE_BOOL_YES,
-            isUpdated: updated === TRIPLE_BOOL_YES,
-            isStarred: best,
-          });
-        }
+        const text = await fetchArtistsCsv(controller.signal);
+        const parsed = parseArtistsCsv(text);
         if (parsed.length === 0 && cached?.data?.length) {
           setStatus("success");
           return;
@@ -447,6 +394,7 @@ export default function ArtistGallery() {
           />
         )}
       </Suspense>
+      <h1 className="sr-only">ArtistGrid</h1>
       {isFirstLoad ? (
         <main className="max-w-7xl mx-auto p-4 sm:p-6">
           <GallerySkeleton />
@@ -455,7 +403,7 @@ export default function ArtistGallery() {
         <ErrorMessage message={errorMessage} />
       ) : (
         <>
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8" aria-hidden={!!activeModal}>
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6" aria-hidden={!!activeModal}>
             {filteredArtists.length > 0 ? (
               <ArtistGridDisplay
                 artists={filteredArtists}

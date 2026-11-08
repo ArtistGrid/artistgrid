@@ -46,6 +46,23 @@ export function artistsEqual(a: Artist[], b: Artist[]): boolean {
 export function getCleanArtistName(name: string): string {
   return name.replace(/\s*[\(\[\{][^\)\]\}]*[\)\]\}]\s*/g, "").trim();
 }
+export function getArtistNameFromSheetTitle(title: unknown): string {
+  if (typeof title !== "string") return "";
+  return getCleanArtistName(title)
+    .replace(/^copy\s+of\s+/i, "")
+    .replace(
+      /\b(?:last\s+)?update(?:d|s)?\b(?:\s*[:–—-]?\s*(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}))?/gi,
+      " "
+    )
+    .replace(
+      /\b(?:tracker|discography|discog|unreleased|leaks?|spreadsheet|database|wip|work\s+in\s+progress)\b/gi,
+      " "
+    )
+    .replace(/\s+(?:v(?:ersion)?\.?\s*\d+(?:\.\d+)*|\d+\.\d+(?:\.\d+)*)\s*(?=[\s|:;–—-]*$)/gi, " ")
+    .replace(/^[\s|:;–—-]+|[\s|:;–—-]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 export function isAnnouncementDismissed(storedHash: string | null, legacyHash: string): boolean {
   if (!storedHash) return false;
   return storedHash.startsWith("v2:") || storedHash === legacyHash;

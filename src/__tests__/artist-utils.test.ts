@@ -6,6 +6,7 @@ import {
   extractTrackerId,
   artistsEqual,
   getCleanArtistName,
+  getArtistNameFromSheetTitle,
   computeDismissalHash,
   isAnnouncementDismissed,
 } from "../lib/artist-utils";
@@ -139,6 +140,27 @@ describe("getCleanArtistName", () => {
   });
   it("returns unchanged name without alt suffix", () => {
     expect(getCleanArtistName("Normal Artist")).toBe("Normal Artist");
+  });
+});
+describe("sheet-title artist fallback", () => {
+  it.each([
+    ["Updated Lil Uzi Vert Tracker", "Lil Uzi Vert"],
+    ["Lil Uzi Vert - Unreleased Tracker [Updated]", "Lil Uzi Vert"],
+    ["The Weeknd Tracker 2.0", "The Weeknd"],
+    ["Copy of Frank Ocean Discography v3", "Frank Ocean"],
+    ["UPDATED - A$AP Rocky | Tracker", "A$AP Rocky"],
+    ["Last updated: 2026-11-07 Lil Uzi Vert Tracker", "Lil Uzi Vert"],
+    ["AC/DC Tracker", "AC/DC"],
+    ["Dr. Dre Tracker", "Dr. Dre"],
+    ["The 1975 Tracker", "The 1975"],
+    ["blink-182 Tracker", "blink-182"],
+    ["Archive Tracker", "Archive"],
+    ["Updated Tracker", ""],
+  ])("cleans %s to %s", (title, name) => {
+    expect(getArtistNameFromSheetTitle(title)).toBe(name);
+  });
+  it.each([undefined, null, 123, {}])("ignores invalid title %s", (title) => {
+    expect(getArtistNameFromSheetTitle(title)).toBe("");
   });
 });
 describe("announcement dismissal hash", () => {

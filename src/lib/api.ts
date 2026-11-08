@@ -2,12 +2,23 @@ import type { Era, EraDate, TALeak, TrackerResponse } from "@/src/types";
 import type { V3Response, V3Tab, V3Track } from "../v3.jsonschema";
 export type { V3Response } from "../v3.jsonschema";
 import { isUrl, generateTrackId } from "./track-utils";
-import { clearCacheAndReload } from "./stale-reload";
 import { fastHash } from "./hash";
 const API_BASE = "https://trackerapi.artistgrid.cx";
 const MAX_CACHED_URLS = 50;
 const etagStore = new Map<string, string>();
 const bodyCache = new Map<string, string>();
+type TrackerPrefetch = { url: string; response: Promise<Response>; controller: AbortController };
+function prefetchPage() {
+  return typeof window === "undefined" ? null : (window as Window & { __artistgridTrackerRequest?: TrackerPrefetch });
+}
+export function discardTrackerPrefetch(trackerId: string): void {
+  const page = prefetchPage();
+  const request = page?.__artistgridTrackerRequest;
+  if (page && request?.url.startsWith(`${API_BASE}/sh/${encodeURIComponent(trackerId)}/`)) {
+    request.controller.abort();
+    delete page.__artistgridTrackerRequest;
+  }
+}
 function rememberBody(url: string, body: string): void {
   bodyCache.set(url, body);
   if (bodyCache.size > MAX_CACHED_URLS) {
@@ -23,35 +34,54 @@ export async function computeETag(body: string): Promise<string> {
 }
 export async function fetchWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
   const url = `${API_BASE}${endpoint}`;
-  const res = await doFetch(url, options);
-  if (res.status === 304 && !bodyCache.has(url)) {
-    etagStore.delete(url);
-    return doFetch(url, options);
-  }
-  if (res.status === 304) {
-    const cached = bodyCache.get(url)!;
-    return new Response(cached, {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (res.status === 404) {
-    clearCacheAndReload();
-  }
-  if (res.ok) {
-    const body = await res.clone().text();
-    rememberBody(url, body);
-    const compute = () =>
-      computeETag(body)
-        .then((etag) => etagStore.set(url, etag))
-        .catch(() => {});
-    if (typeof requestIdleCallback !== "undefined") {
-      requestIdleCallback(compute, { timeout: 5000 });
-    } else {
-      setTimeout(compute, 0);
+  options?.signal?.throwIfAborted();
+  const page = prefetchPage();
+  const early =
+    !etagStore.has(url) && page?.__artistgridTrackerRequest?.url === url ? page.__artistgridTrackerRequest : undefined;
+  if (early && page) delete page.__artistgridTrackerRequest;
+  const cancelEarly = () => early?.controller.abort(options?.signal?.reason);
+  if (early) options?.signal?.addEventListener("abort", cancelEarly, { once: true });
+  try {
+    let res: Response;
+    if (early) {
+      let prefetched: Response | null = null;
+      try {
+        prefetched = await early.response;
+      } catch {
+        options?.signal?.throwIfAborted();
+      }
+      res =
+        !prefetched || prefetched.status >= 500 || prefetched.status === 429 ? await doFetch(url, options) : prefetched;
+    } else res = await doFetch(url, options);
+    options?.signal?.throwIfAborted();
+    if (res.status === 304 && !bodyCache.has(url)) {
+      etagStore.delete(url);
+      return doFetch(url, options);
     }
+    if (res.status === 304) {
+      const cached = bodyCache.get(url)!;
+      return new Response(cached, {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (res.ok) {
+      const body = await res.clone().text();
+      rememberBody(url, body);
+      const compute = () =>
+        computeETag(body)
+          .then((etag) => etagStore.set(url, etag))
+          .catch(() => {});
+      if (typeof requestIdleCallback !== "undefined") {
+        requestIdleCallback(compute, { timeout: 5000 });
+      } else {
+        setTimeout(compute, 0);
+      }
+    }
+    return res;
+  } finally {
+    if (early) options?.signal?.removeEventListener("abort", cancelEarly);
   }
-  return res;
 }
 async function doFetch(url: string, options?: RequestInit): Promise<Response> {
   const storedETag = etagStore.get(url);

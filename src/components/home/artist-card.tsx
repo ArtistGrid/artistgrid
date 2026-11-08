@@ -4,6 +4,7 @@ import { FileSpreadsheet } from "lucide-react";
 import type { Artist } from "@/src/types";
 import { ASSET_BASE } from "@/src/lib/home-constants";
 import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
+import { trackerPath } from "@/src/lib/tracker-route";
 const ArtistCard = memo(function ArtistCard({
   artist,
   priority,
@@ -20,13 +21,20 @@ const ArtistCard = memo(function ArtistCard({
   onSheetClick: (url: string) => void;
 }) {
   const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
+  const CardLink = trackerId ? "a" : "button";
   return (
     <div className="relative glass rounded-2xl overflow-hidden hover:border-white/25 hover:-translate-y-1 group transition-[transform,border-color,box-shadow] duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.08)]">
-      <button
-        type="button"
-        className={`${lcp ? "" : "card-enter "}w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white/50`}
+      <CardLink
+        type={trackerId ? undefined : "button"}
+        href={trackerId ? `${trackerPath(trackerId)}/` : undefined}
+        className={`${lcp ? "" : "card-enter "}block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white/50`}
         style={!lcp && enterDelay ? { animationDelay: `${enterDelay}ms` } : undefined}
-        onClick={() => onClick(artist)}
+        onClick={(event) => {
+          if (trackerId && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey))
+            return;
+          if (trackerId) event.preventDefault();
+          onClick(artist);
+        }}
       >
         <div className="relative aspect-square w-full overflow-hidden">
           <picture>
@@ -48,7 +56,7 @@ const ArtistCard = memo(function ArtistCard({
         <div className={`p-3 ${trackerId ? "pr-8" : ""}`}>
           <h3 className="font-semibold text-white text-sm leading-tight">{artist.name}</h3>
         </div>
-      </button>
+      </CardLink>
       {trackerId && (
         <button
           type="button"

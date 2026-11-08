@@ -4,7 +4,11 @@ import { usePageMeta } from "../hooks/use-page-meta";
 describe("usePageMeta", () => {
   afterEach(() => {
     document.title = "ArtistGrid";
-    document.querySelectorAll('meta[name="description"], meta[property^="og:"]').forEach((el) => el.remove());
+    document
+      .querySelectorAll(
+        'meta[name="description"], meta[name="robots"], meta[name^="twitter:"], meta[property^="og:"], link[rel="canonical"]'
+      )
+      .forEach((el) => el.remove());
   });
   it("sets the document title", () => {
     renderHook(() => usePageMeta({ title: "Test Title" }));
@@ -46,10 +50,11 @@ describe("usePageMeta", () => {
     unmount();
     expect(document.querySelector('meta[property="og:image"]')).toBeNull();
   });
-  it("sets og:image to url when only url is provided", () => {
+  it("keeps page URLs out of image metadata and sets the canonical", () => {
     renderHook(() => usePageMeta({ url: "https://x/page" }));
-    expect(document.querySelector('meta[property="og:image"]')?.getAttribute("content")).toBe("https://x/page");
+    expect(document.querySelector('meta[property="og:image"]')).toBeNull();
     expect(document.querySelector('meta[property="og:url"]')?.getAttribute("content")).toBe("https://x/page");
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe("https://x/page");
   });
   it("restores previous og:url on unmount", () => {
     const meta = document.createElement("meta");
@@ -85,5 +90,24 @@ describe("usePageMeta", () => {
     expect(document.title).toBe("First");
     rerender({ title: "Second" });
     expect(document.title).toBe("Second");
+  });
+  it("restores canonical and indexing metadata after route changes", () => {
+    const canonical = document.createElement("link");
+    canonical.rel = "canonical";
+    canonical.href = "https://artistgrid.cx/";
+    document.head.appendChild(canonical);
+    const { unmount } = renderHook(() => usePageMeta({ url: "https://artistgrid.cx/sh/artist/", noIndex: true }));
+    expect(canonical.href).toBe("https://artistgrid.cx/sh/artist/");
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex, follow");
+    unmount();
+    expect(canonical.href).toBe("https://artistgrid.cx/");
+    expect(document.querySelector('meta[name="robots"]')).toBeNull();
+  });
+  it("keeps Open Graph and Twitter text aligned with the page", () => {
+    renderHook(() => usePageMeta({ title: "Artist Released Tracker", description: "Released songs" }));
+    expect(document.querySelector('meta[property="og:title"]')?.getAttribute("content")).toBe(
+      "Artist Released Tracker"
+    );
+    expect(document.querySelector('meta[name="twitter:description"]')?.getAttribute("content")).toBe("Released songs");
   });
 });

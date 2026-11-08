@@ -2,16 +2,39 @@ import { useEffect, useMemo, useRef } from "react";
 import { buildFontCssUrl } from "@/src/lib/fonts";
 const loadedFonts = new Set<string>();
 function sanitizeFontName(raw: string): string {
-  let name = raw.trim();
+  let name = raw
+    .replace(/&quot;?|&#0*34;/gi, '"')
+    .replace(/&apos;?|&#0*39;/gi, "'")
+    .trim();
   if (name.toLowerCase().startsWith("docs-")) name = name.slice(5);
   const commaIdx = name.indexOf(",");
   if (commaIdx !== -1) name = name.slice(0, commaIdx);
-  return name.trim();
+  name = name
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+  return /^[\p{L}\p{M}\p{N} ._-]+$/u.test(name) ? name : "";
 }
 function loadFont(fontName: string): HTMLLinkElement | null {
   const clean = sanitizeFontName(fontName);
   if (!clean || loadedFonts.has(clean)) return null;
-  if (["ibm plex sans", "ibm plex mono"].includes(clean.toLowerCase())) return null;
+  if (
+    [
+      "ibm plex sans",
+      "ibm plex mono",
+      "arial",
+      "helvetica",
+      "calibri",
+      "times new roman",
+      "courier new",
+      "serif",
+      "sans-serif",
+      "monospace",
+      "system-ui",
+      "inherit",
+    ].includes(clean.toLowerCase())
+  )
+    return null;
   loadedFonts.add(clean);
   const link = document.createElement("link");
   link.rel = "stylesheet";
@@ -55,5 +78,6 @@ export function useEraFonts(eraFonts: (string | undefined)[]) {
 export function getEraFontStyle(font?: string): React.CSSProperties | undefined {
   if (!font) return undefined;
   const clean = sanitizeFontName(font);
+  if (!clean) return undefined;
   return { fontFamily: `"${clean}", sans-serif` };
 }

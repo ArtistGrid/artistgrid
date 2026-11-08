@@ -1,21 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Discover and track unreleased music from your favorite artists." />
+    <meta
+      name="description"
+      content="Browse artist trackers for unreleased music, leaks and released songs. Explore tracklists, era timelines, recording details and original sources on ArtistGrid."
+    />
     <meta name="application-name" content="ArtistGrid" />
     <meta name="author" content="edideaur" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:url" content="https://www.artistgrid.cx/sh/" />
-    <meta property="og:title" content="ArtistGrid" />
-    <meta property="og:description" content="Discover and track unreleased music from your favorite artists." />
+    <meta property="og:url" content="https://artistgrid.cx/" />
+    <meta property="og:title" content="ArtistGrid | Unreleased Music Trackers" />
+    <meta
+      property="og:description"
+      content="Browse artist trackers for unreleased music, leaks and released songs. Explore tracklists, era timelines, recording details and original sources on ArtistGrid."
+    />
     <meta property="og:site_name" content="ArtistGrid" />
-    <meta property="og:image" content="https://www.artistgrid.cx/favicon.png" />
+    <meta property="og:image" content="https://artistgrid.cx/favicon.png" />
     <meta property="og:image:alt" content="ArtistGrid - Unreleased Music" />
 
     <link rel="preconnect" href="https://assets.artistgrid.cx" crossorigin />
@@ -24,13 +30,7 @@
 
     <!-- Start the artist directory download as early as possible so the grid
          (and its LCP image) can render without waiting on a JS-triggered fetch. -->
-    <link
-      rel="preload"
-      as="fetch"
-      href="https://artists.artistgrid.cx/artists.csv"
-      crossorigin
-      fetchpriority="high"
-    />
+    <link rel="preload" as="fetch" href="https://artists.artistgrid.cx/artists.csv" crossorigin fetchpriority="high" />
 
     <!-- Derive the first artist's cover image from the (preloaded) CSV and
          preload it during HTML parsing, before the app bundle even boots. This
@@ -39,8 +39,13 @@
     <script>
       (function () {
         var url = "https://artists.artistgrid.cx/artists.csv";
-        fetch(url)
-          .then(function (r) { return r.text(); })
+        var directory = fetch(url);
+        window.__artistgridArtistsResponse = directory;
+        directory
+          .then(function (r) {
+            if (location.pathname !== "/") return "";
+            return r.clone().text();
+          })
           .then(function (text) {
             var rows = text.split("\n");
             if (rows.length < 2) return;
@@ -62,47 +67,43 @@
       })();
     </script>
 
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="/fonts/ibm-plex-sans-normal-400-latin.woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="/fonts/ibm-plex-sans-normal-500-latin.woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="/fonts/ibm-plex-sans-normal-600-latin.woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="/fonts/ibm-plex-sans-normal-700-latin.woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="/fonts/ibm-plex-mono-normal-400-latin.woff2"
-      crossorigin
-    />
-    <link
-      rel="stylesheet"
-      href="/fonts/fonts.css"
-      media="print"
-      onload="this.media='all'"
-    />
+    <script>
+      (function () {
+        try {
+          var page = new URL(location.href);
+          var route = page.pathname.match(/^\/sh\/([^/]+)(?:\/([^/]+))?\/?$/);
+          var id = route
+            ? decodeURIComponent(route[1])
+            : /^\/view\/?$/.test(page.pathname)
+              ? page.searchParams.get("id")
+              : "";
+          if (
+            !id ||
+            !(
+              /^[a-zA-Z0-9_-]{44}$/.test(id) ||
+              /^2PACX-[a-zA-Z0-9_-]+$/.test(id) ||
+              /^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(id)
+            )
+          )
+            return;
+          var tab = route && route[2] ? decodeURIComponent(route[2]) : "";
+          var url =
+            "https://trackerapi.artistgrid.cx/sh/" +
+            encodeURIComponent(id) +
+            (tab ? "/tab/" + encodeURIComponent(tab) : "/");
+          var controller = new AbortController();
+          var response = fetch(url, { priority: "low", signal: controller.signal });
+          window.__artistgridTrackerRequest = { url: url, response: response, controller: controller };
+          response.catch(function () {});
+        } catch (_) {}
+      })();
+    </script>
+
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/ibm-plex-sans-normal-400-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/ibm-plex-sans-normal-500-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/ibm-plex-sans-normal-600-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/ibm-plex-sans-normal-700-latin.woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/fonts.css" media="print" onload="this.media = 'all'" />
     <noscript>
       <link rel="stylesheet" href="/fonts/fonts.css" />
     </noscript>
@@ -111,21 +112,22 @@
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
 
-    <title>ArtistGrid | Unreleased Music</title>
+    <title>ArtistGrid | Unreleased Music Trackers</title>
 
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "ArtistGrid",
-      "url": "https://www.artistgrid.cx",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://www.artistgrid.cx/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://artistgrid.cx/#website",
+        "name": "ArtistGrid",
+        "url": "https://artistgrid.cx/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://artistgrid.cx/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
       }
-    }
     </script>
 
     <!-- Plausible Analytics (self-hosted) -->
@@ -136,12 +138,14 @@
       src="/ineedthis.js"
     ></script>
     <script>
-      window.plausible = window.plausible || function() {
-        (window.plausible.q = window.plausible.q || []).push(arguments)
-      }
+      window.plausible =
+        window.plausible ||
+        function () {
+          (window.plausible.q = window.plausible.q || []).push(arguments);
+        };
     </script>
   </head>
-  <body class="bg-black text-white min-h-screen" style="background-color:#000;color:#fff">
+  <body class="bg-black text-white min-h-screen" style="background-color: #000; color: #fff">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

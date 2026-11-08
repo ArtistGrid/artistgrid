@@ -4,7 +4,6 @@ import "./index.css";
 import App from "./App";
 import { ChunkErrorBoundary } from "./components/error-boundary";
 import { reloadOnStaleError, clearCacheAndReload } from "@/src/lib/stale-reload";
-import { shouldDropError, hasExtensionFrame } from "@/src/lib/error-filters";
 function installStaleAssetRecovery() {
   window.addEventListener("error", (event) => {
     reloadOnStaleError(event.message || "");
@@ -20,29 +19,7 @@ function installStaleAssetRecovery() {
 }
 installStaleAssetRecovery();
 function initSentry() {
-  import("@sentry/react")
-    .then((Sentry) => {
-      Sentry.init({
-        dsn: "https://9c47ffd2d3824883a759595f54c03b8e@rustrak-api.edideaur.works/1",
-        release: __APP_VERSION__,
-        tracesSampleRate: 0.1,
-        integrations: [Sentry.browserTracingIntegration()],
-        beforeSend(event) {
-          const values = event.exception?.values ?? [];
-          const mainValue = values[0]?.value ?? event.message ?? "";
-          const mainType = values[0]?.type ?? "";
-          if (
-            shouldDropError(mainValue, mainType) ||
-            values.some((v) => shouldDropError(v.value ?? "", v.type ?? "")) ||
-            hasExtensionFrame(event)
-          ) {
-            return null;
-          }
-          return event;
-        },
-      });
-    })
-    .catch(() => {});
+  import("./lib/error-monitoring").then(({ initErrorMonitoring }) => initErrorMonitoring()).catch(() => {});
 }
 if (
   typeof (

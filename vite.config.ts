@@ -112,6 +112,30 @@ export default defineConfig(({ command }) => ({
         );
       },
     },
+    {
+      name: "tracker-route-preload",
+      transformIndexHtml(html, context) {
+        if (command !== "build") return html;
+        const view = Object.values(context.bundle || {}).find(
+          (chunk) =>
+            chunk.type === "chunk" &&
+            (chunk.name === "View" ||
+              Object.keys(chunk.modules).some((id) => id.split("?")[0].endsWith("/src/pages/View.tsx")))
+        );
+        if (!view || view.type !== "chunk") return html;
+        const urls = [...new Set([view.fileName, ...view.imports])].map((file) => `/${file}`);
+        return {
+          html,
+          tags: [
+            {
+              tag: "script",
+              injectTo: "head",
+              children: `if (/^\\/(?:sh\\/|view(?:\\/|$))/.test(location.pathname)) { for (const href of ${JSON.stringify(urls)}) { const link = document.createElement('link'); link.rel = 'modulepreload'; link.crossOrigin = 'anonymous'; link.href = href; document.head.appendChild(link); } }`,
+            },
+          ],
+        };
+      },
+    },
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: false,

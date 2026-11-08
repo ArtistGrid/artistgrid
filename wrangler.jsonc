@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "artistgrid",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-11-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "SEO_CACHE",
+      "id": "1a4cac04c3594cf39ade28a65b0925a3",
+    },
+  ],
+  "env": {
+    "production": {
+      "kv_namespaces": [
+        {
+          "binding": "SEO_CACHE",
+          "id": "1a4cac04c3594cf39ade28a65b0925a3",
+        },
+      ],
+      "vars": {
+        "SKIP_DEPENDENCY_INSTALL": "true",
+      },
+    },
+  },
+}

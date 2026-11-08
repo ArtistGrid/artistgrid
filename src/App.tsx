@@ -58,7 +58,7 @@ function IframeNotice() {
     </div>
   );
 }
-function ShTrackerView() {
+export function ShTrackerView() {
   const { trackerId, tabSlug } = useParams<{
     trackerId: string;
     tabSlug: string;
@@ -66,7 +66,7 @@ function ShTrackerView() {
   return (
     <ChunkErrorBoundary>
       <Suspense fallback={null}>
-        <View trackerId={trackerId || ""} initialTab={tabSlug ? decodeURIComponent(tabSlug) : undefined} />
+        <View trackerId={trackerId || ""} initialTab={tabSlug} />
       </Suspense>
     </ChunkErrorBoundary>
   );

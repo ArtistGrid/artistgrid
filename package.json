@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vitest run && vite build",
+    "build": "vitest run && vite build && npm run build:functions",
+    "build:functions": "wrangler pages functions build --outdir dist/_worker.js",
+    "dev:pages": "wrangler pages dev dist",
+    "deploy:pages": "wrangler pages deploy dist",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -78,6 +81,7 @@
     "typescript": "^5",
     "vite": "^5.4.19",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "4.158.0"
   }
 }

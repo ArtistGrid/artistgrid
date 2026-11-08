@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useHeaderSlots } from "@/src/components/layout";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/src/hooks/use-page-meta";
+import { ASSETS_ORIGIN, DEFAULT_SHARE_IMAGE, SITE_ORIGIN, cleanTabName, trackerCanonicalUrl } from "@/src/lib/seo";
 import type { Track, Era, TALeak, TrackerResponse } from "@/src/types";
 import { usePlayer } from "../providers";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,7 +18,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
   X,
@@ -45,11 +45,17 @@ import {
   getTrackDescription,
   encodeTrackForUrl,
   decodeTrackFromUrl,
-  getGoogleSheetsUrl,
   getSourceDisplayName,
   SUPPORTED_SOURCES,
 } from "@/src/lib/track-utils";
-import { extractTrackerId, getSheetViewUrl, getCleanArtistName } from "@/src/lib/artist-utils";
+import {
+  getSheetViewUrl,
+  getCleanArtistName,
+  getArtistNameFromSheetTitle,
+  getImageFilename,
+} from "@/src/lib/artist-utils";
+import { getDirectTrackerId, resolveArtistTracker } from "@/src/lib/artists";
+import { parseTrackerLink, trackerPath } from "@/src/lib/tracker-route";
 import { triggerBlobDownload } from "@/src/lib/download-utils";
 import {
   flattenErasForSearch,
@@ -116,9 +122,22 @@ function TrackerViewContent({
   const downloadManager = useDownloadManager();
   const { settings } = useSettings();
   const { setSettingsOpen } = useSettingsModal();
-  const [trackerId, setTrackerId] = useState(propTrackerId || searchParams.get("id") || "");
-  const [inputValue, setInputValue] = useState(trackerId);
-  const [artistNameFromUrl, setArtistNameFromUrl] = useState<string | null>(() => searchParams.get("artist"));
+  const trackerParam = propTrackerId || searchParams.get("id") || "";
+  const [lookupAttempt, setLookupAttempt] = useState(0);
+  const [resolution, setResolution] = useState<{
+    param: string;
+    attempt: number;
+    trackerId: string;
+    artistName: string | null;
+    error: string | null;
+  } | null>(null);
+  const resolvedTracker =
+    resolution?.param === trackerParam && resolution.attempt === lookupAttempt ? resolution : null;
+  const trackerId = resolvedTracker?.trackerId || "";
+  const resolutionError = resolvedTracker?.error;
+  const isResolvingTracker = !!trackerParam && !resolvedTracker;
+  const [inputValue, setInputValue] = useState(trackerParam);
+  const artistNameFromUrl = searchParams.get("artist");
   const [searchQuery, setSearchQuery] = useState("");
   const deferredQuery = useDeferredValue(searchQuery.trim());
   const [fuseModule, setFuseModule] = useState<TrackFuseConstructor | null>(null);
@@ -174,7 +193,35 @@ function TrackerViewContent({
     resolveUrls,
     fetchBaseEraImages,
     loadTrackerData,
+    cancelTrackerLoad,
   } = trackerData;
+  useEffect(() => {
+    const controller = new AbortController();
+    cancelTrackerLoad();
+    setInputValue(trackerParam);
+    setData(null);
+    setHasLoaded(false);
+    setStatus(trackerParam ? "loading" : "idle");
+    if (!trackerParam) return;
+    void resolveArtistTracker(trackerParam, controller.signal, window.location.origin)
+      .then((resolved) => {
+        if (!controller.signal.aborted) {
+          setResolution({ param: trackerParam, attempt: lookupAttempt, ...resolved, error: null });
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setResolution({
+            param: trackerParam,
+            attempt: lookupAttempt,
+            trackerId: "",
+            artistName: null,
+            error: error instanceof Error ? error.message : "Could not resolve this tracker.",
+          });
+        }
+      });
+    return () => controller.abort();
+  }, [trackerParam, lookupAttempt, cancelTrackerLoad, setData, setHasLoaded, setStatus]);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -208,24 +255,28 @@ function TrackerViewContent({
   const isFavouritesTab = currentTab === "Favourites";
   const isCustomTab = currentTab === "Custom";
   const showTrackerContent =
-    ((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty)) || hasLoaded;
+    !!trackerId &&
+    (((status === "success" || status === "tab-loading") && (data || tabError || tabEmpty)) || hasLoaded);
   const pageTabSlug =
     !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
-  const pageTabPart = pageTabSlug ? `/${pageTabSlug}` : "";
   const displayTabs = useMemo(() => {
     const tabs = [...tabsList];
     if (!tabs.includes("Favourites")) tabs.push("Favourites");
     if (!tabs.includes("Custom")) tabs.push("Custom");
     return tabs;
   }, [tabsList]);
-  const artistDisplayName = useMemo(() => artistNameFromUrl || "Unknown Artist", [artistNameFromUrl]);
+  const artistDisplayName =
+    resolvedTracker?.artistName || getArtistNameFromSheetTitle(data?.name) || artistNameFromUrl || "Unknown Artist";
   const cleanArtistName = useMemo(
-    () => (artistNameFromUrl ? getCleanArtistName(artistNameFromUrl) : ""),
-    [artistNameFromUrl]
+    () => (artistDisplayName !== "Unknown Artist" ? getCleanArtistName(artistDisplayName) : ""),
+    [artistDisplayName]
   );
   usePageMeta({
-    title: `ArtistGrid - ${artistNameFromUrl || "Tracker"}`,
-    url: `https://artistgrid.cx/sh/${trackerId}${pageTabPart}?artist=${encodeURIComponent(cleanArtistName || "")}`,
+    title: `${cleanArtistName || "Artist"}${cleanTabName(currentTab) ? ` ${cleanTabName(currentTab)}` : ""} Tracker | ArtistGrid`,
+    description: `Browse ${cleanArtistName || "artist"}${cleanTabName(currentTab) ? ` ${cleanTabName(currentTab).toLowerCase()}` : " music"} tracklists, song notes and recording details on ArtistGrid.`,
+    image: cleanArtistName ? `${ASSETS_ORIGIN}/webp/${getImageFilename(cleanArtistName)}` : DEFAULT_SHARE_IMAGE,
+    url: trackerId ? trackerCanonicalUrl(trackerId, pageTabSlug) : `${SITE_ORIGIN}/view`,
+    noIndex: !trackerParam || !!resolutionError || status === "error" || isFavouritesTab || isCustomTab,
   });
   const getEraImage = useCallback(
     (era: Era): string | undefined => {
@@ -368,14 +419,7 @@ function TrackerViewContent({
     [artistDisplayName, getEraImage]
   );
   useEffect(() => {
-    const id = searchParams.get("id");
     const trackParam = searchParams.get("track");
-    const artistParam = searchParams.get("artist");
-    if (id) {
-      setTrackerId(id);
-      setInputValue(id);
-    }
-    if (artistParam) setArtistNameFromUrl(artistParam);
     if (trackParam) {
       const decodedUrl = decodeTrackFromUrl(trackParam);
       if (decodedUrl) {
@@ -410,43 +454,51 @@ function TrackerViewContent({
   }, [data, resolvedUrls, playTrack, createTrackObject]);
   const tabChangeInProgress = useRef(false);
   useEffect(() => {
-    let cancelled = false;
-    const fetchTracker = async () => {
-      if (!trackerId || cancelled) return;
-      if (tabChangeInProgress.current) {
-        tabChangeInProgress.current = false;
-        return;
-      }
-      await loadTrackerData(trackerId, propInitialTab);
-    };
-    void fetchTracker();
-    return () => {
-      cancelled = true;
-    };
-  }, [trackerId, loadTrackerData, propInitialTab]);
-  const handleLoad = useCallback(() => {
-    if (!inputValue.trim()) {
-      toast({ title: "Invalid input", description: "Enter a tracker ID or Google Sheets link" });
+    if (!trackerId) {
+      tabChangeInProgress.current = false;
       return;
     }
-    let resolvedUrl = inputValue.trim();
-    if (!resolvedUrl.includes("/")) {
-      resolvedUrl = `https://docs.google.com/spreadsheets/d/${resolvedUrl}/edit`;
+    if (tabChangeInProgress.current) {
+      tabChangeInProgress.current = false;
+      return;
+    }
+    void loadTrackerData(trackerId, propInitialTab);
+    const controller = abortRef.current;
+    return () => controller?.abort();
+  }, [trackerId, loadTrackerData, propInitialTab, abortRef]);
+  const handleLoad = useCallback(() => {
+    const input = inputValue.trim();
+    if (!input) {
+      toast({ title: "Invalid input", description: "Enter an artist name, tracker ID, or tracker link" });
+      return;
     }
     try {
-      new URL(resolvedUrl);
+      encodeURIComponent(input);
+      const link = parseTrackerLink(input, window.location.origin);
+      if (link) {
+        if (
+          link.trackerParam.trim().toLowerCase() === trackerParam.trim().toLowerCase() &&
+          link.tabSlug === (propInitialTab || "") &&
+          link.href === window.location.pathname + window.location.search
+        ) {
+          setLookupAttempt((attempt) => attempt + 1);
+        } else navigate(link.href);
+        return;
+      }
+      const literalId = getDirectTrackerId(input);
+      if (!literalId && !/[\p{L}\p{N}]/u.test(input)) throw new Error("Invalid artist name");
+      const currentInput = trackerParam.trim();
+      const sameInput =
+        literalId && !literalId.includes(".")
+          ? literalId === getDirectTrackerId(currentInput)
+          : (literalId || input).toLowerCase() === currentInput.toLowerCase();
+      if (sameInput) {
+        setLookupAttempt((attempt) => attempt + 1);
+      } else navigate(`${trackerPath(literalId || input)}/`);
     } catch {
-      toast({ title: "Invalid input", description: "Enter a valid Google Sheets link or tracker ID" });
-      return;
+      toast({ title: "Invalid input", description: "Enter a valid artist name, tracker ID, or tracker link" });
     }
-    const trackerId = extractTrackerId(resolvedUrl);
-    if (!trackerId) {
-      toast({ title: "Invalid input", description: "Could not extract tracker ID from URL" });
-      return;
-    }
-    const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
-    navigate(`/sh/${trackerId}${artistQs}`);
-  }, [inputValue, navigate, toast, cleanArtistName]);
+  }, [inputValue, trackerParam, propInitialTab, navigate, toast]);
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -459,42 +511,45 @@ function TrackerViewContent({
     const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
     const tabSlug =
       !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
-    const tabPart = tabSlug ? `/${tabSlug}` : "";
-    const url = `${window.location.origin}/sh/${trackerId}${tabPart}${artistQs}`;
+    const url = `${window.location.origin}${trackerPath(trackerParam, tabSlug)}${artistQs}`;
     if (await copyToClipboard(url)) {
       toast({ title: "Copied!", description: "Share link copied to clipboard" });
     } else {
       toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
     }
-  }, [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]);
+  }, [trackerParam, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]);
   const handleShareTrack = useCallback(
     async (trackUrl: string, trackName: string) => {
       const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
       const tabSlug =
         !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
-      const tabPart = tabSlug ? `/${tabSlug}` : "";
       const encodedTrack = encodeTrackForUrl(trackUrl);
-      const shareUrl = `${window.location.origin}/sh/${trackerId}${tabPart}?track=${encodedTrack}${artistQs}`;
+      const shareUrl = `${window.location.origin}${trackerPath(trackerParam, tabSlug)}?track=${encodedTrack}${artistQs}`;
       if (await copyToClipboard(shareUrl)) {
         toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
       } else {
         toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
       }
     },
-    [trackerId, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]
+    [trackerParam, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]
   );
   const handleTabChange = useCallback(
     (tabName: string) => {
       if (!trackerId || tabName === currentTab) return;
       const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
+      const basePath = trackerPath(trackerParam);
       if (tabName === "Favourites") {
+        cancelTrackerLoad();
         setCurrentTab("Favourites");
-        navigate(`/sh/${trackerId}${artistQs}`, { replace: true });
+        tabChangeInProgress.current = !!propInitialTab;
+        navigate(`${basePath}${artistQs}`, { replace: true });
         return;
       }
       if (tabName === "Custom") {
+        cancelTrackerLoad();
         setCurrentTab("Custom");
-        navigate(`/sh/${trackerId}${artistQs}`, { replace: true });
+        tabChangeInProgress.current = !!propInitialTab;
+        navigate(`${basePath}${artistQs}`, { replace: true });
         return;
       }
       let slug = tabSlugsRef.current[tabName];
@@ -508,37 +563,51 @@ function TrackerViewContent({
         }
       }
       slug = slug ?? tabName;
-      setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
       tabChangeInProgress.current = true;
-      navigate(`/sh/${trackerId}/${slug}${artistQs}`, { replace: true });
-      loadTrackerData(trackerId, slug, tabName);
+      navigate(`${trackerPath(trackerParam, slug)}${artistQs}`, { replace: true });
+      void loadTrackerData(trackerId, slug, tabName);
     },
-    [trackerId, currentTab, loadTrackerData, navigate, cleanArtistName, setCurrentTab, setResolvedUrls, tabSlugsRef]
+    [
+      trackerId,
+      trackerParam,
+      propInitialTab,
+      currentTab,
+      loadTrackerData,
+      cancelTrackerLoad,
+      navigate,
+      cleanArtistName,
+      setCurrentTab,
+      setResolvedUrls,
+      tabSlugsRef,
+    ]
   );
   const loadCustomView = useCallback(
     async (view: CustomView) => {
       if (!trackerId) return;
+      cancelTrackerLoad();
       setActiveCustomView(view);
       setResolvedUrls(new Map());
       setHighlightedTrackUrl(null);
       setStatus("tab-loading");
       setTabError(false);
       setTabEmpty(false);
-      fetchBaseEraImages(trackerId);
       const controller = new AbortController();
       abortRef.current = controller;
+      void fetchBaseEraImages(trackerId, controller.signal);
       try {
         const responses = await Promise.all(
           view.tabs.map(async (tabName) => {
             const slug = tabSlugsRef.current[tabName] ?? tabName;
             const gid = tabGidsRef.current[tabName] || "";
             const cached = await getCacheAsync(trackerId, gid || slug);
+            if (controller.signal.aborted) return null;
             if (cached) return cached.data;
             const endpoint = gid ? `/sh/${trackerId}/gid/${gid}` : `/sh/${trackerId}/tab/${encodeURIComponent(slug)}`;
             const res = await fetchWithFallback(endpoint, { signal: controller.signal });
             if (!res.ok) return null;
             const v3: V3Response = await res.json();
+            if (controller.signal.aborted) return null;
             const hasFlatTracks = v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0;
             const hasEras = v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0;
             if (!hasFlatTracks && !hasEras) return null;
@@ -574,6 +643,7 @@ function TrackerViewContent({
     },
     [
       trackerId,
+      cancelTrackerLoad,
       setActiveCustomView,
       setResolvedUrls,
       setHighlightedTrackUrl,
@@ -1128,8 +1198,8 @@ function TrackerViewContent({
       </Button>
     </div>
   );
-  if (status === "fallback")
-    return <FallbackView sheetsUrl={getGoogleSheetsUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
+  if (trackerId && status === "fallback")
+    return <FallbackView sheetsUrl={getSheetViewUrl(trackerId, settings.behavior.sheetsHtmlview)} />;
   const renderEraCards = (data: Record<string, Era>) =>
     Object.entries(data).map(([key, era]) => (
       <ChunkErrorBoundary
@@ -1163,7 +1233,7 @@ function TrackerViewContent({
   return (
     <motion.div
       className="min-h-screen bg-black pb-32 sm:pb-28"
-      initial={{ opacity: 0 }}
+      initial={false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
@@ -1209,102 +1279,73 @@ function TrackerViewContent({
         </Suspense>
       )}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-        {status === "idle" && (
+        {!trackerParam && (
           <div className="text-center py-16 sm:py-24">
-            <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">Enter a Tracker ID to get started</h2>
-            <p className="text-sm sm:text-base text-white/55">Tracker IDs are exactly 44 characters long</p>
+            <h2 className="text-lg sm:text-xl font-semibold text-white/60 mb-2">Enter an artist name or tracker ID</h2>
+            <p className="text-sm sm:text-base text-white/55">
+              Artist names, tracker domains, and Google Sheets links are supported.
+            </p>
           </div>
         )}
-        {status === "loading" && (
-          <motion.div
-            className="space-y-4 sm:space-y-5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="text-center py-4">
+        {trackerParam && !resolutionError && status !== "error" && (
+          <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 min-h-28">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {artistDisplayName === "Unknown Artist" && (isResolvingTracker || status === "loading")
+                  ? "Loading tracker"
+                  : artistDisplayName}
+              </h1>
+              {credits && <p className="text-xs text-white/55 mt-0.5">by {credits}</p>}
+              {discord && (
+                <a
+                  href={discord}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Discord"
+                  className="inline-flex items-center text-xs text-white/55 hover:text-white/60 mt-0.5"
+                >
+                  <DiscordIcon className="w-3.5 h-3.5 mr-1" />
+                  Discord
+                </a>
+              )}
+              {data?.lastUpdated && (
+                <p className="text-xs text-white/50 mt-0.5">Last updated {formatRelativeTime(data.lastUpdated)}</p>
+              )}
+            </div>
+            {showTrackerContent && !isArtTab && stats.playable > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => downloadTracker()}
+                disabled={isPreloading}
+                className="glass-flat rounded-xl text-white/60 hover:text-white self-start sm:self-auto"
+              >
+                <FolderDown className="w-3.5 h-3.5 mr-2" />
+                Download All ({stats.playable})
+              </Button>
+            )}
+          </header>
+        )}
+        {(isResolvingTracker || (!!trackerId && status === "loading")) && (
+          <div className="min-h-screen">
+            <div className="text-center py-6" role="status">
               <div className="inline-flex items-center gap-2 text-white/55 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Loading tracker data...</span>
               </div>
             </div>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass rounded-2xl p-4 sm:p-5">
-                <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                  <Skeleton className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/[0.08]" />
-                  <div className="flex-1">
-                    <Skeleton className="h-4 sm:h-5 w-1/3 bg-white/[0.08] mb-2 rounded-lg" />
-                    <Skeleton className="h-3 sm:h-4 w-1/4 bg-white/[0.06] rounded-lg" />
-                  </div>
-                </div>
-                <div className="space-y-2 sm:space-y-2.5">
-                  {Array.from({ length: 3 }).map((_, j) => (
-                    <Skeleton key={j} className="h-13 sm:h-14 bg-white/[0.05] rounded-xl" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </motion.div>
+          </div>
         )}
-        {status === "error" && (
+        {(resolutionError || (!!trackerId && status === "error")) && (
           <div className="flex items-center justify-center py-12 sm:py-20">
             <div className="glass-elevated rounded-2xl p-6 sm:p-8 text-center max-w-md w-full">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Error Loading Data</h2>
+              {resolutionError && <p className="text-sm text-white/60">{resolutionError}</p>}
             </div>
           </div>
         )}
         {showTrackerContent && (
           <>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{artistDisplayName}</h1>
-                {credits && (
-                  <p className="text-xs text-white/55 mt-0.5">
-                    by {credits}
-                    {discord && (
-                      <a
-                        href={discord}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Discord"
-                        className="inline-flex items-center ml-1.5 text-white/55 hover:text-white/60 transition-colors align-middle"
-                        title="Discord"
-                      >
-                        <DiscordIcon className="w-3 h-3" />
-                      </a>
-                    )}
-                  </p>
-                )}
-                {!credits && discord && (
-                  <a
-                    href={discord}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Discord"
-                    className="inline-flex items-center text-xs text-white/55 hover:text-white/60 transition-colors mt-0.5"
-                    title="Discord"
-                  >
-                    <DiscordIcon className="w-3.5 h-3.5 mr-1" />
-                    Discord
-                  </a>
-                )}
-                {data?.lastUpdated && (
-                  <p className="text-xs text-white/50 mt-0.5">Last updated {formatRelativeTime(data.lastUpdated)}</p>
-                )}
-              </div>
-              {!isArtTab && stats.playable > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => downloadTracker()}
-                  disabled={isPreloading}
-                  className="glass-flat rounded-xl text-white/60 hover:text-white self-start sm:self-auto"
-                >
-                  <FolderDown className="w-3.5 h-3.5 mr-2" />
-                  Download All ({stats.playable})
-                </Button>
-              )}
-            </div>
             {displayTabs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-white/[0.07]">
                 {displayTabs.map((tab) => (

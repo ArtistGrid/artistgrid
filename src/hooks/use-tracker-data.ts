@@ -1,8 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
 import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/src/lib/resolve-url";
 import { forEachEraTrack, mergeAndCache } from "@/src/lib/view-utils";
-import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
+import {
+  fetchWithFallback,
+  adaptV3Response,
+  adaptV3FlatResponse,
+  discardTrackerPrefetch,
+  type V3Response,
+} from "@/src/lib/api";
 import { isValidV3Response } from "@/src/lib/v3-validation";
 import { getAllTrackUrls } from "@/src/lib/track-utils";
 import type { TrackerResponse } from "@/src/types";
@@ -20,14 +26,52 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
   const tabGidsRef = useRef<Record<string, string>>({});
   const hasLoadedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const trackerIdRef = useRef("");
+  const generationRef = useRef(0);
+  const resolutionRunRef = useRef(0);
+  const mountedRef = useRef(false);
+  const settledRef = useRef<{ id: string; data: TrackerResponse; resolvedUrls: Map<string, string | null> } | null>(
+    null
+  );
   const [tabError, setTabError] = useState(false);
   const [tabEmpty, setTabEmpty] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [credits, setCredits] = useState<string | null>(null);
   const [discord, setDiscord] = useState<string | null>(null);
-  const fetchBaseEraImages = useCallback(async (id: string) => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      generationRef.current++;
+      abortRef.current?.abort();
+    };
+  }, []);
+  useEffect(() => {
+    if (status === "success" && data) {
+      settledRef.current = { id: trackerIdRef.current, data, resolvedUrls };
+    }
+  }, [data, resolvedUrls, status]);
+  const cancelTrackerLoad = useCallback(() => {
+    generationRef.current++;
+    resolutionRunRef.current++;
+    abortRef.current?.abort();
+    setIsPreloading(false);
+    const settled = settledRef.current;
+    if (settled && settled.id === trackerIdRef.current) {
+      setData(settled.data);
+      setResolvedUrls(new Map(settled.resolvedUrls));
+      setTabError(false);
+      setTabEmpty(false);
+      setStatus("success");
+    } else setStatus(hasLoadedRef.current ? "success" : "idle");
+  }, []);
+  const fetchBaseEraImages = useCallback(async (id: string, signal?: AbortSignal) => {
+    const generation = generationRef.current;
+    const active = () =>
+      mountedRef.current && !signal?.aborted && generation === generationRef.current && id === trackerIdRef.current;
     try {
       const cached = await getCacheAsync(id);
+      if (!active()) return;
       if (cached?.data?.eras) {
         const images: Record<string, string> = {};
         for (const [key, era] of Object.entries(cached.data.eras)) {
@@ -36,9 +80,10 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         setBaseEraImages(images);
         return;
       }
-      const res = await fetchWithFallback(`/sh/${id}/`);
+      const res = await fetchWithFallback(`/sh/${id}/`, { signal });
       if (res.ok) {
         const json: V3Response = await res.json();
+        if (!active()) return;
         if (json?.eras) {
           const images: Record<string, string> = {};
           for (const era of json.eras) {
@@ -57,6 +102,9 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
   const resolveUrls = useCallback(
     async (urls: string[], signal?: AbortSignal): Promise<Record<string, string | null>> => {
       if (urls.length === 0) return {};
+      const generation = generationRef.current;
+      const run = ++resolutionRunRef.current;
+      const active = () => mountedRef.current && !signal?.aborted && generation === generationRef.current;
       setIsPreloading(true);
       setResolveProgress({ current: 0, total: urls.length });
       const resolved: Record<string, string | null> = {};
@@ -70,23 +118,25 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
           const results = await Promise.all(
             batch.map(async (url) => ({ url, playable: await resolvePlayableUrl(url) }))
           );
+          if (signal?.aborted) break;
           for (const { url, playable } of results) resolved[url] = playable;
           const current = Math.min(i + batchSize, urls.length);
           const isLast = current >= urls.length;
           const now = Date.now();
-          if (isLast || now - lastFlush >= FLUSH_INTERVAL_MS) {
+          if (active() && (isLast || now - lastFlush >= FLUSH_INTERVAL_MS)) {
             lastFlush = now;
             const snapshot = { ...resolved };
             setResolvedUrls((prev) => {
+              if (!active()) return prev;
               const next = new Map(prev);
               for (const [url, playable] of Object.entries(snapshot)) next.set(url, playable);
               return next;
             });
-            setResolveProgress({ current, total: urls.length });
+            if (run === resolutionRunRef.current) setResolveProgress({ current, total: urls.length });
           }
         }
       } finally {
-        setIsPreloading(false);
+        if (active() && run === resolutionRunRef.current) setIsPreloading(false);
       }
       return resolved;
     },
@@ -101,6 +151,7 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         tab: string | undefined,
         overrideTabName: string | undefined
       ) => {
+        settledRef.current = { id, data: cached.data, resolvedUrls: new Map(Object.entries(cached.resolvedUrls)) };
         setData(cached.data);
         setResolvedUrls(new Map(Object.entries(cached.resolvedUrls)));
         captureMeta(cached.data);
@@ -123,6 +174,7 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         json: TrackerResponse,
         overrideTabName: string | undefined
       ) => {
+        settledRef.current = { id, data: json, resolvedUrls: new Map() };
         setData(json);
         captureMeta(json);
         setCurrentTab(overrideTabName || json.current_tab);
@@ -133,37 +185,55 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
         hasLoadedRef.current = true;
         setHasLoaded(true);
         setCache(id, json, {}, cacheKey);
-        if (!NON_PLAYABLE_TABS.includes(json.current_tab)) {
-          const freeUrls: string[] = [];
+        const preparePlayableUrls = () => {
+          if (!active() || NON_PLAYABLE_TABS.includes(json.current_tab)) return;
+          const freeUrls = new Set<string>();
           forEachEraTrack(json.eras, (t) => {
             for (const u of getAllTrackUrls(t)) {
-              if (!isNetworkSource(getTrackSource(u)) && !freeUrls.includes(u)) freeUrls.push(u);
+              if (!isNetworkSource(getTrackSource(u))) freeUrls.add(u);
             }
           });
-          if (freeUrls.length > 0) {
-            resolveUrls(freeUrls, controller.signal)
-              .then((resolved) => mergeAndCache(id, cacheKey, json, resolved))
+          if (freeUrls.size > 0) {
+            resolveUrls([...freeUrls], controller.signal)
+              .then((resolved) => {
+                if (active()) mergeAndCache(id, cacheKey, json, resolved);
+              })
               .catch(() => {});
           }
-        }
+        };
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => requestAnimationFrame(preparePlayableUrls));
+        } else setTimeout(preparePlayableUrls, 0);
       };
       const hasPayload = (v3: V3Response): boolean =>
         (v3 && typeof v3 === "object" && Array.isArray(v3.tracks) && v3.tracks.length > 0) ||
         (v3 && typeof v3 === "object" && Array.isArray(v3.eras) && v3.eras.length > 0);
       if (tab && virtualTabs.includes(tabName || tab)) {
+        cancelTrackerLoad();
         setCurrentTab(tabName || tab);
         return;
       }
       abortRef.current?.abort();
-      if (!tab) {
+      const generation = ++generationRef.current;
+      resolutionRunRef.current++;
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const active = () => mountedRef.current && !controller.signal.aborted && generation === generationRef.current;
+      const trackerChanged = trackerIdRef.current !== id;
+      trackerIdRef.current = id;
+      setIsPreloading(false);
+      if (!tab || trackerChanged) {
         setData(null);
         setResolvedUrls(new Map());
+        setBaseEraImages({});
         setCredits(null);
         setDiscord(null);
         setExpandedEras(new Set());
         setTabsList([]);
         tabSlugsRef.current = {};
         tabGidsRef.current = {};
+        hasLoadedRef.current = false;
+        setHasLoaded(false);
       }
       setTabError(false);
       setTabEmpty(false);
@@ -179,17 +249,17 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       const gid = tab ? tabGidsRef.current[tabNameForGid] || "" : "";
       const cacheKey = gid || tab;
       setStatus(tab && hasLoadedRef.current ? "tab-loading" : "loading");
-      if (tab) fetchBaseEraImages(id);
+      if (tab) void fetchBaseEraImages(id, controller.signal);
       const cached = await getCacheAsync(id, cacheKey);
+      if (!active()) return;
       if (cached) {
+        discardTrackerPrefetch(id);
         applyCachedData(cached, tab, overrideTabName);
         return;
       }
-      const controller = new AbortController();
-      abortRef.current = controller;
       const endpoint = tab ? (gid ? `/sh/${id}/gid/${gid}` : `/sh/${id}/tab/${encodeURIComponent(tab)}`) : `/sh/${id}/`;
       const fail = () => {
-        if (controller.signal.aborted) return;
+        if (!active()) return;
         if (tab) {
           setData(null);
           setTabError(true);
@@ -200,18 +270,18 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
       };
       try {
         const res = await fetchWithFallback(endpoint, { signal: controller.signal });
-        if (controller.signal.aborted) return;
+        if (!active()) return;
         if (!res.ok) {
           fail();
           return;
         }
         const rawPayload: unknown = await res.json();
-        if (controller.signal.aborted) return;
+        if (!active()) return;
         if (!isValidV3Response(rawPayload)) {
           console.warn("[tracker] V3 payload failed schema validation; decoding best-effort");
         }
         const v3 = rawPayload as V3Response;
-        if (controller.signal.aborted) return;
+        if (!active()) return;
         if (!hasPayload(v3)) {
           if (tab) {
             setData(null);
@@ -228,12 +298,12 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
             : adaptV3Response(v3);
         applySuccessData(id, cacheKey, json, overrideTabName);
       } catch (e) {
-        if (controller.signal.aborted) return;
+        if (!active()) return;
         console.error("[tracker] load failed", e);
         fail();
       }
     },
-    [captureMeta, fetchBaseEraImages, resolveUrls, setExpandedEras]
+    [cancelTrackerLoad, captureMeta, fetchBaseEraImages, resolveUrls, setExpandedEras]
   );
   return {
     data,
@@ -264,5 +334,6 @@ export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Se
     resolveUrls,
     fetchBaseEraImages,
     loadTrackerData,
+    cancelTrackerLoad,
   };
 }
