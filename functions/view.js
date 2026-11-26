@@ -1,4 +1,3 @@
-// functions/view.js
 import { BOT_RE, documentResponse, handleBotTrackerRequest } from './_bot-renderer.js';
 
 export async function onRequest(context) {

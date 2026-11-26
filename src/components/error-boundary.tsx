@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import { reloadOnStaleError } from "@/src/lib/stale-reload";
+import { reloadOnStaleError } from "@/lib/stale-reload";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;

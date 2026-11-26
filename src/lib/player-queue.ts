@@ -1,4 +1,4 @@
-import type { Track } from "@/src/types";
+import type { Track } from "@/types";
 export type RepeatMode = "off" | "all" | "one";
 export function addToQueue(queue: Track[], track: Track): Track[] {
   return [...queue, track];

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useTrackerData } from "@/src/hooks/use-tracker-data";
-import { clearCache } from "@/src/lib/tracker-cache";
+import { useTrackerData } from "@/hooks/use-tracker-data";
+import { clearCache } from "@/lib/tracker-cache";
 function mockFetchOnce(body: unknown, ok = true) {
   globalThis.fetch = vi.fn().mockResolvedValue({
     ok,

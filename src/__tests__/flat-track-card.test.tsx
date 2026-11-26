@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { FlatTrackCard, type FlatTrackCardProps } from "@/src/components/view/flat-track-card";
-import type { Era, TALeak } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { FlatTrackCard, type FlatTrackCardProps } from "@/components/view/flat-track-card";
+import type { Era, TALeak } from "@/types";
 const track: TALeak = { name: "Song", url: "https://x.com/a", eraName: "Era X" };
 const fakeEra: Era = { name: "Era X" };
 function cardProps(over: Partial<FlatTrackCardProps> = {}): FlatTrackCardProps {

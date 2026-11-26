@@ -7,7 +7,7 @@ import {
   OpenLinkButton,
   TrackDescription,
   FallbackView,
-} from "@/src/components/view/track-item";
+} from "@/components/view/track-item";
 describe("track-item buttons", () => {
   it("PlayButton calls onPlay", () => {
     const onPlay = vi.fn();

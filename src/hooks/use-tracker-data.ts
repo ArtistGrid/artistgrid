@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
-import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/src/lib/resolve-url";
-import { forEachEraTrack, mergeAndCache } from "@/src/lib/view-utils";
+import { getCacheAsync, setCache } from "@/lib/tracker-cache";
+import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/lib/resolve-url";
+import { forEachEraTrack, mergeAndCache } from "@/lib/view-utils";
 import {
   fetchWithFallback,
   adaptV3Response,
   adaptV3FlatResponse,
   discardTrackerPrefetch,
   type V3Response,
-} from "@/src/lib/api";
-import { isValidV3Response } from "@/src/lib/v3-validation";
-import { getAllTrackUrls } from "@/src/lib/track-utils";
-import type { TrackerResponse } from "@/src/types";
+} from "@/lib/api";
+import { isValidV3Response } from "@/lib/v3-validation";
+import { getAllTrackUrls } from "@/lib/track-utils";
+import type { TrackerResponse } from "@/types";
 const NON_PLAYABLE_TABS = ["Art", "Tracklists", "Misc"];
 export function useTrackerData(setExpandedEras: (value: Set<string> | ((prev: Set<string>) => Set<string>)) => void) {
   const [data, setData] = useState<TrackerResponse | null>(null);

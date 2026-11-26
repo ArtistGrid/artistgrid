@@ -1,12 +1,12 @@
 import { Mic2, Download, Play, Search, AlertTriangle, Settings, X, FileSpreadsheet, Radio, Type } from "lucide-react";
-import { useSettings } from "@/src/hooks/use-settings";
-import { useKeyPress } from "@/src/hooks/use-key-press";
+import { useSettings } from "@/hooks/use-settings";
+import { useKeyPress } from "@/hooks/use-key-press";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { clearCache } from "@/src/lib/tracker-cache";
-import { clearCacheAndReload } from "@/src/lib/stale-reload";
+import { clearCache } from "@/lib/tracker-cache";
+import { clearCacheAndReload } from "@/lib/stale-reload";
 import { Database, Trash2 } from "lucide-react";
 function SettingRow({
   label,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fastHash } from "@/src/lib/hash";
+import { fastHash } from "@/lib/hash";
 describe("fastHash", () => {
   it("returns 16 lowercase hex chars", async () => {
     const hash = await fastHash("hello");

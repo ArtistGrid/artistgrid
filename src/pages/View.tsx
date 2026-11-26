@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef, useDeferredValue } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useHeaderSlots } from "@/src/components/layout";
+import { useHeaderSlots } from "@/components/layout";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { usePageMeta } from "@/src/hooks/use-page-meta";
-import { ASSETS_ORIGIN, DEFAULT_SHARE_IMAGE, SITE_ORIGIN, cleanTabName, trackerCanonicalUrl } from "@/src/lib/seo";
-import type { Track, Era, TALeak, TrackerResponse } from "@/src/types";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { ASSETS_ORIGIN, DEFAULT_SHARE_IMAGE, SITE_ORIGIN, cleanTabName, trackerCanonicalUrl } from "@/lib/seo";
+import type { Track, Era, TALeak, TrackerResponse } from "@/types";
 import { usePlayer } from "../providers";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useEraFonts } from "@/src/hooks/use-era-fonts";
+import { useEraFonts } from "@/hooks/use-era-fonts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +35,9 @@ import {
   FileSpreadsheet,
   Layers,
 } from "lucide-react";
-import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/src/lib/api";
-import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
-import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/src/lib/resolve-url";
+import { fetchWithFallback, adaptV3Response, adaptV3FlatResponse, type V3Response } from "@/lib/api";
+import { getCacheAsync, setCache } from "@/lib/tracker-cache";
+import { resolvePlayableUrl, getTrackSource, transformUrlForOpening } from "@/lib/resolve-url";
 import {
   generateTrackId,
   isUrl,
@@ -48,37 +48,37 @@ import {
   decodeTrackFromUrl,
   getSourceDisplayName,
   SUPPORTED_SOURCES,
-} from "@/src/lib/track-utils";
+} from "@/lib/track-utils";
 import {
   getSheetViewUrl,
   getCleanArtistName,
   getArtistNameFromSheetTitle,
   getImageFilename,
-} from "@/src/lib/artist-utils";
-import { getDirectTrackerId, resolveArtistTracker } from "@/src/lib/artists";
-import { parseTrackerLink, trackerPath } from "@/src/lib/tracker-route";
-import { triggerBlobDownload } from "@/src/lib/download-utils";
+} from "@/lib/artist-utils";
+import { getDirectTrackerId, resolveArtistTracker } from "@/lib/artists";
+import { parseTrackerLink, trackerPath } from "@/lib/tracker-route";
+import { triggerBlobDownload } from "@/lib/download-utils";
 import {
   flattenErasForSearch,
   searchTracks,
   FUSE_TRACK_OPTIONS,
   type TrackFuseConstructor,
-} from "@/src/lib/track-search";
-import { DiscordIcon } from "@/src/components/home/header";
-import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
-import { ChunkErrorBoundary } from "@/src/components/error-boundary";
+} from "@/lib/track-search";
+import { DiscordIcon } from "@/components/home/header";
+import { DownloadProvider, useDownloadManager } from "@/components/download-manager";
+import { ChunkErrorBoundary } from "@/components/error-boundary";
 import { lazy } from "react";
-const ArtGallery = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ArtGallery })));
-const ImageLightbox = lazy(() => import("@/src/components/art-gallery").then((m) => ({ default: m.ImageLightbox })));
-const LastFMModal = lazy(() => import("@/src/components/lastfm-modal").then((m) => ({ default: m.LastFMModal })));
-const YouTubePlayer = lazy(() => import("@/src/components/youtube-player").then((m) => ({ default: m.YouTubePlayer })));
+const ArtGallery = lazy(() => import("@/components/art-gallery").then((m) => ({ default: m.ArtGallery })));
+const ImageLightbox = lazy(() => import("@/components/art-gallery").then((m) => ({ default: m.ImageLightbox })));
+const LastFMModal = lazy(() => import("@/components/lastfm-modal").then((m) => ({ default: m.LastFMModal })));
+const YouTubePlayer = lazy(() => import("@/components/youtube-player").then((m) => ({ default: m.YouTubePlayer })));
 const FloatingVideoPlayer = lazy(() =>
-  import("@/src/components/floating-video-player").then((m) => ({ default: m.FloatingVideoPlayer }))
+  import("@/components/floating-video-player").then((m) => ({ default: m.FloatingVideoPlayer }))
 );
-import { useSettings } from "@/src/hooks/use-settings";
-import { useTrackerData } from "@/src/hooks/use-tracker-data";
-import { loadSettings } from "@/src/lib/settings";
-import { useSettingsModal } from "@/src/components/settings-modal-context";
+import { useSettings } from "@/hooks/use-settings";
+import { useTrackerData } from "@/hooks/use-tracker-data";
+import { loadSettings } from "@/lib/settings";
+import { useSettingsModal } from "@/components/settings-modal-context";
 import {
   getFavourites,
   toggleFavourite,
@@ -88,25 +88,25 @@ import {
   isEraFavourited,
   exportAllFavourites,
   importFavourites,
-} from "@/src/lib/favourites";
-import { getCustomViews, type CustomView } from "@/src/lib/custom-views";
-import { mergeTabData } from "@/src/lib/merge-tab-data";
-import { syncImageUrl } from "@/src/lib/image-resolve";
-import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/src/lib/view-utils";
-import { FallbackView, type FilterOptions, type PlayableTrackData } from "@/src/components/view/track-item";
+} from "@/lib/favourites";
+import { getCustomViews, type CustomView } from "@/lib/custom-views";
+import { mergeTabData } from "@/lib/merge-tab-data";
+import { syncImageUrl } from "@/lib/image-resolve";
+import { forEachEraTrack, mergeAndCache, isVideoUrl, formatRelativeTime } from "@/lib/view-utils";
+import { FallbackView, type FilterOptions, type PlayableTrackData } from "@/components/view/track-item";
 const CustomViewManager = lazy(() =>
-  import("@/src/components/view/custom-view-manager").then((m) => ({ default: m.CustomViewManager }))
+  import("@/components/view/custom-view-manager").then((m) => ({ default: m.CustomViewManager }))
 );
 const DownloadConfirmDialog = lazy(() =>
-  import("@/src/components/view/download-confirm-dialog").then((m) => ({ default: m.DownloadConfirmDialog }))
+  import("@/components/view/download-confirm-dialog").then((m) => ({ default: m.DownloadConfirmDialog }))
 );
 const FavouritesTab = lazy(() =>
-  import("@/src/components/view/favourites-tab").then((m) => ({ default: m.FavouritesTab }))
+  import("@/components/view/favourites-tab").then((m) => ({ default: m.FavouritesTab }))
 );
 const FlatTrackList = lazy(() =>
-  import("@/src/components/view/flat-track-card").then((m) => ({ default: m.FlatTrackList }))
+  import("@/components/view/flat-track-card").then((m) => ({ default: m.FlatTrackList }))
 );
-import { EraCard } from "@/src/components/view/era-card";
+import { EraCard } from "@/components/view/era-card";
 const ART_TABS = ["Art"];
 const SUPPORTED_SOURCES_SET = new Set(SUPPORTED_SOURCES);
 function TrackerViewContent({
@@ -892,7 +892,7 @@ function TrackerViewContent({
       if (s.downloads.embedMetadata) {
         try {
           toast({ title: "Preparing download...", description: "Embedding metadata" });
-          const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
+          const { embedMetadata } = await import("@/lib/ffmpeg-metadata");
           const res = await fetch(playableUrl);
           if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
           const blob = await res.blob();

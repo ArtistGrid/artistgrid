@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Modal } from "@/src/components/modal";
+import { Modal } from "@/components/modal";
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });

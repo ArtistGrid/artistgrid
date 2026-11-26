@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { SettingsModalContext } from "@/src/components/settings-modal-context";
-import { FilterControls, HeaderActions, HomeHeaderCenter, DiscordIcon } from "@/src/components/home/header";
-import { DEFAULT_FILTER_OPTIONS } from "@/src/lib/home-constants";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { SettingsModalContext } from "@/components/settings-modal-context";
+import { FilterControls, HeaderActions, HomeHeaderCenter, DiscordIcon } from "@/components/home/header";
+import { DEFAULT_FILTER_OPTIONS } from "@/lib/home-constants";
 function wrap(ui: React.ReactNode, settingsOpen = false) {
   return (
     <MemoryRouter>

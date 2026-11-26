@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "target": "ES2020",
     "skipLibCheck": true,
@@ -20,25 +16,9 @@
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals"],
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "components/**/*.ts",
-    "components/**/*.tsx",
-    "lib/**/*.ts",
-    "hooks/**/*.ts",
-    "hooks/**/*.tsx",
-    "e2e/**/*.ts",
-    "playwright.config.ts",
-    "vite.config.ts",
-    "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["src", "e2e", "playwright.config.ts", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules"]
 }

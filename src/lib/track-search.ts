@@ -1,5 +1,5 @@
-import type { Era, TALeak } from "@/src/types";
-import { getTrackDescription } from "@/src/lib/track-utils";
+import type { Era, TALeak } from "@/types";
+import { getTrackDescription } from "@/lib/track-utils";
 export interface SearchableTrackItem {
   track: TALeak;
   era: Era;

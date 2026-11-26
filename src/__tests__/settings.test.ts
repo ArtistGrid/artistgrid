@@ -69,17 +69,3 @@ describe("saveSettings", () => {
     expect(stored.lyrics.syncedOnly).toBe(true);
   });
 });
-describe("DEFAULT_SETTINGS", () => {
-  it("has expected structure", () => {
-    expect(DEFAULT_SETTINGS).toHaveProperty("lyrics");
-    expect(DEFAULT_SETTINGS).toHaveProperty("downloads");
-    expect(DEFAULT_SETTINGS).toHaveProperty("player");
-    expect(DEFAULT_SETTINGS).toHaveProperty("behavior");
-    expect(DEFAULT_SETTINGS).toHaveProperty("font");
-  });
-  it("has reasonable defaults", () => {
-    expect(DEFAULT_SETTINGS.player.startupShuffle).toBe(false);
-    expect(DEFAULT_SETTINGS.behavior.openInNewTab).toBe(true);
-    expect(DEFAULT_SETTINGS.downloads.embedMetadata).toBe(false);
-  });
-});

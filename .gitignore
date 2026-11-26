@@ -1,38 +1,21 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
+node_modules/
+bun.lock
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
-/coverage
-/dist
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files
-.env*
-
-# vercel
-.vercel
-
-# typescript
+# build output
+dist/
+coverage/
 *.tsbuildinfo
-next-env.d.ts
+*.min.js
+
+# env / logs
+.env*
 *.log
 
+# editors
 .zed
 
-dist
-coverage
+# local tooling
 ag-cli
 
 # playwright
@@ -41,6 +24,6 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# Cloudflare local bindings and generated bundles
+# cloudflare
 .wrangler/
 _worker.bundle

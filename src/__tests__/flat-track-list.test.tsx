@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { FlatTrackList } from "@/src/components/view/flat-track-card";
-import type { TALeak, TrackSource } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { FlatTrackList } from "@/components/view/flat-track-card";
+import type { TALeak, TrackSource } from "@/types";
 vi.mock("@tanstack/react-virtual", () => {
   const stub = ({ count }: { count: number }) => ({
     getTotalSize: () => count * 56,

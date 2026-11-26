@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTrackerLink, parseTrackerPath, trackerPath } from "@/src/lib/tracker-route";
+import { parseTrackerLink, parseTrackerPath, trackerPath } from "@/lib/tracker-route";
 
 describe("tracker route round trips", () => {
   it.each(["recent", "demos/leaks", "100%", "phase?1", "phase#1", "art.json"])(

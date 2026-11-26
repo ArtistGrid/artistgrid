@@ -1,4 +1,4 @@
-import type { Artist } from "@/src/types";
+import type { Artist } from "@/types";
 import { fastHash } from "./hash";
 export function hashString(str: string): string {
   let hash = 0;

@@ -1,10 +1,10 @@
 import { useCallback, useRef, useEffect, useState, memo, createElement } from "react";
 import { Client } from "lrclib-api";
 import type { LyricLine } from "lrclib-api";
-import { usePlayer } from "@/src/providers";
-import { usePlayerTime } from "@/src/lib/player-time";
-import { useSettings } from "@/src/hooks/use-settings";
-import { toTTML, type LyricsData } from "@/src/lib/lyrics";
+import { usePlayer } from "@/providers";
+import { usePlayerTime } from "@/lib/player-time";
+import { useSettings } from "@/hooks/use-settings";
+import { toTTML, type LyricsData } from "@/lib/lyrics";
 import "@uimaxbai/am-lyrics/am-lyrics.js";
 interface AmLyricsElement extends HTMLElement {
   songTitle: string;

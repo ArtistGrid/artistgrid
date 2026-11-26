@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { findMatchingArtist, getDirectTrackerId, parseArtistsCsv, resolveArtistTracker } from "@/src/lib/artists";
-import { ARTISTS_CSV, HOME_CACHE_EXPIRY, LOCAL_STORAGE_KEYS } from "@/src/lib/home-constants";
-import { setCachedData } from "@/src/lib/cache";
+import { findMatchingArtist, getDirectTrackerId, parseArtistsCsv, resolveArtistTracker } from "@/lib/artists";
+import { ARTISTS_CSV, HOME_CACHE_EXPIRY, LOCAL_STORAGE_KEYS } from "@/lib/home-constants";
+import { setCachedData } from "@/lib/cache";
 
 const SHEET_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefghi";
 const CSV = `name,url,credit,links_work,updated,best

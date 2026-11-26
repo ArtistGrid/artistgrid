@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, act, waitFor } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { LyricsPanel } from "@/src/components/lyrics-panel";
-import type { Track } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { LyricsPanel } from "@/components/lyrics-panel";
+import type { Track } from "@/types";
 const seekTo = vi.fn();
 const currentTrack: Track = {
   id: "t1",
@@ -14,8 +14,8 @@ const currentTrack: Track = {
   artistName: "Artist",
   eraName: "Era",
 };
-vi.mock("@/src/providers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/src/providers")>();
+vi.mock("@/providers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/providers")>();
   return {
     ...actual,
     usePlayer: () => ({ state: { currentTrack }, seekTo }),

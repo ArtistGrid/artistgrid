@@ -1,4 +1,4 @@
-import { safeSetItem } from "@/src/lib/storage";
+import { safeSetItem } from "@/lib/storage";
 export interface CacheData<T> {
   data: T;
   timestamp: number;

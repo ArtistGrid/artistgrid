@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useLocalStorage } from "@/src/hooks/use-local-storage";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 describe("useLocalStorage", () => {
   beforeEach(() => localStorage.clear());
   it("returns initial value when empty", () => {

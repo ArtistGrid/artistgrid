@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { addCustomView, deleteCustomView, saveCustomViews, type CustomView } from "@/src/lib/custom-views";
+import { addCustomView, deleteCustomView, saveCustomViews, type CustomView } from "@/lib/custom-views";
 interface CustomViewManagerProps {
   trackerId: string;
   customViews: CustomView[];

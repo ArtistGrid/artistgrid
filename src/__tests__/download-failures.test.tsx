@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
-import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
-import type { Era, TALeak } from "@/src/types";
+import { DownloadProvider, useDownloadManager } from "@/components/download-manager";
+import type { Era, TALeak } from "@/types";
 const track: TALeak = { name: "Song", url: "https://x.com/a.mp3", id: "t1" };
 const era: Era = { name: "Era" };
 function Consumer() {

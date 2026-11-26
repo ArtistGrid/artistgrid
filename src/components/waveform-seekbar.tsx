@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect, useCallback } from "react";
-import { waveformGenerator } from "../../js/waveform.js";
-import { idbGet, idbSet } from "@/src/lib/indexeddb-cache";
+import { waveformGenerator } from "@/lib/waveform.js";
+import { idbGet, idbSet } from "@/lib/indexeddb-cache";
 interface WaveformSeekbarProps {
   audioUrl: string | null;
   trackId: string | null;

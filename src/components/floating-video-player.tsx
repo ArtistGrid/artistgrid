@@ -1,4 +1,4 @@
-import { DraggablePanel } from "@/src/components/draggable-panel";
+import { DraggablePanel } from "@/components/draggable-panel";
 export function FloatingVideoPlayer({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <DraggablePanel label="Video" onClose={onClose}>

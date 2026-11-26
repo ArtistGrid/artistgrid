@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import fc from "fast-check";
-import { formatBytes, getFileExtension } from "@/src/lib/download-utils";
-import { importFavourites, getFavourites } from "@/src/lib/favourites";
+import { formatBytes, getFileExtension } from "@/lib/download-utils";
+import { importFavourites, getFavourites } from "@/lib/favourites";
 const AUDIO_EXTENSIONS = ["mp3", "m4a", "ogg", "wav", "flac", "opus", "aac", "weba", "webm"] as const;
 const httpUrl = fc.string({ maxLength: 8 }).map((s) => `https://host/${s}`);
 const AUDIO_SET = new Set<string>(AUDIO_EXTENSIONS);

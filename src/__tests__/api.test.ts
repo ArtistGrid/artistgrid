@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { computeETag, fetchWithFallback } from "@/src/lib/api";
+import { computeETag, fetchWithFallback } from "@/lib/api";
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
     status: 200,

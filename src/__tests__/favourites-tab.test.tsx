@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { FavouritesTab, type FavouritesTabProps } from "@/src/components/view/favourites-tab";
-import type { Era, TALeak, TrackSource } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { FavouritesTab, type FavouritesTabProps } from "@/components/view/favourites-tab";
+import type { Era, TALeak, TrackSource } from "@/types";
 const era: Era = { name: "Era One" };
 const favTracks = [
   {

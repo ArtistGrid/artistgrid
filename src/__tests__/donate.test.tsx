@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import Donate from "@/src/pages/Donate";
+import Donate from "@/pages/Donate";
 describe("Donate page", () => {
   it("renders donation content and back button", () => {
     render(

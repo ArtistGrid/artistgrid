@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { CircleSlash } from "lucide-react";
-import { t } from "@/src/lib/i18n";
+import { t } from "@/lib/i18n";
 export const ErrorMessage = memo(({ message }: { message: string }) => (
   <div className="min-h-screen bg-black flex items-center justify-center p-4">
     <div className="glass-elevated rounded-2xl p-8 max-w-md w-full text-center">

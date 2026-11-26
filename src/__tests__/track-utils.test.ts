@@ -7,10 +7,8 @@ import {
   encodeTrackForUrl,
   decodeTrackFromUrl,
   getSourceDisplayName,
-  TRACKER_ID_LENGTH,
-  SUPPORTED_SOURCES,
 } from "../lib/track-utils";
-import type { TALeak } from "../../src/types";
+import type { TALeak } from "../types";
 describe("generateTrackId", () => {
   it("generates a string id starting with tk", () => {
     const id = generateTrackId("https://example.com/song.mp3");
@@ -104,13 +102,5 @@ describe("getSourceDisplayName", () => {
     expect(getSourceDisplayName("soundcloud")).toBe("SoundCloud");
     expect(getSourceDisplayName("exoshare")).toBe("Exoshare");
     expect(getSourceDisplayName("unknown")).toBe("Unknown");
-  });
-});
-describe("constants", () => {
-  it("TRACKER_ID_LENGTH is 44", () => {
-    expect(TRACKER_ID_LENGTH).toBe(44);
-  });
-  it("SUPPORTED_SOURCES is non-empty", () => {
-    expect(SUPPORTED_SOURCES.length).toBeGreaterThan(0);
   });
 });

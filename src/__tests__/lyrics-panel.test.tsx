@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import { PlayerProvider, usePlayer } from "@/src/providers";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { LyricsPanel } from "@/src/components/lyrics-panel";
-import type { Track } from "@/src/types";
+import { PlayerProvider, usePlayer } from "@/providers";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { LyricsPanel } from "@/components/lyrics-panel";
+import type { Track } from "@/types";
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();

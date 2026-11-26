@@ -1,4 +1,4 @@
-import { safeSetItem } from "@/src/lib/storage";
+import { safeSetItem } from "@/lib/storage";
 type DownloadFormat = "original" | "mp3" | "opus" | "ogg" | "flac" | "wav";
 export interface Settings {
   lyrics: {

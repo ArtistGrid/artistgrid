@@ -1,4 +1,5 @@
 {
   "ignoreFiles": ["functions/**"],
-  "ignore": ["public/fonts/fonts.css"]
+  "ignore": ["public/fonts/fonts.css", "public/ineedthis.js"],
+  "ignoreExportsUsedInFile": true
 }

@@ -1,16 +1,16 @@
 import * as t from "io-ts";
 import { isLeft } from "fp-ts/Either";
-import { assertDownloadManagerContract } from "@/src/lib/contracts";
+import { assertDownloadManagerContract } from "@/lib/contracts";
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
 import { Archive, CheckCircle2, Download, Loader2, RotateCcw, X, XCircle, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { Era, TALeak } from "@/src/types";
-import { loadSettings } from "@/src/lib/settings";
-import { logError } from "@/src/lib/logger";
-import { safeSetItem } from "@/src/lib/storage";
+import type { Era, TALeak } from "@/types";
+import { loadSettings } from "@/lib/settings";
+import { logError } from "@/lib/logger";
+import { safeSetItem } from "@/lib/storage";
 import { stripEmojis } from "@/lib/utils";
-import { formatBytes, getFileExtension, triggerBlobDownload } from "@/src/lib/download-utils";
+import { formatBytes, getFileExtension, triggerBlobDownload } from "@/lib/download-utils";
 const CONCURRENT_DOWNLOADS = 3;
 const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
@@ -465,7 +465,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
           const format = s.downloads.format || "original";
           if (s.downloads.embedMetadata) {
             try {
-              const { embedMetadata } = await import("@/src/lib/ffmpeg-metadata");
+              const { embedMetadata } = await import("@/lib/ffmpeg-metadata");
               finalBlob = await embedMetadata(
                 result.blob,
                 {

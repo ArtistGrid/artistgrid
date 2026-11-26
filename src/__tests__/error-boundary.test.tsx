@@ -8,7 +8,7 @@ class Boom extends Error {
 function Thrower({ msg }: { msg: string }): never {
   throw new Boom(msg);
 }
-import { ChunkErrorBoundary } from "@/src/components/error-boundary";
+import { ChunkErrorBoundary } from "@/components/error-boundary";
 describe("ChunkErrorBoundary", () => {
   it("renders children when no error", () => {
     render(

@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, MoreHorizontal, Heart, FolderDown } from "lucide-react";
-import type { Era, TALeak, TrackSource } from "@/src/types";
-import { getAllTrackUrls } from "@/src/lib/track-utils";
-import { TrackRow } from "@/src/components/view/track-row";
-import { useResolvedImage } from "@/src/hooks/use-image-resolve";
-import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
+import type { Era, TALeak, TrackSource } from "@/types";
+import { getAllTrackUrls } from "@/lib/track-utils";
+import { TrackRow } from "@/components/view/track-row";
+import { useResolvedImage } from "@/hooks/use-image-resolve";
+import { getEraFontStyle } from "@/hooks/use-era-fonts";
 const VIRTUALIZE_THRESHOLD = 200;
 type VirtualRow =
   | {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
-import { DownloadProvider, useDownloadManager } from "@/src/components/download-manager";
+import { DownloadProvider, useDownloadManager } from "@/components/download-manager";
 const JOBS_KEY = "artistgrid-downloads:v1";
 function Consumer() {
   const dm = useDownloadManager();

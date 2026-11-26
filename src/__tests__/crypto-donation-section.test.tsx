@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DonationContent } from "@/src/components/crypto-donation-section";
+import { DonationContent } from "@/components/crypto-donation-section";
 import { Toaster } from "@/components/ui/toaster";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 function Harness() {
   const { toast } = useToast();
   return (

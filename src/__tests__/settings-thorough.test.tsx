@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { saveSettings, loadSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
-import SettingsModal from "@/src/pages/Settings";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { saveSettings, loadSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import SettingsModal from "@/pages/Settings";
 function wrap(ui: React.ReactNode) {
   return <SettingsProvider>{ui}</SettingsProvider>;
 }

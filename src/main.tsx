@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { ChunkErrorBoundary } from "./components/error-boundary";
-import { reloadOnStaleError, clearCacheAndReload } from "@/src/lib/stale-reload";
+import { reloadOnStaleError, clearCacheAndReload } from "@/lib/stale-reload";
 function installStaleAssetRecovery() {
   window.addEventListener("error", (event) => {
     reloadOnStaleError(event.message || "");

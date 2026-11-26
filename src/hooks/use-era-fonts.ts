@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { buildFontCssUrl } from "@/src/lib/fonts";
+import { buildFontCssUrl } from "@/lib/fonts";
 const loadedFonts = new Set<string>();
 function sanitizeFontName(raw: string): string {
   let name = raw

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldDropError, hasExtensionFrame } from "@/src/lib/error-filters";
+import { shouldDropError, hasExtensionFrame } from "@/lib/error-filters";
 describe("error-filters", () => {
   describe("shouldDropError", () => {
     it("drops React ErrorBoundary errors", () => {

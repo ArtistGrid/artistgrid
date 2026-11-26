@@ -1,4 +1,3 @@
-// functions/sh/[[catchall]].js
 import { BOT_RE, documentResponse, handleBotTrackerRequest } from '../_bot-renderer.js';
 import { parseTrackerPath } from '../../src/lib/tracker-route';
 

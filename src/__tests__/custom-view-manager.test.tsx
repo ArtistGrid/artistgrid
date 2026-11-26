@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CustomViewManager } from "@/src/components/view/custom-view-manager";
-import type { CustomView } from "@/src/lib/custom-views";
+import { CustomViewManager } from "@/components/view/custom-view-manager";
+import type { CustomView } from "@/lib/custom-views";
 function makeProps(
   over: Partial<Parameters<typeof CustomViewManager>[0]> = {}
 ): Parameters<typeof CustomViewManager>[0] {

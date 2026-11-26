@@ -1,4 +1,4 @@
-import type { Track } from "@/src/types";
+import type { Track } from "@/types";
 import { logError } from "./logger";
 const IMGUR_API = "https://imgur.gg/api/file/";
 export function normalizePillowsUrl(url: string): string {

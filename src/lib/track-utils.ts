@@ -1,6 +1,5 @@
-import type { Track, TALeak } from "@/src/types";
+import type { Track, TALeak } from "@/types";
 import { normalizePillowsUrl } from "./resolve-url";
-export const TRACKER_ID_LENGTH = 44;
 export const SUPPORTED_SOURCES: Track["source"][] = [
   "pillows",
   "youtube",
@@ -55,10 +54,6 @@ export function decodeTrackFromUrl(encoded: string): string | null {
   } catch {
     return null;
   }
-}
-export function getGoogleSheetsUrl(trackerId: string, htmlview = true): string {
-  const mode = htmlview ? "htmlview" : "edit";
-  return `https://docs.google.com/spreadsheets/d/${trackerId}/${mode}`;
 }
 export function getSourceDisplayName(source: Track["source"]): string {
   const names: Record<Track["source"], string> = {

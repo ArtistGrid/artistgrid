@@ -1,4 +1,4 @@
-import type { Era, EraDate, TALeak, TrackerResponse } from "@/src/types";
+import type { Era, EraDate, TALeak, TrackerResponse } from "@/types";
 import type { V3Response, V3Tab, V3Track } from "../v3.jsonschema";
 export type { V3Response } from "../v3.jsonschema";
 import { isUrl, generateTrackId } from "./track-utils";

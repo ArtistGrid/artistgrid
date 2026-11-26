@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { LastFMModal } from "@/src/components/lastfm-modal";
-import type { LastFMClientInfo } from "@/src/types";
+import { LastFMModal } from "@/components/lastfm-modal";
+import type { LastFMClientInfo } from "@/types";
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     Object.defineProperty(this, "open", { value: true, configurable: true });

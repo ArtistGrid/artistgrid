@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/src/components/modal";
-import { useToast } from "@/components/ui/use-toast";
-import type { LastFMClientInfo } from "@/src/types";
+import { Modal } from "@/components/modal";
+import { useToast } from "@/hooks/use-toast";
+import type { LastFMClientInfo } from "@/types";
 export interface LastFMModalProps {
   isOpen: boolean;
   onClose: () => void;

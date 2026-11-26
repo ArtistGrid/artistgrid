@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import "fake-indexeddb/auto";
-import { idbGet, idbSet, idbDelete, idbEntries } from "@/src/lib/indexeddb-cache";
+import { idbGet, idbSet, idbDelete, idbEntries } from "@/lib/indexeddb-cache";
 describe("IndexedDB entry enumeration and deletion", () => {
   beforeEach(async () => {
     await idbDelete("tc:a");

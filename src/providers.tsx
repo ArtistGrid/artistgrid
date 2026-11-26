@@ -9,14 +9,14 @@ import {
   SONOSPHERE_API_SIG,
   SONOSPHERE_API_URL,
   SONOSPHERE_AUTH_URL,
-} from "@/src/lib/config";
-import { loadSettings } from "@/src/lib/settings";
-import { logError } from "@/src/lib/logger";
-import { safeSetItem } from "@/src/lib/storage";
+} from "@/lib/config";
+import { loadSettings } from "@/lib/settings";
+import { logError } from "@/lib/logger";
+import { safeSetItem } from "@/lib/storage";
 import { stripEmojis } from "@/lib/utils";
-import { cycleRepeatMode, toggleShuffleState } from "@/src/lib/player-queue";
-import type { RepeatMode } from "@/src/lib/player-queue";
-import { setCurrentTime, setDuration, resetTime, getDuration } from "@/src/lib/player-time";
+import { cycleRepeatMode, toggleShuffleState } from "@/lib/player-queue";
+import type { RepeatMode } from "@/lib/player-queue";
+import { setCurrentTime, setDuration, resetTime, getDuration } from "@/lib/player-time";
 function safePlay(audio: HTMLAudioElement | null | undefined) {
   if (!audio) return;
   try {

@@ -1,4 +1,4 @@
-import type { Era, EraDate, TrackerResponse } from "@/src/types";
+import type { Era, EraDate, TrackerResponse } from "@/types";
 function latestTimestamp(a?: string, b?: string): string | undefined {
   if (!a) return b;
   if (!b) return a;

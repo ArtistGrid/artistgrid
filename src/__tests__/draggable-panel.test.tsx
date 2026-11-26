@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DraggablePanel } from "@/src/components/draggable-panel";
+import { DraggablePanel } from "@/components/draggable-panel";
 describe("DraggablePanel", () => {
   it("renders label and children", () => {
     render(

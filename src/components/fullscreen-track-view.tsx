@@ -28,12 +28,12 @@ for (const method of TILT_GUARDED_METHODS) {
     return (original as (...a: unknown[]) => unknown).apply(this, args);
   };
 }
-import { usePlayer } from "@/src/providers";
-import { usePlayerTime } from "@/src/lib/player-time";
-import { useVolume } from "@/src/hooks/use-volume";
-import { VolumeControl } from "@/src/components/volume-control";
+import { usePlayer } from "@/providers";
+import { usePlayerTime } from "@/lib/player-time";
+import { useVolume } from "@/hooks/use-volume";
+import { VolumeControl } from "@/components/volume-control";
 import { Button } from "@/components/ui/button";
-import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
+import { WaveformSeekbar } from "@/components/waveform-seekbar";
 import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react";
 const KAWARP_DEFAULTS = {
   warpIntensity: 1,

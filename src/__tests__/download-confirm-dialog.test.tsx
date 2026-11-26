@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DownloadConfirmDialog } from "@/src/components/view/download-confirm-dialog";
+import { DownloadConfirmDialog } from "@/components/view/download-confirm-dialog";
 describe("DownloadConfirmDialog", () => {
   it("renders track count and subtitle with correct pluralization", () => {
     render(<DownloadConfirmDialog trackCount={1} subtitle="Kanye - Donda" onCancel={vi.fn()} onConfirm={vi.fn()} />);

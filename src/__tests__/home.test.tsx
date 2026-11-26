@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import ArtistGallery from "@/src/pages/Home";
-import { PlayerProvider } from "@/src/providers";
-import { SettingsProvider } from "@/src/hooks/use-settings";
+import ArtistGallery from "@/pages/Home";
+import { PlayerProvider } from "@/providers";
+import { SettingsProvider } from "@/hooks/use-settings";
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();

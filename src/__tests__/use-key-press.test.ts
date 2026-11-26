@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useKeyPress } from "@/src/hooks/use-key-press";
+import { useKeyPress } from "@/hooks/use-key-press";
 describe("useKeyPress", () => {
   it("invokes callback on matching keydown", () => {
     const cb = vi.fn();

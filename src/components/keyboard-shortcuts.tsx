@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { usePlayer } from "@/src/providers";
-import { usePlayerTime } from "@/src/lib/player-time";
-import { Modal } from "@/src/components/modal";
+import { usePlayer } from "@/providers";
+import { usePlayerTime } from "@/lib/player-time";
+import { Modal } from "@/components/modal";
 const SEEK_STEP = 5;
 const VOLUME_STEP = 0.05;
 const SHORTCUTS: Array<{

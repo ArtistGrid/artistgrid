@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Track } from "@/src/types";
+import type { Track } from "@/types";
 import {
   addToQueue,
   removeFromQueue,
@@ -9,7 +9,7 @@ import {
   cycleRepeatMode,
   shuffleQueue,
   toggleShuffleState,
-} from "@/src/lib/player-queue";
+} from "@/lib/player-queue";
 function makeTrack(name: string): Track {
   return {
     id: `tk-${name}`,

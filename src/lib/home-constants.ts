@@ -1,4 +1,4 @@
-import type { ArtistFilterOptions } from "@/src/types";
+import type { ArtistFilterOptions } from "@/types";
 declare global {
   interface Window {
     plausible?: (

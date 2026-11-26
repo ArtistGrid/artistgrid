@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { logError } from "@/src/lib/logger";
-import { saveSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
+import { logError } from "@/lib/logger";
+import { saveSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 describe("logError", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

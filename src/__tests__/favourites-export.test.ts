@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { toggleFavourite, exportAllFavourites, importFavourites, getFavourites } from "@/src/lib/favourites";
+import { toggleFavourite, exportAllFavourites, importFavourites, getFavourites } from "@/lib/favourites";
 describe("favourites export/import", () => {
   beforeEach(() => {
     localStorage.clear();

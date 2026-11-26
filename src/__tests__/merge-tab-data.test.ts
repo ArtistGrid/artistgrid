@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mergeTabData } from "@/src/lib/merge-tab-data";
-import type { TrackerResponse, Era } from "@/src/types";
+import { mergeTabData } from "@/lib/merge-tab-data";
+import type { TrackerResponse, Era } from "@/types";
 function makeRes(over: Partial<TrackerResponse> = {}): TrackerResponse {
   return {
     name: "A",

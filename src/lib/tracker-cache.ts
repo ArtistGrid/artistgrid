@@ -1,5 +1,5 @@
-import type { TrackerResponse } from "@/src/types";
-import { idbSet, idbDelete, idbEntries } from "@/src/lib/indexeddb-cache";
+import type { TrackerResponse } from "@/types";
+import { idbSet, idbDelete, idbEntries } from "@/lib/indexeddb-cache";
 const CACHE_EXPIRY = 1000 * 60 * 10;
 const IDB_PREFIX = "tc:";
 interface CacheEntry {

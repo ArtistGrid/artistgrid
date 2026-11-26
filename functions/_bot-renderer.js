@@ -1,4 +1,3 @@
-// functions/_bot-renderer.js
 import {
   ARTIST_DIRECTORY_MAX_BYTES,
   ARTIST_DIRECTORY_TIMEOUT,

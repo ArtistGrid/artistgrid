@@ -7,8 +7,8 @@ import {
   getFavouritedTracks,
   toggleEraFavourite,
   isEraFavourited,
-} from "@/src/lib/favourites";
-import type { Era, TALeak } from "@/src/types";
+} from "@/lib/favourites";
+import type { Era, TALeak } from "@/types";
 const TRACKER_ID = "test-tracker";
 const TRACK_1 = { url: "https://example.com/1", name: "Song A" } as TALeak;
 const TRACK_2 = { url: "https://example.com/2", name: "Song B" } as TALeak;

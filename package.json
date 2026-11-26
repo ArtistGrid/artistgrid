@@ -19,12 +19,6 @@
     "release": "node scripts/release.mjs",
     "doctor": "npx react-doctor@latest"
   },
-  "knip": {
-    "ignore": [
-      "src/v3.jsonschema.ts"
-    ],
-    "ignoreExportsUsedInFile": true
-  },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
@@ -42,6 +36,7 @@
     "ajv": "^8.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fp-ts": "^2.16.11",
     "framer-motion": "^12.42.2",
     "fuse.js": "^7.1.0",
     "io-ts": "^2.2.22",

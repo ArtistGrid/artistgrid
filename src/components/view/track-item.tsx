@@ -1,9 +1,9 @@
-import type { Track, Era, TALeak } from "@/src/types";
+import type { Track, Era, TALeak } from "@/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ExternalLink, Link as LinkIcon, AlertTriangle, MoreHorizontal, Heart, Play, Pause } from "lucide-react";
 import { Link } from "react-router-dom";
-import { isUrl, getSourceDisplayName } from "@/src/lib/track-utils";
+import { isUrl, getSourceDisplayName } from "@/lib/track-utils";
 export interface FilterOptions {
   showPlayableOnly: boolean;
   qualityFilter: string[];

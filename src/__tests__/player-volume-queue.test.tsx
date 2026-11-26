@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { PlayerProvider, usePlayer } from "@/src/providers";
-import type { Track } from "@/src/types";
+import { PlayerProvider, usePlayer } from "@/providers";
+import type { Track } from "@/types";
 beforeAll(() => {
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   window.HTMLMediaElement.prototype.pause = vi.fn();

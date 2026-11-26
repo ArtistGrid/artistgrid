@@ -1,14 +1,14 @@
 import { memo } from "react";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Share, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
-import type { Era, TALeak, TrackSource } from "@/src/types";
+import type { Era, TALeak, TrackSource } from "@/types";
 import {
   PlayButton,
   PauseButton,
   OpenLinkButton,
   TrackDescription,
   TrackItemActions,
-} from "@/src/components/view/track-item";
+} from "@/components/view/track-item";
 interface TrackRowProps {
   track: TALeak;
   era: Era;

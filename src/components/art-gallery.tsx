@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useKeyPress } from "@/src/hooks/use-key-press";
-import type { Era, TALeak } from "@/src/types";
-import { useResolvedImage } from "@/src/hooks/use-image-resolve";
-import { syncImageUrl } from "@/src/lib/image-resolve";
+import { useKeyPress } from "@/hooks/use-key-press";
+import type { Era, TALeak } from "@/types";
+import { useResolvedImage } from "@/hooks/use-image-resolve";
+import { syncImageUrl } from "@/lib/image-resolve";
 function getEraCoverImage(era: Era): string | null {
   if (era.data) {
     const target = era.name.trim().toLowerCase();

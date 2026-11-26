@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { resolveImageUrl, syncImageUrl } from "@/src/lib/image-resolve";
+import { resolveImageUrl, syncImageUrl } from "@/lib/image-resolve";
 export function useResolvedImage(input: string | null | undefined): string | null {
   const [resolved, setResolved] = useState<string | null>(() => (input ? syncImageUrl(input) : null));
   useEffect(() => {

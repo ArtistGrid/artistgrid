@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, lazy, Suspense, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/src/components/modal";
-import { DonationContent, type QrCodeData } from "@/src/components/crypto-donation-section";
+import { Modal } from "@/components/modal";
+import { DonationContent, type QrCodeData } from "@/components/crypto-donation-section";
 const QRCode = lazy(() => import("qrcode.react").then((mod) => ({ default: mod.QRCodeSVG })));
 function renderInline(text: string): ReactNode {
   const regex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;

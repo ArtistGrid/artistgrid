@@ -1,11 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePageMeta } from "@/src/hooks/use-page-meta";
-import { DEFAULT_SHARE_IMAGE, SITE_ORIGIN } from "@/src/lib/seo";
-import { useKeyPress } from "@/src/hooks/use-key-press";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { DEFAULT_SHARE_IMAGE, SITE_ORIGIN } from "@/lib/seo";
+import { useKeyPress } from "@/hooks/use-key-press";
 import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DonationContent, QrOverlay, type QrCodeData } from "@/src/components/crypto-donation-section";
+import { DonationContent, QrOverlay, type QrCodeData } from "@/components/crypto-donation-section";
 export default function Donate() {
   usePageMeta({
     title: "Support ArtistGrid | Donations",

@@ -1,7 +1,7 @@
 import * as t from "io-ts";
 import { isLeft } from "fp-ts/Either";
-import type { TALeak, Era } from "@/src/types";
-import { getAllTrackUrls } from "@/src/lib/track-utils";
+import type { TALeak, Era } from "@/types";
+import { getAllTrackUrls } from "@/lib/track-utils";
 const FavouritesImportCodec = t.interface({
   trackers: t.record(t.string, t.array(t.unknown)),
 });

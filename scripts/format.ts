@@ -10,7 +10,7 @@ function stripComments(source: string, filePath: string): string {
     source,
     ts.ScriptTarget.Latest,
     true,
-    isJsx ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    isJsx ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
   const printer = ts.createPrinter({ removeComments: true });
   return printer.printFile(sourceFile);
@@ -35,8 +35,6 @@ function processDir(dir: string) {
   }
 }
 
-for (const dir of ["src", "components", "lib"]) {
-  processDir(dir);
-}
+processDir("src");
 
-await $`bun node_modules/.bin/prettier --write "src/**/*.{ts,tsx}" "components/**/*.{ts,tsx}" "lib/**/*.{ts,tsx}"`;
+await $`bun node_modules/.bin/prettier --write "src/**/*.{ts,tsx}"`;

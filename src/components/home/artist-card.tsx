@@ -1,10 +1,10 @@
 import { memo, useMemo, useRef, useState, useEffect, useLayoutEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { FileSpreadsheet } from "lucide-react";
-import type { Artist } from "@/src/types";
-import { ASSET_BASE } from "@/src/lib/home-constants";
-import { extractTrackerId, getSheetViewUrl } from "@/src/lib/artist-utils";
-import { trackerPath } from "@/src/lib/tracker-route";
+import type { Artist } from "@/types";
+import { ASSET_BASE } from "@/lib/home-constants";
+import { extractTrackerId, getSheetViewUrl } from "@/lib/artist-utils";
+import { trackerPath } from "@/lib/tracker-route";
 const ArtistCard = memo(function ArtistCard({
   artist,
   priority,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getFileExtension } from "@/src/lib/download-utils";
+import { getFileExtension } from "@/lib/download-utils";
 describe("getFileExtension", () => {
   it("prefers the content type when provided", () => {
     expect(getFileExtension("https://x.com/file", "audio/mpeg")).toBe("mp3");

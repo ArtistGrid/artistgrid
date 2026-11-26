@@ -2,9 +2,9 @@ import { useCallback, lazy, Suspense } from "react";
 import { QrCode, Copy as CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { DONATION_OPTIONS, trackEvent } from "@/src/lib/home-constants";
+import { DONATION_OPTIONS, trackEvent } from "@/lib/home-constants";
 const QRCode = lazy(() => import("qrcode.react").then((mod) => ({ default: mod.QRCodeSVG })));
 interface QrCodeData {
   value: string;

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TrackRow } from "@/src/components/view/track-row";
-import type { TALeak, Era, TrackSource } from "@/src/types";
+import { TrackRow } from "@/components/view/track-row";
+import type { TALeak, Era, TrackSource } from "@/types";
 const track: TALeak = {
   name: "Song",
   url: "https://x.com/a",

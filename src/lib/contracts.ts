@@ -1,4 +1,4 @@
-import type { DownloadContextType } from "@/src/components/download-manager";
+import type { DownloadContextType } from "@/components/download-manager";
 const REQUIRED_METHODS = [
   "setIsMinimized",
   "startDownload",

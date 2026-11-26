@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes } from "@/src/lib/download-utils";
-import { formatRelativeTime } from "@/src/lib/view-utils";
+import { formatBytes } from "@/lib/download-utils";
+import { formatRelativeTime } from "@/lib/view-utils";
 describe("formatBytes", () => {
   it("formats bytes and kilobytes", () => {
     expect(formatBytes(0)).toBe("0 B");

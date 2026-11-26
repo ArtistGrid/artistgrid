@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { ArtistGridDisplay } from "@/src/components/home/artist-card";
-import type { Artist } from "@/src/types";
+import { ArtistGridDisplay } from "@/components/home/artist-card";
+import type { Artist } from "@/types";
 const artists = [
   {
     name: "Kanye West",

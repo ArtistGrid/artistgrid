@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GlobalPlayer } from "@/components/global-player";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { PlayerProvider, usePlayer } from "@/src/providers";
-import type { Track } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { PlayerProvider, usePlayer } from "@/providers";
+import type { Track } from "@/types";
 vi.mock("@kawarp/core", () => ({
   Kawarp: class {
     resize() {}

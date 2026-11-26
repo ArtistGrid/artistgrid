@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePageMeta } from "@/src/hooks/use-page-meta";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePlayer } from "../providers";
-import type { Artist, ArtistFilterOptions } from "@/src/types";
-import { getCachedData, isCacheExpired, setCachedData } from "@/src/lib/cache";
+import type { Artist, ArtistFilterOptions } from "@/types";
+import { getCachedData, isCacheExpired, setCachedData } from "@/lib/cache";
 import {
   extractTrackerId,
   artistsEqual,
@@ -11,9 +11,9 @@ import {
   hashString,
   isAnnouncementDismissed,
   computeDismissalHash,
-} from "@/src/lib/artist-utils";
-import { fetchArtistsCsv, parseArtistsCsv } from "@/src/lib/artists";
-import { DEFAULT_SHARE_IMAGE, HOME_DESCRIPTION, HOME_TITLE, SITE_ORIGIN } from "@/src/lib/seo";
+} from "@/lib/artist-utils";
+import { fetchArtistsCsv, parseArtistsCsv } from "@/lib/artists";
+import { DEFAULT_SHARE_IMAGE, HOME_DESCRIPTION, HOME_TITLE, SITE_ORIGIN } from "@/lib/seo";
 import {
   LOCAL_STORAGE_KEYS,
   HOME_CACHE_EXPIRY,
@@ -23,23 +23,23 @@ import {
   SUFFIXES_TO_STRIP,
   trackEvent,
   ASSET_BASE,
-} from "@/src/lib/home-constants";
-import { useLocalStorage } from "@/src/hooks/use-local-storage";
-import { safeSetItem } from "@/src/lib/storage";
-import { useSettings } from "@/src/hooks/use-settings";
-import { GallerySkeleton } from "@/src/components/home/skeletons";
-import { ErrorMessage, NoResultsMessage } from "@/src/components/home/messages";
-import { ArtistGridDisplay } from "@/src/components/home/artist-card";
-import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/src/components/home/header";
-import { Footer } from "@/src/components/home/footer";
-import { useHeaderSlots } from "@/src/components/layout";
+} from "@/lib/home-constants";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import { safeSetItem } from "@/lib/storage";
+import { useSettings } from "@/hooks/use-settings";
+import { GallerySkeleton } from "@/components/home/skeletons";
+import { ErrorMessage, NoResultsMessage } from "@/components/home/messages";
+import { ArtistGridDisplay } from "@/components/home/artist-card";
+import { FilterControls, HeaderActions, HomeHeaderCenter } from "@/components/home/header";
+import { Footer } from "@/components/home/footer";
+import { useHeaderSlots } from "@/components/layout";
 const LazyAnnouncementModal = lazy(() =>
-  import("@/src/components/home/modals").then((m) => ({ default: m.AnnouncementModal }))
+  import("@/components/home/modals").then((m) => ({ default: m.AnnouncementModal }))
 );
 const LazyDonationModal = lazy(() =>
-  import("@/src/components/home/modals").then((m) => ({ default: m.DonationModal }))
+  import("@/components/home/modals").then((m) => ({ default: m.DonationModal }))
 );
-const LazyInfoModal = lazy(() => import("@/src/components/home/modals").then((m) => ({ default: m.InfoModal })));
+const LazyInfoModal = lazy(() => import("@/components/home/modals").then((m) => ({ default: m.InfoModal })));
 import { Dice6 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 interface FuseLike {

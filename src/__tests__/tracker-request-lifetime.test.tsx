@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 const storage = vi.hoisted(() => ({ entries: Promise.resolve([] as Array<[string, unknown]>) }));
-vi.mock("@/src/lib/indexeddb-cache", () => ({
+vi.mock("@/lib/indexeddb-cache", () => ({
   idbEntries: () => storage.entries,
   idbSet: async () => {},
   idbDelete: async () => {},
@@ -30,7 +30,7 @@ describe("tracker request ownership at cache and network boundaries", () => {
   it("never publishes a cancelled cold-cache restore while the next API response is pending", async () => {
     const restored = deferred<Array<[string, unknown]>>();
     storage.entries = restored.promise;
-    const { useTrackerData } = await import("@/src/hooks/use-tracker-data");
+    const { useTrackerData } = await import("@/hooks/use-tracker-data");
     const next = deferred<Response>();
     vi.stubGlobal(
       "fetch",
@@ -73,7 +73,7 @@ describe("tracker request ownership at cache and network boundaries", () => {
   });
 
   it("discards the previous tracker gid map when entering another tracker's tab", async () => {
-    const { useTrackerData } = await import("@/src/hooks/use-tracker-data");
+    const { useTrackerData } = await import("@/hooks/use-tracker-data");
     const frankRecent = { ...RECENT, gid: "90" };
     vi.stubGlobal(
       "fetch",
@@ -98,7 +98,7 @@ describe("tracker request ownership at cache and network boundaries", () => {
   });
 
   it("lets background resolution complete without changing a different tracker's UI state", async () => {
-    const { useTrackerData } = await import("@/src/hooks/use-tracker-data");
+    const { useTrackerData } = await import("@/hooks/use-tracker-data");
     const old = deferred<Response>();
     const current = deferred<Response>();
     vi.stubGlobal(
@@ -143,8 +143,8 @@ describe("tracker request ownership at cache and network boundaries", () => {
   });
 
   it("owns cancellation for a request started outside the page loading effect", async () => {
-    const { useTrackerData } = await import("@/src/hooks/use-tracker-data");
-    const cache = await import("@/src/lib/tracker-cache");
+    const { useTrackerData } = await import("@/hooks/use-tracker-data");
+    const cache = await import("@/lib/tracker-cache");
     const tab = deferred<Response>();
     let signal!: AbortSignal;
     vi.stubGlobal(

@@ -1,6 +1,6 @@
 import { createContext, use, useState, useCallback, useMemo, useEffect, useRef, ReactNode } from "react";
-import { type Settings, loadSettings, saveSettings } from "@/src/lib/settings";
-import { buildFontCssUrl } from "@/src/lib/fonts";
+import { type Settings, loadSettings, saveSettings } from "@/lib/settings";
+import { buildFontCssUrl } from "@/lib/fonts";
 interface SettingsContextType {
   settings: Settings;
   update: (section: keyof Settings, key: string, value: unknown) => void;

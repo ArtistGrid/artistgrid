@@ -1,5 +1,5 @@
-import type { Era, TALeak, TrackerResponse } from "@/src/types";
-import { getCacheAsync, setCache } from "@/src/lib/tracker-cache";
+import type { Era, TALeak, TrackerResponse } from "@/types";
+import { getCacheAsync, setCache } from "@/lib/tracker-cache";
 export function forEachEraTrack(eras: Record<string, Era>, cb: (track: TALeak, era: Era) => boolean | void): void {
   for (const era of Object.values(eras)) {
     if (!era.data) continue;

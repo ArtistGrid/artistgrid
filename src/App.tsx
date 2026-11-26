@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState, useCallback, useMemo } from "react";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { PlayerProvider } from "./providers";
-import { SettingsProvider } from "@/src/hooks/use-settings";
+import { SettingsProvider } from "@/hooks/use-settings";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { Layout } from "./components/layout";
-import { ChunkErrorBoundary } from "@/src/components/error-boundary";
+import { ChunkErrorBoundary } from "@/components/error-boundary";
 const Home = lazy(() => import("./pages/Home"));
 const View = lazy(() => import("./pages/View"));
 const Donate = lazy(() => import("./pages/Donate"));

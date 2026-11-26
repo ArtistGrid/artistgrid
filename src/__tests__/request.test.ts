@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readResponseText, withDeadline } from "@/src/lib/request";
+import { readResponseText, withDeadline } from "@/lib/request";
 
 afterEach(() => vi.useRealTimers());
 

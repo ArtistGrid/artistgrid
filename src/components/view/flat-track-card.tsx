@@ -2,16 +2,16 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Play, Radio, SkipForward, ListPlus, Download, Heart, ExternalLink } from "lucide-react";
-import type { Era, TALeak, Track, TrackSource } from "@/src/types";
+import type { Era, TALeak, Track, TrackSource } from "@/types";
 import {
   PlayButton,
   PauseButton,
   OpenLinkButton,
   TrackDescription,
   TrackItemActions,
-} from "@/src/components/view/track-item";
-import { getEraFontStyle } from "@/src/hooks/use-era-fonts";
-import { useResolvedImage } from "@/src/hooks/use-image-resolve";
+} from "@/components/view/track-item";
+import { getEraFontStyle } from "@/hooks/use-era-fonts";
+import { useResolvedImage } from "@/hooks/use-image-resolve";
 export interface FlatTrackCardProps {
   t: TALeak;
   fakeEra: Era;

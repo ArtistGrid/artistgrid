@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { EraCard, type EraCardProps, type EraCardTrackState } from "@/src/components/view/era-card";
-import type { Era, TALeak, TrackSource } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { EraCard, type EraCardProps, type EraCardTrackState } from "@/components/view/era-card";
+import type { Era, TALeak, TrackSource } from "@/types";
 vi.mock("@tanstack/react-virtual", () => {
   const stub = ({ count }: { count: number }) => ({
     getTotalSize: () => count * 60,

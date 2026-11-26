@@ -1,13 +1,13 @@
 import { lazy, memo, Suspense, useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { usePlayer } from "@/src/providers";
-import { usePlayerTime } from "@/src/lib/player-time";
-import { useVolume } from "@/src/hooks/use-volume";
-import { VolumeControl } from "@/src/components/volume-control";
-import type { Track } from "@/src/types";
+import { usePlayer } from "@/providers";
+import { usePlayerTime } from "@/lib/player-time";
+import { useVolume } from "@/hooks/use-volume";
+import { VolumeControl } from "@/components/volume-control";
+import type { Track } from "@/types";
 import { Button } from "@/components/ui/button";
-import { WaveformSeekbar } from "@/src/components/waveform-seekbar";
+import { WaveformSeekbar } from "@/components/waveform-seekbar";
 import {
   X,
   SkipBack,
@@ -24,9 +24,9 @@ import {
   Mic2,
   Maximize2,
 } from "lucide-react";
-const LyricsPanel = lazy(() => import("@/src/components/lyrics-panel").then((m) => ({ default: m.LyricsPanel })));
+const LyricsPanel = lazy(() => import("@/components/lyrics-panel").then((m) => ({ default: m.LyricsPanel })));
 const FullscreenTrackView = lazy(() =>
-  import("@/src/components/fullscreen-track-view").then((m) => ({ default: m.FullscreenTrackView }))
+  import("@/components/fullscreen-track-view").then((m) => ({ default: m.FullscreenTrackView }))
 );
 interface QueueModalProps {
   isOpen: boolean;

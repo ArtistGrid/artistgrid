@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SettingsProvider } from "@/src/hooks/use-settings";
-import { ArtGallery, ImageLightbox } from "@/src/components/art-gallery";
-import type { Era } from "@/src/types";
+import { SettingsProvider } from "@/hooks/use-settings";
+import { ArtGallery, ImageLightbox } from "@/components/art-gallery";
+import type { Era } from "@/types";
 const eras: Record<string, Era> = {
   "1": {
     name: "Era X",

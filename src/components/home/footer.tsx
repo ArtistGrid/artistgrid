@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Github, HandCoins, BarChart3, AlertTriangle } from "lucide-react";
 import { DiscordIcon } from "./header";
-import { DISCORD_INVITE } from "@/src/lib/home-constants";
+import { DISCORD_INVITE } from "@/lib/home-constants";
 export const Footer = memo(
   ({
     displayedCount,

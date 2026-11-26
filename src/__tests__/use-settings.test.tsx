@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act, render, screen } from "@testing-library/react";
-import { SettingsProvider, useSettings } from "@/src/hooks/use-settings";
-import { saveSettings, DEFAULT_SETTINGS } from "@/src/lib/settings";
+import { SettingsProvider, useSettings } from "@/hooks/use-settings";
+import { saveSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 describe("useSettings", () => {
   it("throws outside provider", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});

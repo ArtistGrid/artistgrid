@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toTTML } from "../lib/lyrics";
-import { stripEmojis } from "../../lib/utils";
+import { stripEmojis } from "../lib/utils";
 import type { LyricsData } from "../lib/lyrics";
 describe("toTTML", () => {
   it("converts synced lyrics to TTML with timings", () => {

@@ -14,15 +14,15 @@ import {
   Upload,
 } from "lucide-react";
 import type { RefObject } from "react";
-import type { Era, TALeak, TrackSource } from "@/src/types";
-import type { PlayableTrackData } from "@/src/components/view/track-item";
+import type { Era, TALeak, TrackSource } from "@/types";
+import type { PlayableTrackData } from "@/components/view/track-item";
 import {
   PlayButton,
   PauseButton,
   OpenLinkButton,
   TrackDescription,
   TrackItemActions,
-} from "@/src/components/view/track-item";
+} from "@/components/view/track-item";
 export interface FavouritesTabProps {
   favourites: string[];
   favouriteTracks: PlayableTrackData[];

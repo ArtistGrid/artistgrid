@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import Fuse from "fuse.js";
-import type { Era, TALeak } from "@/src/types";
+import type { Era, TALeak } from "@/types";
 import {
   flattenErasForSearch,
   searchTracks,
   FUSE_TRACK_OPTIONS,
   type TrackFuseConstructor,
-} from "@/src/lib/track-search";
+} from "@/lib/track-search";
 describe("track-search", () => {
   const t1: TALeak = { name: "Can U Be", extra: "feat. Travis Scott", notes: "Leaked in 2024" };
   const t2: TALeak = { name: "Flashing Lights", extra: "feat. Dwele", description: "Graduation single" };

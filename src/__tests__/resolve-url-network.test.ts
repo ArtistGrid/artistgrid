@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/src/lib/resolve-url";
+import { resolvePlayableUrl, getTrackSource, isNetworkSource } from "@/lib/resolve-url";
 function mockFetch(body: unknown, ok = true) {
   globalThis.fetch = vi.fn().mockResolvedValue({
     ok,

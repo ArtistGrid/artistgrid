@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractIbbId, syncImageUrl, resolveImageUrl, toWsrvUrl } from "@/src/lib/image-resolve";
+import { extractIbbId, syncImageUrl, resolveImageUrl, toWsrvUrl } from "@/lib/image-resolve";
 describe("image-resolve", () => {
   beforeEach(() => {
     vi.stubGlobal(
