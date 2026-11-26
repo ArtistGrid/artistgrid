@@ -128,6 +128,18 @@ describe("artist-name tracker routes", () => {
     fireEvent.click(screen.getByLabelText("Share tracker"));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(expect.stringContaining("/sh/kanyewest/recent")));
 
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    clipboardWrite.mockClear();
+    fireEvent.click(screen.getByLabelText("Share tracker"));
+    await waitFor(() =>
+      expect(share).toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.stringContaining("/sh/kanyewest/recent") })
+      )
+    );
+    expect(clipboardWrite).not.toHaveBeenCalled();
+    delete (navigator as { share?: unknown }).share;
+
     fireEvent.click(screen.getByRole("button", { name: "Favourites" }));
     await screen.findByText("T1");
     expect(screen.getByTestId("route-location")).toHaveTextContent("/sh/kanyewest?");

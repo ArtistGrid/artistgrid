@@ -502,39 +502,50 @@ function TrackerViewContent({
       toast({ title: "Invalid input", description: "Enter a valid artist name, tracker ID, or tracker link" });
     }
   }, [inputValue, trackerParam, propInitialTab, navigate, toast]);
-  const copyToClipboard = useCallback(async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-  const handleShare = useCallback(async () => {
-    const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
-    const tabSlug =
-      !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
-    const url = `${window.location.origin}${trackerPath(trackerParam, tabSlug)}${artistQs}`;
-    if (await copyToClipboard(url)) {
-      toast({ title: "Copied!", description: "Share link copied to clipboard" });
-    } else {
-      toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
-    }
-  }, [trackerParam, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]);
-  const handleShareTrack = useCallback(
-    async (trackUrl: string, trackName: string) => {
-      const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
-      const tabSlug =
-        !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
-      const encodedTrack = encodeTrackForUrl(trackUrl);
-      const shareUrl = `${window.location.origin}${trackerPath(trackerParam, tabSlug)}?track=${encodedTrack}${artistQs}`;
-      if (await copyToClipboard(shareUrl)) {
-        toast({ title: "Track link copied!", description: `Share link for "${trackName}" copied to clipboard` });
-      } else {
+  const shareLink = useCallback(
+    async (url: string, title: string, copiedTitle: string, copiedDescription: string) => {
+      if (typeof navigator.share === "function" && navigator.canShare?.({ url }) !== false) {
+        try {
+          await navigator.share({ title, url });
+          return;
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") return;
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: copiedTitle, description: copiedDescription });
+      } catch {
         toast({ title: "Copy failed", description: "Clipboard is unavailable in this browser" });
       }
     },
-    [trackerParam, currentTab, isFavouritesTab, isCustomTab, toast, cleanArtistName, tabSlugsRef, copyToClipboard]
+    [toast]
+  );
+  const shareBase = useCallback(() => {
+    const tabSlug =
+      !isFavouritesTab && !isCustomTab && currentTab ? (tabSlugsRef.current[currentTab] ?? currentTab) : "";
+    return `${window.location.origin}${trackerPath(trackerParam, tabSlug)}`;
+  }, [trackerParam, currentTab, isFavouritesTab, isCustomTab, tabSlugsRef]);
+  const handleShare = useCallback(() => {
+    const artistQs = cleanArtistName ? `?artist=${encodeURIComponent(cleanArtistName)}` : "";
+    void shareLink(
+      `${shareBase()}${artistQs}`,
+      cleanArtistName || "ArtistGrid",
+      "Copied!",
+      "Share link copied to clipboard"
+    );
+  }, [cleanArtistName, shareBase, shareLink]);
+  const handleShareTrack = useCallback(
+    (trackUrl: string, trackName: string) => {
+      const artistQs = cleanArtistName ? `&artist=${encodeURIComponent(cleanArtistName)}` : "";
+      void shareLink(
+        `${shareBase()}?track=${encodeTrackForUrl(trackUrl)}${artistQs}`,
+        cleanArtistName ? `${trackName} - ${cleanArtistName}` : trackName,
+        "Track link copied!",
+        `Share link for "${trackName}" copied to clipboard`
+      );
+    },
+    [cleanArtistName, shareBase, shareLink]
   );
   const handleTabChange = useCallback(
     (tabName: string) => {
