@@ -26,6 +26,7 @@ import {
   CircleSlash,
   Loader2,
   Radio,
+  Orbit,
   AlertTriangle,
   FolderDown,
   Settings,
@@ -118,7 +119,16 @@ function TrackerViewContent({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { state: playerState, playTrack, addToQueue, queueNext, clearQueue, togglePlayPause, lastfm } = usePlayer();
+  const {
+    state: playerState,
+    playTrack,
+    addToQueue,
+    queueNext,
+    clearQueue,
+    togglePlayPause,
+    lastfm,
+    sonosphere,
+  } = usePlayer();
   const downloadManager = useDownloadManager();
   const { settings } = useSettings();
   const { setSettingsOpen } = useSettingsModal();
@@ -223,6 +233,8 @@ function TrackerViewContent({
     return () => controller.abort();
   }, [trackerParam, lookupAttempt, cancelTrackerLoad, setData, setHasLoaded, setStatus]);
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
+  const [sonosphereModalOpen, setSonosphereModalOpen] = useState(false);
+  const [sonosphereToken, setSonosphereToken] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [lastfmToken, setLastfmToken] = useState<string | null>(null);
@@ -1175,6 +1187,15 @@ function TrackerViewContent({
       <Button
         variant="ghost"
         size="icon"
+        onClick={() => setSonosphereModalOpen(true)}
+        aria-label="Sonosphere"
+        className={`glass-flat rounded-xl h-9 w-9 sm:h-10 sm:w-10 ${sonosphere.isAuthenticated ? "text-green-400" : "text-white/50 hover:text-white"}`}
+      >
+        <Orbit className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => setLastfmModalOpen(true)}
         aria-label="Last.fm"
         className={`glass-flat rounded-xl h-9 w-9 sm:h-10 sm:w-10 ${lastfm.isAuthenticated ? "text-green-400" : "text-white/50 hover:text-white"}`}
@@ -1249,6 +1270,16 @@ function TrackerViewContent({
         </Suspense>
       )}
       <Suspense fallback={null}>
+        {sonosphereModalOpen && (
+          <LastFMModal
+            isOpen={sonosphereModalOpen}
+            onClose={() => setSonosphereModalOpen(false)}
+            lastfm={sonosphere}
+            token={sonosphereToken}
+            setToken={setSonosphereToken}
+            serviceName="Sonosphere"
+          />
+        )}
         {lastfmModalOpen && (
           <LastFMModal
             isOpen={lastfmModalOpen}

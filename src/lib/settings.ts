@@ -17,6 +17,9 @@ export interface Settings {
     startupShuffle: boolean;
   };
   scrobbling: {
+    sonosphere: {
+      enabled: boolean;
+    };
     lastfm: {
       enabled: boolean;
       customServer: boolean;
@@ -57,6 +60,9 @@ export const DEFAULT_SETTINGS: Settings = {
     startupShuffle: false,
   },
   scrobbling: {
+    sonosphere: {
+      enabled: true,
+    },
     lastfm: {
       enabled: true,
       customServer: false,
@@ -110,6 +116,10 @@ export function loadSettings(): Settings {
         downloads: { ...DEFAULT_SETTINGS.downloads, ...section("downloads") },
         player: { ...DEFAULT_SETTINGS.player, ...section("player") },
         scrobbling: {
+          sonosphere: {
+            ...DEFAULT_SETTINGS.scrobbling.sonosphere,
+            ...(isPlainObject(scrobbling.sonosphere) ? scrobbling.sonosphere : {}),
+          },
           lastfm: {
             ...DEFAULT_SETTINGS.scrobbling.lastfm,
             ...(isPlainObject(scrobbling.lastfm) ? scrobbling.lastfm : {}),

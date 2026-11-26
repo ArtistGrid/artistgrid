@@ -10,8 +10,10 @@ export interface LastFMModalProps {
   lastfm: LastFMClientInfo;
   token: string | null;
   setToken: (t: string | null) => void;
+  /** Display name for Last.fm-compatible services (e.g. Sonosphere) */
+  serviceName?: string;
 }
-export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFMModalProps) {
+export function LastFMModal({ isOpen, onClose, lastfm, token, setToken, serviceName = "Last.fm" }: LastFMModalProps) {
   const [activeFlow, setActiveFlow] = useState<number | null>(null);
   const { toast } = useToast();
   const flowRef = useRef(0);
@@ -42,17 +44,17 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
     } catch (e) {
       toast({
         title: "Connection failed",
-        description: e instanceof Error ? e.message : "Could not complete Last.fm authentication",
+        description: e instanceof Error ? e.message : `Could not complete ${serviceName} authentication`,
       });
     } finally {
       setActiveFlow((cur) => (cur === flow ? null : cur));
     }
   };
   return (
-    <Modal isOpen={isOpen} onClose={onClose} ariaLabel="Last.fm Connection">
+    <Modal isOpen={isOpen} onClose={onClose} ariaLabel={`${serviceName} Connection`}>
       <div className="p-6 pt-12 text-center">
         <Radio className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
-        <h2 className="text-xl font-bold text-white mb-2">Last.fm Scrobbling</h2>
+        <h2 className="text-xl font-bold text-white mb-2">{serviceName} Scrobbling</h2>
         {lastfm.isAuthenticated ? (
           <div className="space-y-4">
             <p className="text-neutral-300">
@@ -81,9 +83,9 @@ export function LastFMModal({ isOpen, onClose, lastfm, token, setToken }: LastFM
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-neutral-400">Connect your Last.fm account to scrobble tracks while listening</p>
+            <p className="text-neutral-400">Connect your {serviceName} account to scrobble tracks while listening</p>
             <Button onClick={handleConnect} disabled={isLoading} className="bg-white text-black hover:bg-neutral-200">
-              {isLoading ? "Loading..." : "Connect Last.fm"}
+              {isLoading ? "Loading..." : `Connect ${serviceName}`}
             </Button>
           </div>
         )}

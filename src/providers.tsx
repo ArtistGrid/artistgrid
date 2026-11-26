@@ -1,6 +1,15 @@
 import { createContext, use, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
 import type { Track, LastFMClientInfo } from "./types";
-import { LASTFM_KEY, LASTFM_API_SIG, LASTFM_API_URL, LISTENBRAINZ_API_URL } from "@/src/lib/config";
+import {
+  LASTFM_KEY,
+  LASTFM_API_SIG,
+  LASTFM_API_URL,
+  LISTENBRAINZ_API_URL,
+  SONOSPHERE_KEY,
+  SONOSPHERE_API_SIG,
+  SONOSPHERE_API_URL,
+  SONOSPHERE_AUTH_URL,
+} from "@/src/lib/config";
 import { loadSettings } from "@/src/lib/settings";
 import { logError } from "@/src/lib/logger";
 import { safeSetItem } from "@/src/lib/storage";
@@ -24,9 +33,7 @@ function notify(title: string, options: NotificationOptions) {
   } catch {
     try {
       if ("serviceWorker" in navigator) {
-        void navigator.serviceWorker.ready
-          .then((reg) => reg.showNotification(title, options))
-          .catch(() => {});
+        void navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, options)).catch(() => {});
       }
     } catch {}
   }
@@ -72,6 +79,7 @@ interface PlayerContextType {
   toggleRepeat: () => void;
   closePlayer: () => void;
   lastfm: LastFMClientInfo;
+  sonosphere: LastFMClientInfo;
 }
 const PlayerContext = createContext<PlayerContextType | null>(null);
 export function usePlayer() {
@@ -118,6 +126,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     lastfmSessionRef.current = lastfmSession;
   }, [lastfmSession]);
+  const [sonosphereSession, setSonosphereSession] = useState<LastFMSession | null>(() => {
+    try {
+      const session = localStorage.getItem("sonosphere-session:v1");
+      return session ? (JSON.parse(session) as LastFMSession) : null;
+    } catch {
+      return null;
+    }
+  });
+  const sonosphereSessionRef = useRef(sonosphereSession);
+  useEffect(() => {
+    sonosphereSessionRef.current = sonosphereSession;
+  }, [sonosphereSession]);
   const scrobbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrobbledRef = useRef(false);
   const currentTrackRef = useRef<Track | null>(null);
@@ -168,11 +188,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     return { url: LASTFM_API_URL, key: LASTFM_KEY, secret: LASTFM_API_SIG };
   }, []);
-  const makeLastFMRequest = useCallback(
-    async <T = unknown,>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> => {
-      const cfg = getLastFmConfig();
+  // Signed Last.fm 2.0 protocol request, shared by Last.fm and compatible services (Sonosphere)
+  const makeAudioscrobblerRequest = useCallback(
+    async <T = unknown,>(
+      cfg: { url: string; key: string; secret: string; name: string },
+      sessionKey: string | undefined,
+      method: string,
+      params: Record<string, string> = {},
+      requiresAuth = false
+    ): Promise<T> => {
       const requestParams: Record<string, string> = { method, api_key: cfg.key, ...params };
-      if (requiresAuth && lastfmSession?.key) requestParams.sk = lastfmSession.key;
+      if (requiresAuth && sessionKey) requestParams.sk = sessionKey;
       const signature = await generateSignature(requestParams, cfg.secret);
       const formData = new URLSearchParams({ ...requestParams, api_sig: signature, format: "json" });
       const response = await fetch(cfg.url, {
@@ -180,18 +206,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
       });
-      if (!response.ok) throw new Error(`Last.fm API error: HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`${cfg.name} API error: HTTP ${response.status}`);
       const data = (await response.json()) as {
-        error?: {
-          code: number;
-          message: string;
-        };
+        error?:
+          | number
+          | {
+              code: number;
+              message: string;
+            };
+        message?: string;
         [key: string]: unknown;
       };
-      if (data.error) throw new Error(data.error.message || "Last.fm API error");
+      if (data.error) {
+        // Last.fm nests the message in error; Sonosphere uses { error: code, message }
+        const message = typeof data.error === "object" ? data.error.message : data.message;
+        throw new Error(message || `${cfg.name} API error`);
+      }
       return data as T;
     },
-    [generateSignature, getLastFmConfig, lastfmSession]
+    [generateSignature]
+  );
+  const makeLastFMRequest = useCallback(
+    <T = unknown,>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> =>
+      makeAudioscrobblerRequest<T>(
+        { ...getLastFmConfig(), name: "Last.fm" },
+        lastfmSession?.key,
+        method,
+        params,
+        requiresAuth
+      ),
+    [makeAudioscrobblerRequest, getLastFmConfig, lastfmSession]
+  );
+  const makeSonosphereRequest = useCallback(
+    <T = unknown,>(method: string, params: Record<string, string> = {}, requiresAuth = false): Promise<T> =>
+      makeAudioscrobblerRequest<T>(
+        { url: SONOSPHERE_API_URL, key: SONOSPHERE_KEY, secret: SONOSPHERE_API_SIG, name: "Sonosphere" },
+        sonosphereSession?.key,
+        method,
+        params,
+        requiresAuth
+      ),
+    [makeAudioscrobblerRequest, sonosphereSession]
   );
   const clearScrobbleTimer = useCallback(() => {
     if (scrobbleTimerRef.current) {
@@ -259,6 +314,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (hasScrobbledRef.current) return;
       hasScrobbledRef.current = true;
       const settings = loadSettings();
+      if (settings.scrobbling.sonosphere.enabled && sonosphereSession?.key) {
+        try {
+          const artist = getScrobbleArtist(track);
+          const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+          const params: Record<string, string> = {
+            artist,
+            track: trackName,
+            timestamp: Math.floor(Date.now() / 1000).toString(),
+          };
+          if (track.eraName) params.album = track.eraName;
+          await makeSonosphereRequest("track.scrobble", params, true);
+        } catch (e) {
+          logError("Failed to scrobble to Sonosphere:", e);
+        }
+      }
       if (settings.scrobbling.lastfm.enabled && lastfmSession?.key) {
         try {
           const artist = getScrobbleArtist(track);
@@ -276,11 +346,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       await scrobbleListenBrainz(track);
     },
-    [lastfmSession, makeLastFMRequest, getScrobbleArtist, scrobbleListenBrainz]
+    [
+      sonosphereSession,
+      makeSonosphereRequest,
+      lastfmSession,
+      makeLastFMRequest,
+      getScrobbleArtist,
+      scrobbleListenBrainz,
+    ]
   );
   const updateNowPlaying = useCallback(
     async (track: Track) => {
       const settings = loadSettings();
+      if (settings.scrobbling.sonosphere.enabled && sonosphereSession?.key) {
+        try {
+          const artist = getScrobbleArtist(track);
+          const trackName = settings.behavior.showEmojis ? track.name : stripEmojis(track.name);
+          const params: Record<string, string> = { artist, track: trackName };
+          if (track.eraName) params.album = track.eraName;
+          await makeSonosphereRequest("track.updateNowPlaying", params, true);
+        } catch (e) {
+          logError("Failed to update Sonosphere now playing:", e);
+        }
+      }
       if (settings.scrobbling.lastfm.enabled && lastfmSession?.key) {
         try {
           const artist = getScrobbleArtist(track);
@@ -294,7 +382,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       await updateListenBrainzNowPlaying(track);
     },
-    [lastfmSession, makeLastFMRequest, getScrobbleArtist, updateListenBrainzNowPlaying]
+    [
+      sonosphereSession,
+      makeSonosphereRequest,
+      lastfmSession,
+      makeLastFMRequest,
+      getScrobbleArtist,
+      updateListenBrainzNowPlaying,
+    ]
   );
   const scheduleScrobble = useCallback(
     (track: Track, duration: number) => {
@@ -434,7 +529,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       () => {
         const dur = audioRef.current?.duration || 0;
         setDuration(dur);
-        if (currentTrackRef.current && lastfmSessionRef.current?.key && dur > 30) {
+        const hasSession = !!(lastfmSessionRef.current?.key || sonosphereSessionRef.current?.key);
+        if (currentTrackRef.current && hasSession && dur > 30) {
           scheduleScrobbleRef.current(currentTrackRef.current, dur);
         }
       },
@@ -738,7 +834,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const disconnectLastFM = useCallback(() => {
     setLastfmSession(null);
     localStorage.removeItem("lastfm-session:v1");
-    clearScrobbleTimer();
+    if (!sonosphereSessionRef.current?.key) clearScrobbleTimer();
+  }, [clearScrobbleTimer]);
+  const getSonosphereAuthUrl = useCallback(async (): Promise<{
+    token: string;
+    url: string;
+  }> => {
+    const data = await makeSonosphereRequest<{
+      token: string;
+    }>("auth.getToken");
+    return { token: data.token, url: `${SONOSPHERE_AUTH_URL}?api_key=${SONOSPHERE_KEY}&token=${data.token}` };
+  }, [makeSonosphereRequest]);
+  const completeSonosphereAuth = useCallback(
+    async (
+      token: string
+    ): Promise<{
+      success: boolean;
+      username: string;
+    }> => {
+      const data = await makeSonosphereRequest<{
+        session: {
+          key: string;
+          name: string;
+        };
+      }>("auth.getSession", { token });
+      if (data.session) {
+        const session = { key: data.session.key, name: data.session.name };
+        setSonosphereSession(session);
+        safeSetItem("sonosphere-session:v1", JSON.stringify(session));
+        return { success: true, username: data.session.name };
+      }
+      throw new Error("No session returned");
+    },
+    [makeSonosphereRequest]
+  );
+  const disconnectSonosphere = useCallback(() => {
+    setSonosphereSession(null);
+    localStorage.removeItem("sonosphere-session:v1");
+    if (!lastfmSessionRef.current?.key) clearScrobbleTimer();
   }, [clearScrobbleTimer]);
   return (
     <PlayerContext.Provider
@@ -767,6 +900,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             completeAuth,
             disconnect: disconnectLastFM,
           },
+          sonosphere: {
+            isAuthenticated: !!sonosphereSession?.key,
+            username: sonosphereSession?.name || null,
+            getAuthUrl: getSonosphereAuthUrl,
+            completeAuth: completeSonosphereAuth,
+            disconnect: disconnectSonosphere,
+          },
         }),
         [
           state,
@@ -788,6 +928,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           getAuthUrl,
           completeAuth,
           disconnectLastFM,
+          sonosphereSession,
+          getSonosphereAuthUrl,
+          completeSonosphereAuth,
+          disconnectSonosphere,
         ]
       )}
     >
