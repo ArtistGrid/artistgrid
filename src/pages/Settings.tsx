@@ -196,6 +196,20 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             </TabsContent>
 
             <TabsContent value="scrobbling" className="space-y-4">
+              <Section icon={Radio} title="Sonosphere Scrobbling">
+                <SettingRow
+                  label="Enable Sonosphere"
+                  description="Scrobble played tracks to your sonosphere.fm account. Connect via the Sonosphere button in the header."
+                >
+                  <Switch
+                    checked={settings.scrobbling.sonosphere.enabled}
+                    onCheckedChange={(v) =>
+                      update("scrobbling", "sonosphere", { ...settings.scrobbling.sonosphere, enabled: v })
+                    }
+                  />
+                </SettingRow>
+              </Section>
+
               <Section icon={Radio} title="Last.fm Scrobbling">
                 <SettingRow label="Enable Last.fm" description="Scrobble played tracks to your Last.fm account">
                   <Switch

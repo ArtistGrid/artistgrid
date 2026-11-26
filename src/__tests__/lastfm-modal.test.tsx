@@ -24,6 +24,21 @@ describe("LastFMModal", () => {
     expect(screen.getByText(/Connect your Last.fm account/)).toBeInTheDocument();
     expect(screen.getByText("Connect Last.fm")).toBeInTheDocument();
   });
+  it("uses serviceName for Last.fm-compatible services like Sonosphere", () => {
+    render(
+      <LastFMModal
+        isOpen
+        onClose={() => {}}
+        lastfm={baseLastfm()}
+        token={null}
+        setToken={() => {}}
+        serviceName="Sonosphere"
+      />
+    );
+    expect(screen.getByText("Sonosphere Scrobbling")).toBeInTheDocument();
+    expect(screen.getByText(/Connect your Sonosphere account/)).toBeInTheDocument();
+    expect(screen.getByText("Connect Sonosphere")).toBeInTheDocument();
+  });
   it("connects and opens popup", async () => {
     const setToken = vi.fn();
     const mockOpen = vi.fn((url?: string | URL) => {
