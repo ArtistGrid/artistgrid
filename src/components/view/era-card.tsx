@@ -272,10 +272,10 @@ export const EraCard = memo(function EraCard({
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3)",
       }}
     >
-      <div className="flex items-center">
+      <div className="flex items-center transition-colors hover:bg-white/[0.03]">
         <button
           type="button"
-          className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left hover:bg-white/[0.03] transition-colors"
+          className="flex-1 flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left"
           onClick={() => toggleEra(eraKey)}
         >
           {era.image ? (

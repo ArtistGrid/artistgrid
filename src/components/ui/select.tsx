@@ -12,7 +12,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ className, op
     <select
       ref={ref}
       className={cn(
-        "flex h-8 w-full appearance-none items-center rounded-lg border-0 bg-white/[0.06] px-3 pr-8 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-8 w-full appearance-none items-center min-w-[7.5rem] cursor-pointer rounded-lg border border-white/10 bg-white/[0.04] px-3 pr-8 text-xs text-white/85 transition-colors hover:border-white/15 hover:bg-white/[0.07] focus-visible:border-white/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -23,7 +23,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ className, op
         </option>
       ))}
     </select>
-    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
+    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
   </div>
 ));
 Select.displayName = "Select";

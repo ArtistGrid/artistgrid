@@ -1,10 +1,8 @@
-import { BOT_RE, documentResponse, handleBotTrackerRequest } from '../_bot-renderer.js';
+import { documentResponse, handleBotTrackerRequest, isBot, serveSpaShell } from '../_bot-renderer.js';
 import { parseTrackerPath } from '../../src/lib/tracker-route';
 
 export async function onRequest(context) {
-  const { request, env } = context;
-  const ua = request.headers.get('User-Agent') || '';
-  const url = new URL(request.url);
+  const url = new URL(context.request.url);
   let route;
   try {
     route = parseTrackerPath(url.pathname);
@@ -12,18 +10,12 @@ export async function onRequest(context) {
     return documentResponse(new Response('Invalid path encoding', { status: 400 }));
   }
   if (!route) return documentResponse(new Response('Not found', { status: 404 }));
-
-  // Non-bots / human visitors receive the static SPA shell
-  if (!BOT_RE.test(ua)) {
-    url.pathname = '/';
-    return documentResponse(await env.ASSETS.fetch(new Request(url, request)));
-  }
-  const artistQuery = url.searchParams.get('artist') || '';
+  if (!isBot(context.request)) return serveSpaShell(context);
 
   return handleBotTrackerRequest({
     trackerParam: route.trackerParam,
     tabParam: route.tabSlug,
-    artistQuery,
-    requestUrl: request.url,
+    artistQuery: url.searchParams.get('artist') || '',
+    requestUrl: context.request.url,
   });
 }

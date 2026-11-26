@@ -1,10 +1,5 @@
-import * as t from "io-ts";
-import { isLeft } from "fp-ts/Either";
 import type { TALeak, Era } from "@/types";
 import { getAllTrackUrls } from "@/lib/track-utils";
-const FavouritesImportCodec = t.interface({
-  trackers: t.record(t.string, t.array(t.unknown)),
-});
 const KEY_PREFIX = "artistgrid-favourites_";
 function getKey(trackerId: string): string {
   return `${KEY_PREFIX}${trackerId}`;
@@ -132,12 +127,11 @@ export function exportAllFavourites(): FavouritesExport {
   return { version: 1, exportedAt: new Date().toISOString(), trackers };
 }
 export function importFavourites(data: unknown, mode: "merge" | "replace" = "merge"): number {
-  const parsed = FavouritesImportCodec.decode(data);
-  if (isLeft(parsed)) return 0;
-  const trackers = parsed.right.trackers as Record<string, unknown[]>;
+  const trackers = typeof data === "object" && data !== null ? (data as { trackers?: unknown }).trackers : undefined;
+  if (typeof trackers !== "object" || trackers === null || Array.isArray(trackers)) return 0;
   let added = 0;
   for (const [trackerId, urls] of Object.entries(trackers)) {
-    if (!trackerId) continue;
+    if (!trackerId || !Array.isArray(urls)) continue;
     const cleanUrls = urls.filter((u): u is string => typeof u === "string" && u.length > 0);
     if (mode === "replace") {
       try {

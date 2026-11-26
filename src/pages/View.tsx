@@ -49,22 +49,13 @@ import {
   getSourceDisplayName,
   SUPPORTED_SOURCES,
 } from "@/lib/track-utils";
-import {
-  getSheetViewUrl,
-  getCleanArtistName,
-  getArtistNameFromSheetTitle,
-  getImageFilename,
-} from "@/lib/artist-utils";
+import { getSheetViewUrl, getCleanArtistName, getArtistNameFromSheetTitle, getImageFilename } from "@/lib/artist-utils";
 import { getDirectTrackerId, resolveArtistTracker } from "@/lib/artists";
 import { parseTrackerLink, trackerPath } from "@/lib/tracker-route";
 import { triggerBlobDownload } from "@/lib/download-utils";
-import {
-  flattenErasForSearch,
-  searchTracks,
-  FUSE_TRACK_OPTIONS,
-  type TrackFuseConstructor,
-} from "@/lib/track-search";
+import { flattenErasForSearch, searchTracks, FUSE_TRACK_OPTIONS, type TrackFuseConstructor } from "@/lib/track-search";
 import { DiscordIcon } from "@/components/home/header";
+import { Disclaimer } from "@/components/home/footer";
 import { DownloadProvider, useDownloadManager } from "@/components/download-manager";
 import { ChunkErrorBoundary } from "@/components/error-boundary";
 import { lazy } from "react";
@@ -1253,7 +1244,7 @@ function TrackerViewContent({
     ));
   return (
     <motion.div
-      className="min-h-screen bg-black pb-32 sm:pb-28"
+      className={`min-h-screen bg-black ${playerState.currentTrack ? "pb-32 sm:pb-28" : "pb-4"}`}
       initial={false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -1687,18 +1678,9 @@ function TrackerViewContent({
             )
           ) : null}
         </AnimatePresence>
-        <div className="mt-8 sm:mt-12 pt-4 sm:pt-6 border-b border-neutral-800">
-          <div className="flex flex-col items-center gap-3 sm:gap-4 max-w-xl mx-auto">
-            <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 bg-neutral-900/50 px-3 sm:px-4 py-2 rounded-lg w-full">
-              <AlertTriangle className="w-3 sm:w-4 h-3 sm:h-4 flex-shrink-0" />
-              <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
-            </div>
-            <p className="text-[10px] sm:text-xs text-neutral-600 text-center leading-relaxed px-2">
-              ArtistGrid is not affiliated with, endorsed by, or associated with Google, TrackerHub, or any artists
-              whose content may appear in these trackers. We do not host, store, or distribute any copyrighted content.
-            </p>
-          </div>
-        </div>
+        <footer className="mt-12 pt-6 border-t border-white/[0.07]">
+          <Disclaimer className="max-w-2xl mx-auto" />
+        </footer>
       </main>
     </motion.div>
   );

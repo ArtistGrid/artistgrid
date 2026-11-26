@@ -1,15 +1,10 @@
 import { SITE_ORIGIN } from '../src/lib/seo';
 import { DONATION_OPTIONS } from '../src/lib/home-constants';
-import { BOT_RE, documentResponse, escapeHtml } from './_bot-renderer.js';
+import { escapeHtml, isBot, serveSpaShell } from './_bot-renderer.js';
 import { renderSitePage } from './_site-renderer.js';
 
 export async function onRequest(context) {
-  const { request, env } = context;
-  if (!BOT_RE.test(request.headers.get('User-Agent') || '')) {
-    const url = new URL(request.url);
-    url.pathname = '/';
-    return documentResponse(await env.ASSETS.fetch(new Request(url, request)));
-  }
+  if (!isBot(context.request)) return serveSpaShell(context);
   return renderSitePage({
     title: 'Support ArtistGrid | Donations',
     description: 'Support ArtistGrid development and server costs.',

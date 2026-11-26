@@ -22,9 +22,7 @@ async function minifyJs(dir: string) {
   let saved = 0;
   for (const file of files) {
     const code = readFileSync(file, "utf-8");
-    const original = code;
-
-    const swcOut = await swc.minify(code, {
+    const { code: minified } = await swc.minify(code, {
       compress: {
         passes: 5,
         toplevel: true,
@@ -45,27 +43,7 @@ async function minifyJs(dir: string) {
       module: true,
       toplevel: true,
     });
-    const minified = swcOut.code;
-
-    saved += original.length - minified.length;
-    writeFileSync(file, minified);
-  }
-  return saved;
-}
-
-async function minifyCss(dir: string) {
-  const esbuildMod = await import("esbuild");
-
-  const files = findFiles(dir, ".css");
-  let saved = 0;
-  for (const file of files) {
-    const code = readFileSync(file, "utf-8");
-    const original = code;
-
-    const esOut = await esbuildMod.transform(code, { loader: "css", minify: true });
-    const minified = esOut.code ?? code;
-
-    saved += original.length - minified.length;
+    saved += code.length - minified.length;
     writeFileSync(file, minified);
   }
   return saved;
@@ -76,9 +54,8 @@ function customMinifyPlugin(dir: string): Plugin {
     name: "custom-minify",
     enforce: "post",
     async writeBundle() {
-      const jsSaved = await minifyJs(dir);
-      const cssSaved = await minifyCss(dir);
-      console.log(`  custom-minify: JS -${(jsSaved / 1024).toFixed(1)} KB, CSS -${(cssSaved / 1024).toFixed(1)} KB`);
+      const saved = await minifyJs(dir);
+      console.log(`  custom-minify: JS -${(saved / 1024).toFixed(1)} KB`);
     },
   };
 }
@@ -236,6 +213,7 @@ export default defineConfig(({ command }) => ({
     target: "es2022",
   },
   optimizeDeps: {
+    include: ["lrclib-api", "@uimaxbai/am-lyrics/am-lyrics.js"],
     esbuildOptions: {
       target: "es2022",
     },
@@ -244,7 +222,6 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
     target: "es2022",
     minify: false,
-    cssMinify: false,
     rollupOptions: {
       output: {
         manualChunks: {

@@ -23,7 +23,7 @@ const ArtistCard = memo(function ArtistCard({
   const trackerId = useMemo(() => extractTrackerId(artist.url), [artist.url]);
   const CardLink = trackerId ? "a" : "button";
   return (
-    <div className="relative glass rounded-2xl overflow-hidden hover:border-white/25 hover:-translate-y-1 group transition-[transform,border-color,box-shadow] duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.08)]">
+    <div className="relative glass rounded-2xl overflow-hidden hover:border-white/25 group transition-[border-color,box-shadow] duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.08)]">
       <CardLink
         type={trackerId ? undefined : "button"}
         href={trackerId ? `${trackerPath(trackerId)}/` : undefined}

@@ -22,7 +22,7 @@ describe("SettingsModal", () => {
   it("closes when close button clicked", () => {
     const onClose = vi.fn();
     render(wrap(<SettingsModal onClose={onClose} />));
-    fireEvent.click(screen.getAllByLabelText("Close settings")[0]);
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(onClose).toHaveBeenCalled();
   });
   it("toggles synced lyrics switch and persists", () => {

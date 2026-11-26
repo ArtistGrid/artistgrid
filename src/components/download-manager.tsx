@@ -1,6 +1,3 @@
-import * as t from "io-ts";
-import { isLeft } from "fp-ts/Either";
-import { assertDownloadManagerContract } from "@/lib/contracts";
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, use, type ReactNode } from "react";
 import { Archive, CheckCircle2, Download, Loader2, RotateCcw, X, XCircle, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,20 +13,9 @@ const ZIP_CHUNK_SIZE = 900 * 1024 * 1024;
 const MAX_RETRY_ATTEMPTS = 2;
 const JOBS_STORAGE_KEY = "artistgrid-downloads:v1";
 const MAX_RESTORED_ITEMS = 200;
-const StoredItemCodec = t.intersection([
-  t.interface({ id: t.string, playableUrl: t.string }),
-  t.partial({
-    trackName: t.string,
-    eraName: t.string,
-    status: t.string,
-    progress: t.number,
-    retryCount: t.number,
-  }),
-]);
-const StoredJobCodec = t.intersection([
-  t.interface({ id: t.string, items: t.array(StoredItemCodec) }),
-  t.partial({ name: t.string, artistName: t.string, eraName: t.string }),
-]);
+type Stored = Record<string, unknown>;
+const isRecord = (v: unknown): v is Stored => typeof v === "object" && v !== null;
+const optString = (v: unknown) => (typeof v === "string" ? v : undefined);
 interface DownloadItem {
   id: string;
   trackName: string;
@@ -85,9 +71,6 @@ const DownloadContext = createContext<DownloadContextType | null>(null);
 export function useDownloadManager() {
   const ctx = use(DownloadContext);
   if (!ctx) throw new Error("useDownloadManager must be used within DownloadProvider");
-  if (!assertDownloadManagerContract(ctx)) {
-    throw new Error("DownloadManager context does not satisfy its runtime contract");
-  }
   return ctx;
 }
 function patchJobItem(prev: DownloadJob[], jobId: string, itemId: string, patch: Partial<DownloadItem>): DownloadJob[] {
@@ -120,22 +103,20 @@ function parseStoredJobs(raw: string): DownloadJob[] {
   } catch {
     return [];
   }
-  const arrayResult = t.UnknownArray.decode(parsed);
-  if (isLeft(arrayResult)) return [];
+  if (!Array.isArray(parsed)) return [];
   const jobs: DownloadJob[] = [];
   let restoredCount = 0;
-  for (const entry of arrayResult.right) {
+  for (const storedJob of parsed) {
     if (restoredCount >= MAX_RESTORED_ITEMS) break;
-    const jobResult = StoredJobCodec.decode(entry);
-    if (isLeft(jobResult)) continue;
-    const storedJob = jobResult.right;
+    if (!isRecord(storedJob) || typeof storedJob.id !== "string" || !Array.isArray(storedJob.items)) continue;
     const restoredItems: DownloadItem[] = [];
     for (const storedItem of storedJob.items) {
       if (restoredCount >= MAX_RESTORED_ITEMS) break;
+      if (!isRecord(storedItem) || typeof storedItem.id !== "string" || typeof storedItem.playableUrl !== "string") continue;
       restoredItems.push({
         id: storedItem.id,
-        trackName: storedItem.trackName ?? "Unknown",
-        eraName: storedItem.eraName ?? "Unknown Era",
+        trackName: optString(storedItem.trackName) ?? "Unknown",
+        eraName: optString(storedItem.eraName) ?? "Unknown Era",
         playableUrl: storedItem.playableUrl,
         status: "pending",
         progress: 0,
@@ -146,9 +127,9 @@ function parseStoredJobs(raw: string): DownloadJob[] {
     if (restoredItems.length > 0) {
       jobs.push({
         id: storedJob.id,
-        name: storedJob.name ?? "Restored download",
-        artistName: storedJob.artistName ?? "",
-        eraName: storedJob.eraName,
+        name: optString(storedJob.name) ?? "Restored download",
+        artistName: optString(storedJob.artistName) ?? "",
+        eraName: optString(storedJob.eraName),
         items: restoredItems,
         status: "active",
         completedCount: 0,

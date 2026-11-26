@@ -1,4 +1,4 @@
 dist/
+coverage/
 node_modules/
-bun.lock
 *.min.js

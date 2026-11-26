@@ -1,4 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useRef, useState } from "react";
+import { ChunkErrorBoundary } from "@/components/error-boundary";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlayer } from "@/providers";
@@ -380,11 +381,7 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                     aria-label={state.isPlaying ? "Pause" : "Play"}
                     className="bg-white text-black hover:bg-neutral-200 hover:text-black rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 active:scale-90 hover:scale-105 transition-[transform,background-color] shadow-md shadow-black/20"
                   >
-                    {state.isPlaying ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4 ml-0.5" />
-                    )}
+                    {state.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                   </button>
                   <Button
                     variant="ghost"
@@ -528,9 +525,13 @@ export const GlobalPlayer = memo(function GlobalPlayer() {
                   <X className="w-3 h-3" />
                 </Button>
               </div>
-              <Suspense fallback={null}>
-                <LyricsPanel />
-              </Suspense>
+              <ChunkErrorBoundary
+                fallback={<p className="flex-1 grid place-items-center text-xs text-white/40">Couldn't load lyrics</p>}
+              >
+                <Suspense fallback={null}>
+                  <LyricsPanel />
+                </Suspense>
+              </ChunkErrorBoundary>
             </motion.div>
           )}
         </AnimatePresence>

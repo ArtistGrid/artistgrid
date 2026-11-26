@@ -1,14 +1,6 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Modal } from "@/components/modal";
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: true, configurable: true });
-  });
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: false, configurable: true });
-  });
-});
 describe("Modal", () => {
   it("renders children when open", () => {
     render(

@@ -1,15 +1,7 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LastFMModal } from "@/components/lastfm-modal";
 import type { LastFMClientInfo } from "@/types";
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: true, configurable: true });
-  });
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: false, configurable: true });
-  });
-});
 const baseLastfm = (over: Partial<LastFMClientInfo> = {}): LastFMClientInfo => ({
   isAuthenticated: false,
   username: null,

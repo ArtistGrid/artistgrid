@@ -1,7 +1,32 @@
-import { memo } from "react";
-import { Github, HandCoins, BarChart3, AlertTriangle } from "lucide-react";
+import { memo, type ReactNode } from "react";
+import { Github, HandCoins, BarChart3 } from "lucide-react";
 import { DiscordIcon } from "./header";
 import { DISCORD_INVITE } from "@/lib/home-constants";
+import { cn } from "@/lib/utils";
+
+const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
+const linkCls = "flex items-center gap-1.5 hover:text-white/85 transition-colors";
+const creditCls = "text-white/60 hover:text-white transition-colors";
+
+const LINKS: { href: string; label: string; icon: ReactNode }[] = [
+  { href: "https://github.com/ArtistGrid", label: "GitHub", icon: <Github className="w-3.5 h-3.5" /> },
+  { href: DISCORD_INVITE, label: "Discord", icon: <DiscordIcon className="w-3.5 h-3.5" /> },
+  {
+    href: "https://plausible.canine.tools/artistgrid.cx/",
+    label: "Analytics",
+    icon: <BarChart3 className="w-3.5 h-3.5" />,
+  },
+];
+
+export function Disclaimer({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-xs leading-relaxed text-white/35 text-center", className)}>
+      ArtistGrid does not host, store, or distribute any content. All links point to third-party services. Not
+      affiliated with Google, TrackerHub, or any artists.
+    </p>
+  );
+}
+
 export const Footer = memo(
   ({
     displayedCount,
@@ -14,94 +39,50 @@ export const Footer = memo(
     onDonateClick: () => void;
     visitorCount: number | null;
   }) => (
-    <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-10 mt-16 border-t border-white/[0.07]">
-      <div className="flex flex-col items-center gap-5">
-        <p className="text-sm text-white/55 tabular-nums">
-          {displayedCount} of {totalCount} trackers
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5">
-          <a
-            href="https://github.com/ArtistGrid"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-white/55 hover:text-white/80 transition-colors"
-          >
-            <Github className="w-3.5 h-3.5" />
-            <span>GitHub</span>
-          </a>
-          <a
-            href={DISCORD_INVITE}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-white/55 hover:text-white/80 transition-colors"
-          >
-            <DiscordIcon className="w-3.5 h-3.5" />
-            <span>Discord</span>
-          </a>
-          <a
-            href="https://plausible.canine.tools/artistgrid.cx/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-white/55 hover:text-white/80 transition-colors"
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Analytics</span>
-          </a>
-          <button
-            type="button"
-            onClick={onDonateClick}
-            className="flex items-center gap-1.5 text-sm text-white/55 hover:text-white/80 transition-colors"
-          >
-            <HandCoins className="w-3.5 h-3.5" />
-            <span>Donate</span>
-          </button>
+    <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 mt-16 border-t border-white/[0.07] space-y-5 text-sm text-white/50">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 tabular-nums">
+          <span>
+            {displayedCount} of {totalCount} trackers
+          </span>
+          {visitorCount !== null && <span className="text-white/35">Visitor #{visitorCount.toLocaleString()}</span>}
         </div>
-        <div className="text-center space-y-2 pt-4 border-t border-white/[0.07] w-full">
-          <p className="text-sm text-white/55">
+        <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          {LINKS.map(({ href, label, icon }) => (
+            <a key={label} href={href} {...ext} className={linkCls}>
+              {icon}
+              {label}
+            </a>
+          ))}
+          <button type="button" onClick={onDonateClick} className={linkCls}>
+            <HandCoins className="w-3.5 h-3.5" />
+            Donate
+          </button>
+        </nav>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pt-5 border-t border-white/[0.05] text-xs">
+        <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1 text-white/40 sm:whitespace-nowrap">
+          <span>
             Maintained by{" "}
-            <a
-              href="https://instagram.com/edideaur"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/70 hover:text-white transition-colors underline underline-offset-2"
-            >
+            <a href="https://instagram.com/edideaur" {...ext} className={creditCls}>
               edideaur
             </a>
-          </p>
-          <p className="text-sm text-white/55">
+          </span>
+          <span>
             Originally by{" "}
-            <a
-              href="https://instagram.com/aledio.m"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/70 hover:text-white transition-colors underline underline-offset-2"
-            >
+            <a href="https://instagram.com/aledio.m" {...ext} className={creditCls}>
               JustAMZ
             </a>
-          </p>
-          <p className="text-sm text-white/55">
-            Original trackers are in{" "}
-            <a
-              href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/70 hover:text-white transition-colors underline underline-offset-2"
-            >
-              this Google Sheet
-            </a>
-            .
-          </p>
-          <p className="text-xs text-white/50">
-            We are not affiliated with TrackerHub or any of the artists mentioned.
-          </p>
-          {visitorCount !== null && (
-            <p className="text-sm text-white/50 pt-1">Visitor #{visitorCount.toLocaleString()}</p>
-          )}
+          </span>
+          <a
+            href="https://docs.google.com/spreadsheets/d/1XLlR7PnniA8WjLilQPu3Rhx1aLZ4MT2ysIeXp8XSYJA/htmlview"
+            {...ext}
+            className={creditCls}
+          >
+            Original sheet
+          </a>
         </div>
-        <div className="flex items-center gap-2 text-xs text-white/50 glass-flat rounded-xl px-4 py-2.5">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>ArtistGrid does not host any illegal content. All links point to third-party services.</span>
-        </div>
+        <Disclaimer className="sm:max-w-md sm:text-right" />
       </div>
     </footer>
   )

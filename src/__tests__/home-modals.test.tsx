@@ -1,14 +1,6 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnnouncementModal, InfoModal } from "@/components/home/modals";
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: true, configurable: true });
-  });
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: false, configurable: true });
-  });
-});
 describe("AnnouncementModal", () => {
   it("renders markdown headings and closes", () => {
     const onClose = vi.fn();

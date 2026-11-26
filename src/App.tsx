@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useMemo, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { PlayerProvider } from "./providers";
 import { SettingsProvider } from "@/hooks/use-settings";
@@ -58,17 +58,22 @@ function IframeNotice() {
     </div>
   );
 }
+function Boundary({ children }: { children: ReactNode }) {
+  return (
+    <ChunkErrorBoundary>
+      <Suspense fallback={null}>{children}</Suspense>
+    </ChunkErrorBoundary>
+  );
+}
 export function ShTrackerView() {
   const { trackerId, tabSlug } = useParams<{
     trackerId: string;
     tabSlug: string;
   }>();
   return (
-    <ChunkErrorBoundary>
-      <Suspense fallback={null}>
-        <View trackerId={trackerId || ""} initialTab={tabSlug} />
-      </Suspense>
-    </ChunkErrorBoundary>
+    <Boundary>
+      <View trackerId={trackerId || ""} initialTab={tabSlug} />
+    </Boundary>
   );
 }
 export default function App() {
@@ -85,32 +90,26 @@ export default function App() {
                 <Route
                   path="/"
                   element={
-                    <ChunkErrorBoundary>
-                      <Suspense fallback={null}>
-                        <Home />
-                      </Suspense>
-                    </ChunkErrorBoundary>
+                    <Boundary>
+                      <Home />
+                    </Boundary>
                   }
                 />
                 <Route
                   path="/view"
                   element={
-                    <ChunkErrorBoundary>
-                      <Suspense fallback={null}>
-                        <View />
-                      </Suspense>
-                    </ChunkErrorBoundary>
+                    <Boundary>
+                      <View />
+                    </Boundary>
                   }
                 />
                 <Route path="/sh/:trackerId/:tabSlug?" element={<ShTrackerView />} />
                 <Route
                   path="/donate"
                   element={
-                    <ChunkErrorBoundary>
-                      <Suspense fallback={null}>
-                        <Donate />
-                      </Suspense>
-                    </ChunkErrorBoundary>
+                    <Boundary>
+                      <Donate />
+                    </Boundary>
                   }
                 />
               </Route>
@@ -122,11 +121,9 @@ export default function App() {
             <Toaster />
             <IframeNotice />
             {settingsOpen ? (
-              <ChunkErrorBoundary>
-                <Suspense fallback={null}>
-                  <SettingsModal onClose={closeSettings} />
-                </Suspense>
-              </ChunkErrorBoundary>
+              <Boundary>
+                <SettingsModal onClose={closeSettings} />
+              </Boundary>
             ) : null}
           </PlayerProvider>
         </SettingsProvider>

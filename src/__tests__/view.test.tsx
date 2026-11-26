@@ -19,12 +19,6 @@ beforeAll(() => {
   window.HTMLMediaElement.prototype.pause = vi.fn();
   Object.defineProperty(window, "mediaSession", { configurable: true, value: { setActionHandler: vi.fn() } });
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: clipboardWrite } });
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: true, configurable: true });
-  });
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    Object.defineProperty(this, "open", { value: false, configurable: true });
-  });
 });
 
 const DIRECTORY =

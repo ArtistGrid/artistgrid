@@ -21,3 +21,12 @@ class LocalStorageMock {
   }
 }
 globalThis.localStorage = new LocalStorageMock() as unknown as Storage;
+
+if (typeof HTMLDialogElement !== "undefined") {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+}

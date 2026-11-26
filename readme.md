@@ -1,5 +1,18 @@
 # ArtistGrid
 
+## Development
+
+```sh
+npm ci
+npm run dev        # Vite dev server with HMR on :5173
+npm test           # unit tests (Vitest)
+npm run test:e2e   # Playwright, starts its own dev server
+```
+
+The app talks to the live tracker API and artist directory, so no backend or
+`.env` is needed. Pages Functions (bot rendering, sitemap) only run under
+`npm run build && npm run dev:pages`.
+
 ## Cloudflare Pages
 
 `npm run build` runs the tests, builds the React app, and compiles the Pages

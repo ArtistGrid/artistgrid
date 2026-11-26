@@ -14,12 +14,11 @@ import {
 import { readResponseText, withDeadline } from '../src/lib/request';
 import { parseTrackerLink, trackerPath } from '../src/lib/tracker-route';
 import { ASSETS_ORIGIN, SITE_ORIGIN, cleanTabName, trackerCanonicalUrl } from '../src/lib/seo';
+import { ARTISTS_CSV } from '../src/lib/home-constants';
 
 export const BOT_RE =
   /discordbot|twitterbot|facebookexternalhit|bingbot|googlebot|slurp|whatsapp|pinterest|slackbot|telegrambot|linkedinbot|mastodon|signal|snapchat|redditbot|skypeuripreview|viberbot|linebot|embedly|quora|outbrain|tumblr|duckduckbot|yandexbot|rogerbot|showyoubot|kakaotalk|naverbot|seznambot|mediapartners|adsbot|petalbot|applebot|ia_archiver|curl|wget|bytespider/i;
 
-const ARTISTS_CSV_URL = 'https://artists.artistgrid.cx/artists.csv';
-const ASSETS_BASE = ASSETS_ORIGIN;
 const API_BASE = 'https://trackerapi.artistgrid.cx';
 
 export function escapeHtml(s) {
@@ -43,7 +42,7 @@ export async function loadArtistsData(signal) {
     const fresh = await withDeadline(
       ARTIST_DIRECTORY_TIMEOUT,
       async (directorySignal) => {
-        const res = await fetch(ARTISTS_CSV_URL, {
+        const res = await fetch(ARTISTS_CSV, {
           signal: directorySignal,
           cf: { cacheTtlByStatus: { '200-299': 86400, '400-599': -1 } },
         });
@@ -93,6 +92,14 @@ function trackDuration(value) {
   const [minutes, seconds] = value.split(':').map(Number);
   const total = minutes * 60 + seconds;
   return Number.isSafeInteger(total) && total > 0 ? `PT${total}S` : '';
+}
+
+export const isBot = (request) => BOT_RE.test(request.headers.get('User-Agent') || '');
+
+export async function serveSpaShell({ request, env }) {
+  const url = new URL(request.url);
+  url.pathname = '/';
+  return documentResponse(await env.ASSETS.fetch(new Request(url, request)));
 }
 
 export function documentResponse(response) {
@@ -205,7 +212,7 @@ function renderTrackerPage({
   const canonicalTab = tabSlug ? (validTabSlug(apiData?.tab?.slug) ? apiData.tab.slug : tabSlug) : '';
   const pageUrl = tabUrl(canonicalTab);
   const imageFilename = getImageFilename(effectiveArtist);
-  const imageUrl = `${ASSETS_BASE}/webp/${imageFilename}`;
+  const imageUrl = `${ASSETS_ORIGIN}/webp/${imageFilename}`;
 
   const datesByEra = new Map();
   for (const date of Array.isArray(apiData?.era_dates) ? apiData.era_dates : []) {

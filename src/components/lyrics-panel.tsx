@@ -18,6 +18,9 @@ interface AmLyricsElement extends HTMLElement {
   fetchLyrics(): Promise<void>;
 }
 const lrclibClient = new Client();
+const compactSheet =
+  typeof CSSStyleSheet !== "undefined" && "replaceSync" in CSSStyleSheet.prototype ? new CSSStyleSheet() : null;
+compactSheet?.replaceSync(".lyrics-container { padding: 4px 16px 16px; } .lyrics-header { padding: 6px 0; }");
 function buildQuery(name: string, artist: string, extra?: string): string {
   const clean = (s: string) =>
     s
@@ -86,7 +89,9 @@ export const LyricsPanel = memo(function LyricsPanel() {
     if (!currentTrack) return;
     setTtml(null);
     const artist = currentTrack.artistName || "Unknown";
-    fetchFromLRCLIB(currentTrack.name, artist).then(setTtml).catch(() => {});
+    fetchFromLRCLIB(currentTrack.name, artist)
+      .then(setTtml)
+      .catch(() => {});
   }, [currentTrack]);
   useEffect(() => {
     const el = ref.current;
@@ -109,6 +114,12 @@ export const LyricsPanel = memo(function LyricsPanel() {
     if (!el) return;
     el.currentTime = Math.floor(currentTime * 1000);
   }, [currentTime]);
+  useEffect(() => {
+    const root = ref.current?.shadowRoot;
+    if (root?.adoptedStyleSheets && compactSheet && !root.adoptedStyleSheets.includes(compactSheet)) {
+      root.adoptedStyleSheets = [...root.adoptedStyleSheets, compactSheet];
+    }
+  }, []);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

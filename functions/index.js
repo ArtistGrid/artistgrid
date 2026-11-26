@@ -1,12 +1,11 @@
 import { getDirectTrackerId } from '../src/lib/artists';
 import { HOME_DESCRIPTION, HOME_TITLE, SITE_ORIGIN, trackerCanonicalUrl } from '../src/lib/seo';
 import { withDeadline } from '../src/lib/request';
-import { BOT_RE, documentResponse, escapeHtml, loadArtistsData } from './_bot-renderer.js';
+import { escapeHtml, isBot, loadArtistsData, serveSpaShell } from './_bot-renderer.js';
 import { renderSitePage } from './_site-renderer.js';
 
 export async function onRequest(context) {
-  const { request, env } = context;
-  if (!BOT_RE.test(request.headers.get('User-Agent') || '')) return documentResponse(await env.ASSETS.fetch(request));
+  if (!isBot(context.request)) return serveSpaShell(context);
   try {
     const artists = await withDeadline(3500, (signal) => loadArtistsData(signal));
     const seen = new Set();

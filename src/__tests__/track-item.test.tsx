@@ -1,13 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import {
-  PlayButton,
-  PauseButton,
-  OpenLinkButton,
-  TrackDescription,
-  FallbackView,
-} from "@/components/view/track-item";
+import { PlayButton, PauseButton, OpenLinkButton, TrackDescription, FallbackView } from "@/components/view/track-item";
 describe("track-item buttons", () => {
   it("PlayButton calls onPlay", () => {
     const onPlay = vi.fn();

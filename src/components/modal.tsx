@@ -1,12 +1,14 @@
 import { type ReactNode, type FC, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 export const Modal: FC<{
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
   ariaLabel: string;
-}> = ({ isOpen, onClose, children, ariaLabel }) => {
+  className?: string;
+}> = ({ isOpen, onClose, children, ariaLabel, className }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -46,7 +48,12 @@ export const Modal: FC<{
         aria-hidden="true"
       />
       <div className="relative z-10 flex items-center justify-center w-full h-full p-4">
-        <div className="glass-elevated rounded-2xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95 duration-200">
+        <div
+          className={cn(
+            "glass-elevated rounded-2xl w-full max-w-md relative animate-in fade-in-0 zoom-in-95 duration-200",
+            className
+          )}
+        >
           <Button
             variant="ghost"
             size="icon"

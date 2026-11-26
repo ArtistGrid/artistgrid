@@ -9,11 +9,7 @@ function installStaleAssetRecovery() {
     reloadOnStaleError(event.message || "");
   });
   window.addEventListener("unhandledrejection", (event) => {
-    const reason = event.reason as
-      | {
-          message?: string;
-        }
-      | undefined;
+    const reason = event.reason as { message?: string } | undefined;
     reloadOnStaleError(reason?.message ?? String(reason ?? ""));
   });
 }
@@ -21,25 +17,10 @@ installStaleAssetRecovery();
 function initSentry() {
   import("./lib/error-monitoring").then(({ initErrorMonitoring }) => initErrorMonitoring()).catch(() => {});
 }
-if (
-  typeof (
-    window as {
-      requestIdleCallback?: unknown;
-    }
-  ).requestIdleCallback === "function"
-) {
-  (
-    window as unknown as {
-      requestIdleCallback: (
-        cb: (deadline: IdleDeadline) => void,
-        opts: {
-          timeout: number;
-        }
-      ) => number;
-    }
-  ).requestIdleCallback(initSentry, { timeout: 5000 });
+if ("requestIdleCallback" in window) {
+  requestIdleCallback(initSentry, { timeout: 5000 });
 } else {
-  window.addEventListener("load", () => setTimeout(initSentry, 1500));
+  addEventListener("load", () => setTimeout(initSentry, 1500));
 }
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
