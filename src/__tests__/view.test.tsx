@@ -170,7 +170,9 @@ describe("artist-name tracker routes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Load" }));
     await screen.findByRole("heading", { name: "Frank Ocean" });
     expect(screen.getByTestId("route-location")).toHaveTextContent("/sh/franktracker.net/");
-    expect(fetch).toHaveBeenCalledWith("https://trackerapi.artistgrid.cx/sh/franktracker.net/", expect.any(Object));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith("https://trackerapi.artistgrid.cx/sh/franktracker.net/", expect.any(Object))
+    );
   });
 
   it("can retry a failed name lookup using Load without navigating away", async () => {

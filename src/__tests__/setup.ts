@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+configure({ asyncUtilTimeout: 5000 });
 class LocalStorageMock {
   private store: Record<string, string> = {};
   get length() {
